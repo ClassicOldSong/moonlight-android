@@ -465,7 +465,7 @@
     <string name="title_checkbox_enable_sticky_modifier_key_virtual_keyboard">Sticky modifier keys</string>
     <string name="summary_checkbox_enable_sticky_modifier_key_virtual_keyboard">Use sticky modifier keys on virtual full keyboard.</string>
     <string name="virtual_keyboard_hide">Hide\nKBD</string>
-    <string name="mouse_mode_multi_touch">Mluti touch</string>
+    <string name="mouse_mode_multi_touch">Multi touch</string>
     <string name="mouse_mode_absolute_touch">Absolute touch</string>
     <string name="mouse_mode_track_pad_natural">Track pad(Natural/Double tap to drag)</string>
     <string name="mouse_mode_track_pad_gaming">Track pad(Gaming/Long press to drag)</string>
