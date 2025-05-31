@@ -17,6 +17,7 @@ import com.limelight.binding.input.touch.TrackpadContext;
 import com.limelight.binding.input.virtual_controller.VirtualController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
+import com.limelight.binding.input.virtual_controller.keyboard.FloatingModifierKeysController;
 import com.limelight.binding.video.CrashListener;
 import com.limelight.binding.video.MediaCodecDecoderRenderer;
 import com.limelight.binding.video.MediaCodecHelper;
@@ -144,6 +145,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private VirtualController virtualController;
 
     private KeyBoardController keyBoardController;
+
+    private FloatingModifierKeysController floatingModifierKeysController;
 
     private KeyBoardLayoutController keyBoardLayoutController;
 
@@ -777,6 +780,13 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             return;
         }
         keyBoardController.toggleVisibility();
+    }
+
+    public void toggleFloatingModifierKeys() {
+        if (floatingModifierKeysController == null) {
+            floatingModifierKeysController = new FloatingModifierKeysController(conn, (FrameLayout)rootView, this);
+        }
+        floatingModifierKeysController.toggle();
     }
 
     public void showHidekeyBoardLayoutController(){

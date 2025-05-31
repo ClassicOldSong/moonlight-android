@@ -307,8 +307,12 @@ public class GameMenu implements Game.GameMenuCallbacks {
 
         options.add(new MenuOption(getString(R.string.game_menu_toggle_virtual_model), true,
                 game::showHideVirtualController));
+
         options.add(new MenuOption(getString(R.string.game_menu_toggle_virtual_keyboard_model), true,
                 game::showHidekeyBoardLayoutController));
+
+        options.add(new MenuOption(getString(R.string.game_menu_toggle_floating_modifier_keys), true,
+                game::toggleFloatingModifierKeys));
 
         options.add(new MenuOption(getString(R.string.game_menu_task_manager), true,
                 () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_ESCAPE})));
