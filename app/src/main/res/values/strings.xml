@@ -357,10 +357,6 @@
     <string name="game_menu_toggle_virtual_keyboard_model">Toggle On-screen full keyboard</string>
     <string name="game_menu_switch_touch_sensitivity_model">Switch touch sensitivity</string>
     <string name="game_menu_toggle_floating_modifier_keys">Toggle Floating Modifier Keys</string>
-    <string name="title_checkbox_show_floating_modifier_keys">Show floating modifier keys</string>
-    <string name="summary_checkbox_show_floating_modifier_keys">Show floating Ctrl, Alt, Shift keys overlay on touchscreen</string>
-    <string name="title_floating_modifier_keys_opacity">Floating Modifier Keys Opacity</string>
-    <string name="summary_floating_modifier_keys_opacity">Adjust the opacity of floating modifier keys</string>
 
 
     <string name="game_menu_toggle_mouse_on">Enable Controller Mouse Emulation</string>
