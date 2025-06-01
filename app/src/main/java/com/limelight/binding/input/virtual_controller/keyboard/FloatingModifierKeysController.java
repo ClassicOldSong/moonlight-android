@@ -2,6 +2,7 @@ package com.limelight.binding.input.virtual_controller.keyboard;
 
 import android.content.Context;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -21,10 +22,13 @@ public class FloatingModifierKeysController {
     private LinearLayout modifierKeysView;
     private boolean shown = false;
     private byte modifierState = 0;
+    private float dX, dY;
 
     private Button ctrlButton;
     private Button altButton;
     private Button shiftButton;
+    private Button leftHandle;
+    private Button rightHandle;
 
     public FloatingModifierKeysController(NvConnection conn, FrameLayout layout, Context context) {
         this.context = context;
@@ -35,17 +39,62 @@ public class FloatingModifierKeysController {
         createModifierKeysView();
     }
 
+    private Button createHandleButton() {
+        Button handle = new Button(context);
+        handle.setText("");
+        handle.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        handle.setMinWidth(0);
+        handle.setMinHeight(0);
+        handle.setPadding(2, 0, 2, 0);
+        
+        int defaultHeight = context.getResources().getDimensionPixelSize(android.R.dimen.app_icon_size);
+        int reducedHeight = (int)(defaultHeight * 0.7);
+        
+        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(
+                10,
+                reducedHeight
+        );
+        handleParams.setMargins(0, 0, 0, 0);
+        handle.setLayoutParams(handleParams);
+
+        handle.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    dX = modifierKeysView.getX() - event.getRawX();
+                    dY = modifierKeysView.getY() - event.getRawY();
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    modifierKeysView.setX(event.getRawX() + dX);
+                    modifierKeysView.setY(event.getRawY() + dY);
+                    return true;
+                default:
+                    return false;
+            }
+        });
+
+        return handle;
+    }
+
     private void createModifierKeysView() {
         modifierKeysView = new LinearLayout(context);
         modifierKeysView.setOrientation(LinearLayout.HORIZONTAL);
+        
+        leftHandle = createHandleButton();
+        Button middleHandle1 = createHandleButton();
+        Button middleHandle2 = createHandleButton();
+        rightHandle = createHandleButton();
         
         ctrlButton = createModifierButton("Ctrl", (short)KeyboardTranslator.VK_LCONTROL);
         altButton = createModifierButton("Alt", (short)KeyboardTranslator.VK_LMENU);
         shiftButton = createModifierButton("Shift", (short)KeyboardTranslator.VK_LSHIFT);
 
+        modifierKeysView.addView(leftHandle);
         modifierKeysView.addView(ctrlButton);
+        modifierKeysView.addView(middleHandle1);
         modifierKeysView.addView(altButton);
+        modifierKeysView.addView(middleHandle2);
         modifierKeysView.addView(shiftButton);
+        modifierKeysView.addView(rightHandle);
 
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -68,26 +117,25 @@ public class FloatingModifierKeysController {
         button.setMinHeight(0);
         button.setPadding(10, 5, 10, 5);
         
-        // Get default button height and reduce it by 30%
         int defaultHeight = context.getResources().getDimensionPixelSize(android.R.dimen.app_icon_size);
-        int reducedHeight = (int)(defaultHeight * 0.7); // Reduce height by 30%
+        int reducedHeight = (int)(defaultHeight * 0.7);
+        int defaultWidth = context.getResources().getDimensionPixelSize(android.R.dimen.app_icon_size);
+        int reducedWidth = (int)(defaultWidth * 0.9);
         
         LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                reducedHeight // Set fixed reduced height
+                reducedWidth,
+                reducedHeight
         );
-        buttonParams.setMargins(2, 0, 2, 0);
+        buttonParams.setMargins(0, 0, 0, 0);
         button.setLayoutParams(buttonParams);
 
         button.setOnClickListener(v -> {
             byte modifier = getModifierForKey(keyCode);
             if ((modifierState & modifier) != 0) {
-                // Key is active, deactivate it
                 modifierState &= ~modifier;
                 button.setAlpha(0.7f);
                 conn.sendKeyboardInput(keyCode, KeyboardPacket.KEY_UP, (byte)modifierState, (byte)0);
             } else {
-                // Key is inactive, activate it
                 modifierState |= modifier;
                 button.setAlpha(1.0f);
                 conn.sendKeyboardInput(keyCode, KeyboardPacket.KEY_DOWN, (byte)modifierState, (byte)0);
