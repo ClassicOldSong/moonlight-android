@@ -328,4 +328,9 @@ public class RelativeTouchContext implements TouchContext {
             maxPointerCountInGesture = pointerCount;
         }
     }
+
+    @Override
+    public boolean isConfirmedMove() {
+        return confirmedMove;
+    }
 }

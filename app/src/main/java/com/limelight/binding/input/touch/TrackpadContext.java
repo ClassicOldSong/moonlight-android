@@ -311,7 +311,7 @@ public class TrackpadContext implements TouchContext {
             int absDeltaY = Math.abs(rawDeltaY);
 
             double magnitude = Math.sqrt(rawDeltaX * rawDeltaX + rawDeltaY * rawDeltaY);
-            double precisionMultiplier = Math.cbrt(magnitude / ACCELERATION_THRESHOLD);
+            double precisionMultiplier = 1.0; // Disable acceleration for consistent movement
 
             float deltaX, deltaY;
             if (swapAxis) {
@@ -338,9 +338,9 @@ public class TrackpadContext implements TouchContext {
                     velocityX = currentVelocityX;
                     velocityY = currentVelocityY;
                 } else {
-                    // Simple EMA for smoothing
-                    velocityX = velocityX * 0.8 + currentVelocityX * 0.2;
-                    velocityY = velocityY * 0.8 + currentVelocityY * 0.2;
+                    // Direct velocity assignment for immediate response (no smoothing)
+                    velocityX = currentVelocityX;
+                    velocityY = currentVelocityY;
                 }
             }
 
@@ -464,5 +464,10 @@ public class TrackpadContext implements TouchContext {
 
     private void checkForConfirmedScroll() {
         confirmedScroll = (actionIndex == 1 && pointerCount == 2 && confirmedMove);
+    }
+
+    @Override
+    public boolean isConfirmedMove() {
+        return confirmedMove;
     }
 }
