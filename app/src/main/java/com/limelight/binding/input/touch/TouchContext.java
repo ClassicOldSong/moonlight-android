@@ -8,4 +8,6 @@ public interface TouchContext {
     void touchUpEvent(int eventX, int eventY, long eventTime);
     void cancelTouch();
     boolean isCancelled();
+
+    boolean isConfirmedMove();
 }
