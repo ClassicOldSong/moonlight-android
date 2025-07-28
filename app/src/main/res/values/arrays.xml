@@ -170,6 +170,7 @@
         <item>@string/mouse_mode_track_pad_gaming</item>
         <item>@string/mouse_mode_disabled</item>
         <item>@string/mouse_mode_absolute_touch_swapped</item>
+        <item>@string/mouse_mode_right_stick</item>
     </string-array>
     <string-array name="mouse_mode_values" translatable="false">
         <item>0</item>
@@ -177,6 +178,8 @@
         <item>2</item>
         <item>3</item>
         <item>4</item>
+        <item>5</item>
+        <item>6</item>
         <item>5</item>
     </string-array>
 

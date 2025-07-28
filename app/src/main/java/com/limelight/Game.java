@@ -21,6 +21,7 @@ import com.limelight.binding.video.CrashListener;
 import com.limelight.binding.video.MediaCodecDecoderRenderer;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.binding.video.PerfOverlayListener;
+import com.limelight.LimeLog;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.NvConnectionListener;
 import com.limelight.nvstream.StreamConfiguration;
@@ -2537,12 +2538,34 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         int eventSource = event.getSource();
         int deviceSources = event.getDevice() != null ? event.getDevice().getSources() : 0;
+        
+        // Enhanced debug logging for all motion events
+        if (event.getDevice() != null) {
+            String deviceName = event.getDevice().getName();
+            LimeLog.info("Game: Motion event - device=" + deviceName + 
+                " eventSource=0x" + Integer.toHexString(eventSource) + 
+                " deviceSources=0x" + Integer.toHexString(deviceSources) + 
+                " action=" + event.getActionMasked());
+        }
+        
         if ((eventSource & InputDevice.SOURCE_CLASS_JOYSTICK) != 0) {
             if (controllerHandler.handleMotionEvent(event)) {
                 return true;
             }
         }
         else if ((deviceSources & InputDevice.SOURCE_CLASS_JOYSTICK) != 0 && controllerHandler.tryHandleTouchpadEvent(event)) {
+            LimeLog.info("Game: Routing to touchpad handler (joystick device)");
+            return true;
+        }
+        else if ((eventSource & InputDevice.SOURCE_TOUCHPAD) != 0 && controllerHandler.tryHandleTouchpadEvent(event)) {
+            LimeLog.info("Game: Routing to touchpad handler (SOURCE_TOUCHPAD)");
+            return true;
+        }
+        else if (event.getDevice() != null && 
+                 event.getDevice().getName() != null && 
+                 event.getDevice().getName().toLowerCase().contains("touchpad") && 
+                 controllerHandler.tryHandleTouchpadEvent(event)) {
+            LimeLog.info("Game: Routing to touchpad handler (device name match)");
             return true;
         }
         else if ((eventSource & InputDevice.SOURCE_CLASS_POINTER) != 0 ||
@@ -2840,6 +2863,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                                     virtualController.getControllerMode() == VirtualController.ControllerMode.ResizeButtons)) {
                         // Ignore presses when the virtual controller is being configured
                         return true;
+                    }
+
+                    // Special handling for mode 6: touchscreen as right stick
+                    if (prefConfig.touchpadAsStick) {
+                        LimeLog.info("Game: Routing touchscreen to touchpad handler for right stick mode - event action: " + event.getActionMasked());
+                        LimeLog.info("Game: touchpadAsStick = " + prefConfig.touchpadAsStick + ", event source: " + event.getSource());
+                        boolean result = controllerHandler.tryHandleTouchpadEvent(event, view, streamView);
+                        LimeLog.info("Game: tryHandleTouchpadEvent returned: " + result);
+                        return result;
                     }
 
                     if (isPanZoomMode) {
@@ -3789,6 +3821,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 break;
             case 4: // Touch mouse disabled
                 break;
+            case 6: // Right stick mode
+                prefConfig.enableMultiTouchScreen = false;
+                prefConfig.touchscreenTrackpad = false;
+                prefConfig.touchpadAsStick = true;
+                break;
             default:
                 break;
         }
@@ -3798,6 +3835,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             if (touchContextMap[i] != null) touchContextMap[i].cancelTouch();
             if (mode == 4) {
                 // Touch mouse disabled
+                touchContextMap[i] = null;
+            } else if (mode == 6) {
+                // Touchpad as right stick mode - handled directly by ControllerHandler
                 touchContextMap[i] = null;
             } else if (!prefConfig.touchscreenTrackpad) {
                 touchContextMap[i] = new AbsoluteTouchContext(conn, i, streamView, mode == 5);

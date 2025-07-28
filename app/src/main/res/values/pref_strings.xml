@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Strings for the touchpad as stick setting -->
+    <string name="category_input_settings">Input Settings</string>
+    <string name="checkbox_touchpad_as_stick_title">Use Touchpad as Right Stick</string>
+    <string name="checkbox_touchpad_as_stick_summary">Maps controller touchpad movements to the right analog stick</string>
+</resources>
