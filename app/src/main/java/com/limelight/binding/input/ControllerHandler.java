@@ -579,8 +579,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         context.productId = device.getProductId();
 
         context.leftStickDeadzoneRadius = 0.01f; // Reduced deadzone for smoother left stick
-        context.rightStickDeadzoneRadius = (float) stickDeadzone;
-        context.triggerDeadzone = 0.13f;
+        context.rightStickDeadzoneRadius = 0.01f; // Reduced deadzone for better USB controller responsiveness
+        context.triggerDeadzone = 0.10f; // Reduced trigger deadzone from 0.13f to 0.10f for better sensitivity
 
         return context;
     }
@@ -1806,49 +1806,41 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 normalizedX, normalizedY, normalizedPressure) != MoonBridge.LI_ERR_UNSUPPORTED;
     }
 
-    // Relative touchpad handling - behaves like a real gaming touchpad
+    // Advanced touchpad tracking - adaptive sensitivity with spin prevention
     private boolean touchpadTracking = false;
     private float touchpadLastX = 0, touchpadLastY = 0;
-    private float touchpadCurrentX = 0, touchpadCurrentY = 0;
-    private static final float TOUCHPAD_SENSITIVITY = 12.0f; // Ultra-high sensitivity for maximum responsiveness
-    private static final float TOUCHPAD_DECAY = 0.95f; // Minimal decay for sustained movement
-    private static final long TOUCHPAD_PACKET_INTERVAL = 8; // 8ms between packets (120Hz)
-    private long lastTouchpadPacketTime = 0;
+    private float accumulatedStickX = 0, accumulatedStickY = 0;  // Accumulated right stick position
+    private static final float TOUCHPAD_SENSITIVITY_BASE = 25.0f; // Base sensitivity 12
+    private static final float TOUCHPAD_SENSITIVITY_MAX = 25.0f; // Max sensitivity for fast movements 20
+    private static final float TOUCHPAD_DEADZONE = 0.000001f; // Minimal deadzone
+    private long lastTouchpadTime = 0; // For velocity calculation
+    private float lastDeltaMagnitude = 0; // For acceleration detection
 
     // Overloaded method for touchscreen events with view information
     public boolean tryHandleTouchpadEvent(MotionEvent event, android.view.View parentView, android.view.View streamView) {
-        LimeLog.info("ControllerHandler: tryHandleTouchpadEvent with 3 params called - action: " + event.getActionMasked());
-        
-        // Get or create a context for this event
+        // Ultra-fast processing - minimal logging for lowest latency
         InputDeviceContext context = getContextForEvent(event);
         if (context == null) {
-            LimeLog.warning("ControllerHandler: No context found for touchscreen event");
             return false;
         }
 
-        LimeLog.info("ControllerHandler: Using context - controller number: " + context.controllerNumber + ", assigned: " + context.assignedControllerNumber);
-
-        // For touchscreen events, normalize coordinates relative to stream view
+        // Fast coordinate normalization
         float normalizedX = event.getX(0);
         float normalizedY = event.getY(0);
         
-        // For the containing background view, we must subtract the origin
-        // of the StreamView to get video-relative coordinates.
+        // Quick coordinate adjustment for stream view
         if (parentView != streamView) {
             normalizedX = normalizedX - streamView.getX();
             normalizedY = normalizedY - streamView.getY();
         }
 
+        // Fast clamping and normalization
         normalizedX = Math.max(normalizedX, 0.0f);
         normalizedY = Math.max(normalizedY, 0.0f);
-
         normalizedX = Math.min(normalizedX, streamView.getWidth());
         normalizedY = Math.min(normalizedY, streamView.getHeight());
-
         normalizedX /= streamView.getWidth();
         normalizedY /= streamView.getHeight();
-
-        LimeLog.info("ControllerHandler: Normalized coords: " + normalizedX + ", " + normalizedY);
 
         return processTouchpadInput(event, normalizedX, normalizedY);
     }
@@ -1920,64 +1912,93 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 leftTrigger, rightTrigger,
                 leftStickX, leftStickY,
                 rightStickX, rightStickY);
-                
-        LimeLog.info("ControllerHandler: Sent isolated touchpad packet - left: " + leftStickX + "," + leftStickY + " right: " + rightStickX + "," + rightStickY);
     }
 
     private boolean processTouchpadInput(MotionEvent event, float normalizedX, float normalizedY) {
-        LimeLog.info("ControllerHandler: processTouchpadInput called - action: " + event.getActionMasked() + ", coords: " + normalizedX + ", " + normalizedY);
         
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
                 if (event.getActionIndex() == 0) {
-                    LimeLog.info("ControllerHandler: Touchpad tracking started");
                     touchpadTracking = true;
                     touchpadLastX = normalizedX;
                     touchpadLastY = normalizedY;
-                    touchpadCurrentX = 0;
-                    touchpadCurrentY = 0;
+                    // Reset accumulation when starting new touch to prevent spinning
+                    accumulatedStickX = 0;
+                    accumulatedStickY = 0;
+                    // Reset timing variables
+                    lastTouchpadTime = System.nanoTime();
+                    lastDeltaMagnitude = 0;
                 }
                 break;
 
             case MotionEvent.ACTION_MOVE:
                 if (touchpadTracking) {
-                    // Calculate relative movement delta
+                    // Calculate movement delta and timing
+                    long currentTime = System.nanoTime();
                     float deltaX = normalizedX - touchpadLastX;
                     float deltaY = normalizedY - touchpadLastY;
+                    float deltaMagnitude = (float)Math.sqrt(deltaX * deltaX + deltaY * deltaY);
                     
-                    LimeLog.info("ControllerHandler: Movement delta: " + deltaX + ", " + deltaY);
-                    
-                    // Direct ultra-responsive movement calculation
-                    touchpadCurrentX += deltaX * TOUCHPAD_SENSITIVITY;
-                    touchpadCurrentY += deltaY * TOUCHPAD_SENSITIVITY;
-                    
-                    // Apply minimal decay only when moving very slowly
-                    if (Math.abs(deltaX) < 0.01f && Math.abs(deltaY) < 0.01f) {
-                        touchpadCurrentX *= TOUCHPAD_DECAY;
-                        touchpadCurrentY *= TOUCHPAD_DECAY;
+                    // Calculate adaptive sensitivity based on movement speed and acceleration
+                    float sensitivity = TOUCHPAD_SENSITIVITY_BASE;
+                    if (lastTouchpadTime > 0) {
+                        long deltaTime = currentTime - lastTouchpadTime;
+                        if (deltaTime > 0) {
+                            float velocity = deltaMagnitude / (deltaTime / 1000000000.0f); // pixels per second
+                            float acceleration = Math.abs(deltaMagnitude - lastDeltaMagnitude);
+                            
+                            // Increase sensitivity for fast movements (up to 2.5x)
+                            float velocityBoost = Math.min(2.5f, 1.0f + velocity * 0.5f);
+                            // Slight boost for acceleration (sudden direction changes)
+                            float accelBoost = Math.min(1.3f, 1.0f + acceleration * 10.0f);
+                            
+                            sensitivity = Math.min(TOUCHPAD_SENSITIVITY_MAX, 
+                                    TOUCHPAD_SENSITIVITY_BASE * velocityBoost * accelBoost);
+                        }
                     }
                     
-                    // Hard clamp to stick range for immediate response
-                    touchpadCurrentX = Math.max(-1.0f, Math.min(1.0f, touchpadCurrentX));
-                    touchpadCurrentY = Math.max(-1.0f, Math.min(1.0f, touchpadCurrentY));
+                    // High-frequency packet sending for ultra-low latency
+                    boolean hasMovement = Math.abs(deltaX) > TOUCHPAD_DEADZONE || Math.abs(deltaY) > TOUCHPAD_DEADZONE;
                     
-                    LimeLog.info("ControllerHandler: Current touchpad values: " + touchpadCurrentX + ", " + touchpadCurrentY);
+                    if (hasMovement) {
+                        // Apply movement to accumulated position with adaptive sensitivity
+                        float moveX = deltaX * sensitivity;
+                        float moveY = deltaY * sensitivity;
+                        
+                        // Enhanced decay system - stronger decay for larger accumulated values
+                        float decayFactor = 0.95f;
+                        float accumulatedMagnitude = (float)Math.sqrt(accumulatedStickX * accumulatedStickX + accumulatedStickY * accumulatedStickY);
+                        if (accumulatedMagnitude > 0.5f) {
+                            // Increase decay for large accumulated values to prevent spinning
+                            decayFactor = Math.max(0.85f, 0.95f - (accumulatedMagnitude - 0.5f) * 0.2f);
+                        }
+                        
+                        // Add to accumulated position with adaptive decay
+                        accumulatedStickX = accumulatedStickX * decayFactor + moveX;
+                        accumulatedStickY = accumulatedStickY * decayFactor + moveY;
+                        
+                        // Clamp to valid stick range to prevent overflow
+                        accumulatedStickX = Math.max(-1.0f, Math.min(1.0f, accumulatedStickX));
+                        accumulatedStickY = Math.max(-1.0f, Math.min(1.0f, accumulatedStickY));
+                    } else {
+                        // Apply stronger decay when not moving for quicker centering
+                        accumulatedStickX *= 0.90f;
+                        accumulatedStickY *= 0.90f;
+                    }
                     
-                    // Update last position for next delta calculation
+                    // Convert to stick values
+                    short rightStickX = (short)(accumulatedStickX * 0x7FFE);
+                    short rightStickY = (short)(-accumulatedStickY * 0x7FFE);
+                    
+                    // Send packet every frame for maximum responsiveness (high packet rate)
+                    sendTouchpadControllerPacket(rightStickX, rightStickY);
+                    
+                    // Update tracking variables
                     touchpadLastX = normalizedX;
                     touchpadLastY = normalizedY;
-                    
-                    // Send isolated touchpad packet to prevent left stick interference
-                    long currentTime = System.currentTimeMillis();
-                    if (currentTime - lastTouchpadPacketTime >= TOUCHPAD_PACKET_INTERVAL) {
-                        short rightStickX = (short)(touchpadCurrentX * 0x7FFE);
-                        short rightStickY = (short)(-touchpadCurrentY * 0x7FFE); // Invert Y
-                        
-                        sendTouchpadControllerPacket(rightStickX, rightStickY);
-                        lastTouchpadPacketTime = currentTime;
-                        LimeLog.info("ControllerHandler: Sent isolated touchpad packet");
-                    }
+                    lastTouchpadTime = currentTime;
+                    lastDeltaMagnitude = deltaMagnitude;
                 }
                 break;
 
@@ -1985,16 +2006,35 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             case MotionEvent.ACTION_POINTER_UP:
             case MotionEvent.ACTION_CANCEL:
                 if (event.getActionIndex() == 0) {
-                    LimeLog.info("ControllerHandler: Touchpad tracking stopped");
                     touchpadTracking = false;
                     
-                    // Immediate responsive stop for maximum gaming performance
-                    touchpadCurrentX = 0;
-                    touchpadCurrentY = 0;
-                    
-                    // Send isolated stop packet to prevent left stick interference
-                    sendTouchpadControllerPacket((short)0, (short)0);
-                    LimeLog.info("ControllerHandler: Sent isolated touchpad stop packet");
+                    // Gradual centering instead of immediate reset for smoother feel
+                    // Send a few decay frames to smoothly return to center
+                    new Thread(() -> {
+                        try {
+                            for (int i = 0; i < 5 && (Math.abs(accumulatedStickX) > 0.01f || Math.abs(accumulatedStickY) > 0.01f); i++) {
+                                accumulatedStickX *= 0.7f; // Faster decay during release
+                                accumulatedStickY *= 0.7f;
+                                
+                                short rightStickX = (short)(accumulatedStickX * 0x7FFE);
+                                short rightStickY = (short)(-accumulatedStickY * 0x7FFE);
+                                sendTouchpadControllerPacket(rightStickX, rightStickY);
+                                
+                                Thread.sleep(4); // 8ms between decay frames (~120fps decay)
+                            }
+                            
+                            // Final center
+                            accumulatedStickX = 0;
+                            accumulatedStickY = 0;
+                            sendTouchpadControllerPacket((short)0, (short)0);
+                            
+                        } catch (InterruptedException e) {
+                            // Reset immediately if interrupted
+                            accumulatedStickX = 0;
+                            accumulatedStickY = 0;
+                            sendTouchpadControllerPacket((short)0, (short)0);
+                        }
+                    }).start();
                 }
                 break;
         }
