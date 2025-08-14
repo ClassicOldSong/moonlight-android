@@ -19,6 +19,7 @@ public class AbsoluteTouchContext implements TouchContext {
     private boolean cancelled;
     private boolean confirmedLongPress;
     private boolean confirmedTap;
+    private boolean confirmedMove;
     
     private final byte buttonPrimary;
     private final byte buttonSecondary;
@@ -93,8 +94,16 @@ public class AbsoluteTouchContext implements TouchContext {
     }
 
     @Override
+    public boolean isConfirmedMove() {
+        return confirmedMove;
+    }
+
+    @Override
     public boolean touchDownEvent(int eventX, int eventY, long eventTime, boolean isNewFinger)
     {
+        // Reset movement state on new touch
+        confirmedMove = false;
+        
         if (!isNewFinger) {
             // We don't handle finger transitions for absolute mode
             return true;
@@ -212,16 +221,19 @@ public class AbsoluteTouchContext implements TouchContext {
             if (distanceExceeds(eventX - lastTouchDownX, eventY - lastTouchDownY, LONG_PRESS_DISTANCE_THRESHOLD)) {
                 // Moved too far since touch down. Cancel the long press timer.
                 cancelLongPressTimer();
+                // Moving beyond the long press threshold confirms movement
+                confirmedMove = true;
             }
 
-            // Ignore motion within the deadzone period after touch down
-            if (confirmedTap || distanceExceeds(eventX - lastTouchDownX, eventY - lastTouchDownY, TOUCH_DOWN_DEAD_ZONE_DISTANCE_THRESHOLD)) {
-                tapConfirmed();
-                updatePosition(eventX, eventY);
-            }
+            // Always update position immediately for smoother input
+            tapConfirmed();
+            updatePosition(eventX, eventY);
+            confirmedMove = true;
         }
         else if (actionIndex == 1) {
             conn.sendMouseHighResScroll((short)((eventY - lastTouchLocationY) * SCROLL_SPEED_FACTOR));
+            // Scrolling is also considered movement
+            confirmedMove = true;
         }
 
         lastTouchLocationX = eventX;
@@ -233,6 +245,7 @@ public class AbsoluteTouchContext implements TouchContext {
     @Override
     public void cancelTouch() {
         cancelled = true;
+        confirmedMove = false;
 
         // Cancel the timers
         cancelLongPressTimer();

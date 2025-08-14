@@ -246,7 +246,6 @@
     <string name="title_checkbox_force_device_motion">Always use device\'s motion sensors</string>
     <string name="summary_checkbox_force_device_motion">Enforce using devices\'s built-in motion sensor even when the controller reported motion sensors are supported.</string>
 
-    <string name="category_input_settings">Input Settings</string>
     <string name="title_checkbox_touchscreen_trackpad">Use the touchscreen as a trackpad</string>
     <string name="summary_checkbox_touchscreen_trackpad">If enabled, the touchscreen acts like a trackpad. If disabled, the touchscreen directly controls the mouse cursor.</string>
     <string name="title_checkbox_absolute_mouse_mode">Remote desktop mouse mode</string>
@@ -429,6 +428,8 @@
     <string name="summary_checkbox_mouse_local_cursor">Default external physical mouse cursor will be captured, this option can display Android system cursor</string>
     <string name="title_checkbox_multi_touch_gestures">Enable multi-touch gestures</string>
     <string name="summary_checkbox_multi_touch_gestures">Enable 3 finger tap for keyboard, 4 finger tap for full keyboard, 5 finger tap for quick menu when using multi-touch mode.</string>
+    <string name="title_checkbox_touchpad_as_stick">Use touchpad as right stick</string>
+    <string name="summary_checkbox_touchpad_as_stick">Maps touchpad input to the right analog stick for camera control</string>
     <string name="title_checkbox_onscreen_style_official">Official Virtual Gamepad Skin</string>
     <string name="summary_checkbox_onscreen_style_official">If you still like the old style of official virtual gamepad buttons, you can select this option.\nButton shapes can be square if you selected the bottom virtual button [Normal buttons are square buttons]</string>
     <string name="title_checkbox_enable_perf_overlay_lite">Enable Lite mode</string>
@@ -556,6 +557,7 @@
     <string name="mouse_mode_track_pad_gaming">Track pad(Gaming/Long press to drag)</string>
     <string name="mouse_mode_disabled">Disabled</string>
     <string name="mouse_mode_absolute_touch_swapped">Absolute touch (left/right click swapped)</string>
+    <string name="mouse_mode_right_stick">Right stick (Touchpad as analog)</string>
     <string name="keyboard_layout_set_1">Profile 1</string>
     <string name="keyboard_layout_set_2">Profile 2</string>
     <string name="keyboard_layout_set_3">Profile 3</string>

@@ -330,6 +330,13 @@
 
         <CheckBoxPreference
             android:defaultValue="false"
+            android:key="checkbox_touchpad_as_stick"
+            android:summary="@string/checkbox_touchpad_as_stick_summary"
+            android:title="@string/checkbox_touchpad_as_stick_title"
+            app:iconSpaceReserved="false" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
             android:key="checkbox_mouse_nav_buttons"
             android:summary="@string/summary_checkbox_mouse_nav_buttons"
             android:title="@string/title_checkbox_mouse_nav_buttons"

@@ -184,7 +184,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         // Initialize the default context for events with no device
         defaultContext.leftStickXAxis = MotionEvent.AXIS_X;
         defaultContext.leftStickYAxis = MotionEvent.AXIS_Y;
-        defaultContext.leftStickDeadzoneRadius = (float) stickDeadzone;
+        defaultContext.leftStickDeadzoneRadius = 0.01f; // Reduced deadzone for smoother left stick
         defaultContext.rightStickXAxis = MotionEvent.AXIS_Z;
         defaultContext.rightStickYAxis = MotionEvent.AXIS_RZ;
         defaultContext.rightStickDeadzoneRadius = (float) stickDeadzone;
@@ -578,9 +578,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         context.vendorId = device.getVendorId();
         context.productId = device.getProductId();
 
-        context.leftStickDeadzoneRadius = (float) stickDeadzone;
-        context.rightStickDeadzoneRadius = (float) stickDeadzone;
-        context.triggerDeadzone = 0.13f;
+        context.leftStickDeadzoneRadius = 0.01f; // Reduced deadzone for smoother left stick
+        context.rightStickDeadzoneRadius = 0.01f; // Reduced deadzone for better USB controller responsiveness
+        context.triggerDeadzone = 0.10f; // Reduced trigger deadzone from 0.13f to 0.10f for better sensitivity
 
         return context;
     }
@@ -917,11 +917,11 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
 
         if (context.leftStickXAxis != -1 && context.leftStickYAxis != -1) {
-            context.leftStickDeadzoneRadius = (float) stickDeadzone;
+            context.leftStickDeadzoneRadius = 0.01f; // Reduced deadzone for smoother left stick
         }
 
         if (context.rightStickXAxis != -1 && context.rightStickYAxis != -1) {
-            context.rightStickDeadzoneRadius = (float) stickDeadzone;
+            context.rightStickDeadzoneRadius = 0.01f; // Reduced deadzone for touchpad responsiveness
         }
 
         if (context.leftTriggerAxis != -1 && context.rightTriggerAxis != -1) {
@@ -1215,6 +1215,12 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private void sendControllerInputPacket(GenericControllerContext originalContext) {
         assignControllerNumberIfNeeded(originalContext);
 
+        // Prevent sending controller packets for controller 0 when touchpad is actively controlling right stick
+        // This prevents interference between touchpad packets and normal controller packets
+        if (touchpadTracking && originalContext.controllerNumber == 0) {
+            return;
+        }
+
         // Take the context's controller number and fuse all inputs with the same number
         short controllerNumber = originalContext.controllerNumber;
         int inputMap = 0;
@@ -1234,12 +1240,12 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                     context.controllerNumber == controllerNumber &&
                     context.mouseEmulationActive == originalContext.mouseEmulationActive) {
                 inputMap |= context.inputMap;
-                leftTrigger |= maxByMagnitude(leftTrigger, context.leftTrigger);
-                rightTrigger |= maxByMagnitude(rightTrigger, context.rightTrigger);
-                leftStickX |= maxByMagnitude(leftStickX, context.leftStickX);
-                leftStickY |= maxByMagnitude(leftStickY, context.leftStickY);
-                rightStickX |= maxByMagnitude(rightStickX, context.rightStickX);
-                rightStickY |= maxByMagnitude(rightStickY, context.rightStickY);
+                leftTrigger = maxByMagnitude(leftTrigger, context.leftTrigger);
+                rightTrigger = maxByMagnitude(rightTrigger, context.rightTrigger);
+                leftStickX = maxByMagnitude(leftStickX, context.leftStickX);
+                leftStickY = maxByMagnitude(leftStickY, context.leftStickY);
+                rightStickX = maxByMagnitude(rightStickX, context.rightStickX);
+                rightStickY = maxByMagnitude(rightStickY, context.rightStickY);
             }
         }
         for (int i = 0; i < usbDeviceContexts.size(); i++) {
@@ -1248,23 +1254,25 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                     context.controllerNumber == controllerNumber &&
                     context.mouseEmulationActive == originalContext.mouseEmulationActive) {
                 inputMap |= context.inputMap;
-                leftTrigger |= maxByMagnitude(leftTrigger, context.leftTrigger);
-                rightTrigger |= maxByMagnitude(rightTrigger, context.rightTrigger);
-                leftStickX |= maxByMagnitude(leftStickX, context.leftStickX);
-                leftStickY |= maxByMagnitude(leftStickY, context.leftStickY);
-                rightStickX |= maxByMagnitude(rightStickX, context.rightStickX);
-                rightStickY |= maxByMagnitude(rightStickY, context.rightStickY);
+                leftTrigger = maxByMagnitude(leftTrigger, context.leftTrigger);
+                rightTrigger = maxByMagnitude(rightTrigger, context.rightTrigger);
+                leftStickX = maxByMagnitude(leftStickX, context.leftStickX);
+                leftStickY = maxByMagnitude(leftStickY, context.leftStickY);
+                rightStickX = maxByMagnitude(rightStickX, context.rightStickX);
+                rightStickY = maxByMagnitude(rightStickY, context.rightStickY);
             }
         }
         if (defaultContext.controllerNumber == controllerNumber) {
             inputMap |= defaultContext.inputMap;
-            leftTrigger |= maxByMagnitude(leftTrigger, defaultContext.leftTrigger);
-            rightTrigger |= maxByMagnitude(rightTrigger, defaultContext.rightTrigger);
-            leftStickX |= maxByMagnitude(leftStickX, defaultContext.leftStickX);
-            leftStickY |= maxByMagnitude(leftStickY, defaultContext.leftStickY);
-            rightStickX |= maxByMagnitude(rightStickX, defaultContext.rightStickX);
-            rightStickY |= maxByMagnitude(rightStickY, defaultContext.rightStickY);
+            leftTrigger = maxByMagnitude(leftTrigger, defaultContext.leftTrigger);
+            rightTrigger = maxByMagnitude(rightTrigger, defaultContext.rightTrigger);
+            leftStickX = maxByMagnitude(leftStickX, defaultContext.leftStickX);
+            leftStickY = maxByMagnitude(leftStickY, defaultContext.leftStickY);
+            rightStickX = maxByMagnitude(rightStickX, defaultContext.rightStickX);
+            rightStickY = maxByMagnitude(rightStickY, defaultContext.rightStickY);
         }
+        
+        // No virtual touchpad aggregation needed - touchpad directly modifies controller context
 
         if (originalContext.mouseEmulationActive) {
             int changedMask = inputMap ^  originalContext.mouseEmulationLastInputMap;
@@ -1710,12 +1718,14 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
 
         if (context.rightStickXAxis != -1 && context.rightStickYAxis != -1) {
-            Vector2d rightStickVector = populateCachedVector(rsX, rsY);
-
-            handleDeadZone(rightStickVector, context.rightStickDeadzoneRadius);
-
-            context.rightStickX = (short) (rightStickVector.getX() * 0x7FFE);
-            context.rightStickY = (short) (-rightStickVector.getY() * 0x7FFE);
+            // Only update right stick from physical controller if touchpad isn't actively controlling it
+            if (!touchpadTracking) {
+                Vector2d rightStickVector = populateCachedVector(rsX, rsY);
+                handleDeadZone(rightStickVector, context.rightStickDeadzoneRadius);
+                context.rightStickX = (short) (rightStickVector.getX() * 0x7FFE);
+                context.rightStickY = (short) (-rightStickVector.getY() * 0x7FFE);
+            }
+            // If touchpad is tracking, preserve touchpad right stick values (don't override)
         }
 
         if (context.leftTriggerAxis != -1 && context.rightTriggerAxis != -1) {
@@ -1796,125 +1806,240 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 normalizedX, normalizedY, normalizedPressure) != MoonBridge.LI_ERR_UNSUPPORTED;
     }
 
-    public boolean tryHandleTouchpadEvent(MotionEvent event) {
-        // Bail if this is not a touchpad or mouse event
-        if (event.getSource() != InputDevice.SOURCE_TOUCHPAD &&
-                event.getSource() != InputDevice.SOURCE_MOUSE) {
-            return false;
-        }
+    // Advanced touchpad tracking - adaptive sensitivity with spin prevention
+    private boolean touchpadTracking = false;
+    private float touchpadLastX = 0, touchpadLastY = 0;
+    private float accumulatedStickX = 0, accumulatedStickY = 0;  // Accumulated right stick position
+    private static final float TOUCHPAD_SENSITIVITY_BASE = 25.0f; // Base sensitivity 12
+    private static final float TOUCHPAD_SENSITIVITY_MAX = 25.0f; // Max sensitivity for fast movements 20
+    private static final float TOUCHPAD_DEADZONE = 0.000001f; // Minimal deadzone
+    private long lastTouchpadTime = 0; // For velocity calculation
+    private float lastDeltaMagnitude = 0; // For acceleration detection
 
-        // Only get a context if one already exists. We want to ensure we don't report non-gamepads.
-        InputDeviceContext context = inputDeviceContexts.get(event.getDeviceId());
+    // Overloaded method for touchscreen events with view information
+    public boolean tryHandleTouchpadEvent(MotionEvent event, android.view.View parentView, android.view.View streamView) {
+        // Ultra-fast processing - minimal logging for lowest latency
+        InputDeviceContext context = getContextForEvent(event);
         if (context == null) {
             return false;
         }
 
-        // When we're working with a mouse source instead of a touchpad, we're quite limited in
-        // what useful input we can provide via the controller API. The ABS_X/ABS_Y values are
-        // screen coordinates rather than touchpad coordinates. For now, we will just support
-        // the clickpad button and nothing else.
-        if (event.getSource() == InputDevice.SOURCE_MOUSE) {
-            // Unlike the touchpad where down and up refer to individual touches on the touchpad,
-            // down and up on a mouse indicates the state of the left mouse button.
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    context.inputMap |= ControllerPacket.TOUCHPAD_FLAG;
-                    sendControllerInputPacket(context);
-                    break;
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    context.inputMap &= ~ControllerPacket.TOUCHPAD_FLAG;
-                    sendControllerInputPacket(context);
-                    break;
-                default:
-                    break;
-            }
-
-            return !prefConfig.gamepadTouchpadAsMouse;
+        // Fast coordinate normalization
+        float normalizedX = event.getX(0);
+        float normalizedY = event.getY(0);
+        
+        // Quick coordinate adjustment for stream view
+        if (parentView != streamView) {
+            normalizedX = normalizedX - streamView.getX();
+            normalizedY = normalizedY - streamView.getY();
         }
 
-        byte touchType;
+        // Fast clamping and normalization
+        normalizedX = Math.max(normalizedX, 0.0f);
+        normalizedY = Math.max(normalizedY, 0.0f);
+        normalizedX = Math.min(normalizedX, streamView.getWidth());
+        normalizedY = Math.min(normalizedY, streamView.getHeight());
+        normalizedX /= streamView.getWidth();
+        normalizedY /= streamView.getHeight();
+
+        return processTouchpadInput(event, normalizedX, normalizedY);
+    }
+
+    public boolean tryHandleTouchpadEvent(MotionEvent event) {
+        // Get or create a context for this event
+        InputDeviceContext context = getContextForEvent(event);
+        if (context == null) {
+            return false;
+        }
+
+        float normalizedX, normalizedY;
+
+        // Check if this is a touchscreen event (no touchpad ranges) or actual touchpad
+        if (context.touchpadXRange == null || context.touchpadYRange == null) {
+            // This is a touchscreen event without proper view context - use fallback
+            normalizedX = event.getX(0) / 1920.0f; // Fallback normalization
+            normalizedY = event.getY(0) / 1080.0f;
+            normalizedX = Math.max(0.0f, Math.min(1.0f, normalizedX));
+            normalizedY = Math.max(0.0f, Math.min(1.0f, normalizedY));
+        } else {
+            // This is an actual touchpad event - use touchpad ranges
+            normalizedX = normalizeRawValueWithRange(event.getX(0), context.touchpadXRange);
+            normalizedY = normalizeRawValueWithRange(event.getY(0), context.touchpadYRange);
+        }
+
+        return processTouchpadInput(event, normalizedX, normalizedY);
+    }
+
+    // Dedicated method for sending touchpad-controlled right stick packets
+    // This bypasses normal controller aggregation to prevent left stick interference
+    private void sendTouchpadControllerPacket(short rightStickX, short rightStickY) {
+        // Send directly using controller 0, preserving all other inputs
+        // This ensures touchpad right stick doesn't interfere with left stick or other inputs
+        
+        // Find the actual current inputs from controller contexts (excluding right stick)
+        short leftStickX = 0;
+        short leftStickY = 0;
+        int inputMap = 0;
+        byte leftTrigger = 0;
+        byte rightTrigger = 0;
+        
+        // Aggregate all non-right-stick inputs from controller 0 contexts
+        for (int i = 0; i < inputDeviceContexts.size(); i++) {
+            InputDeviceContext context = inputDeviceContexts.valueAt(i);
+            if (context.assignedControllerNumber && context.controllerNumber == 0) {
+                inputMap |= context.inputMap;
+                leftTrigger = maxByMagnitude(leftTrigger, context.leftTrigger);
+                rightTrigger = maxByMagnitude(rightTrigger, context.rightTrigger);
+                leftStickX = maxByMagnitude(leftStickX, context.leftStickX);
+                leftStickY = maxByMagnitude(leftStickY, context.leftStickY);
+                // Deliberately skip rightStick aggregation - we control it via touchpad
+            }
+        }
+        
+        // Include default context inputs (except right stick)
+        if (defaultContext.controllerNumber == 0) {
+            inputMap |= defaultContext.inputMap;
+            leftTrigger = maxByMagnitude(leftTrigger, defaultContext.leftTrigger);
+            rightTrigger = maxByMagnitude(rightTrigger, defaultContext.rightTrigger);
+            leftStickX = maxByMagnitude(leftStickX, defaultContext.leftStickX);
+            leftStickY = maxByMagnitude(leftStickY, defaultContext.leftStickY);
+            // Deliberately skip rightStick aggregation - we control it via touchpad
+        }
+        
+        // Send packet with touchpad-controlled right stick and preserved other inputs
+        conn.sendControllerInput((short)0, getActiveControllerMask(),
+                inputMap,
+                leftTrigger, rightTrigger,
+                leftStickX, leftStickY,
+                rightStickX, rightStickY);
+    }
+
+    private boolean processTouchpadInput(MotionEvent event, float normalizedX, float normalizedY) {
+        
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
-                touchType = MoonBridge.LI_TOUCH_EVENT_DOWN;
-                break;
-
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_POINTER_UP:
-                if ((event.getFlags() & MotionEvent.FLAG_CANCELED) != 0) {
-                    touchType = MoonBridge.LI_TOUCH_EVENT_CANCEL;
-                }
-                else {
-                    touchType = MoonBridge.LI_TOUCH_EVENT_UP;
+                if (event.getActionIndex() == 0) {
+                    touchpadTracking = true;
+                    touchpadLastX = normalizedX;
+                    touchpadLastY = normalizedY;
+                    // Reset accumulation when starting new touch to prevent spinning
+                    accumulatedStickX = 0;
+                    accumulatedStickY = 0;
+                    // Reset timing variables
+                    lastTouchpadTime = System.nanoTime();
+                    lastDeltaMagnitude = 0;
                 }
                 break;
 
             case MotionEvent.ACTION_MOVE:
-                touchType = MoonBridge.LI_TOUCH_EVENT_MOVE;
+                if (touchpadTracking) {
+                    // Calculate movement delta and timing
+                    long currentTime = System.nanoTime();
+                    float deltaX = normalizedX - touchpadLastX;
+                    float deltaY = normalizedY - touchpadLastY;
+                    float deltaMagnitude = (float)Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    // Calculate adaptive sensitivity based on movement speed and acceleration
+                    float sensitivity = TOUCHPAD_SENSITIVITY_BASE;
+                    if (lastTouchpadTime > 0) {
+                        long deltaTime = currentTime - lastTouchpadTime;
+                        if (deltaTime > 0) {
+                            float velocity = deltaMagnitude / (deltaTime / 1000000000.0f); // pixels per second
+                            float acceleration = Math.abs(deltaMagnitude - lastDeltaMagnitude);
+                            
+                            // Increase sensitivity for fast movements (up to 2.5x)
+                            float velocityBoost = Math.min(2.5f, 1.0f + velocity * 0.5f);
+                            // Slight boost for acceleration (sudden direction changes)
+                            float accelBoost = Math.min(1.3f, 1.0f + acceleration * 10.0f);
+                            
+                            sensitivity = Math.min(TOUCHPAD_SENSITIVITY_MAX, 
+                                    TOUCHPAD_SENSITIVITY_BASE * velocityBoost * accelBoost);
+                        }
+                    }
+                    
+                    // High-frequency packet sending for ultra-low latency
+                    boolean hasMovement = Math.abs(deltaX) > TOUCHPAD_DEADZONE || Math.abs(deltaY) > TOUCHPAD_DEADZONE;
+                    
+                    if (hasMovement) {
+                        // Apply movement to accumulated position with adaptive sensitivity
+                        float moveX = deltaX * sensitivity;
+                        float moveY = deltaY * sensitivity;
+                        
+                        // Enhanced decay system - stronger decay for larger accumulated values
+                        float decayFactor = 0.95f;
+                        float accumulatedMagnitude = (float)Math.sqrt(accumulatedStickX * accumulatedStickX + accumulatedStickY * accumulatedStickY);
+                        if (accumulatedMagnitude > 0.5f) {
+                            // Increase decay for large accumulated values to prevent spinning
+                            decayFactor = Math.max(0.85f, 0.95f - (accumulatedMagnitude - 0.5f) * 0.2f);
+                        }
+                        
+                        // Add to accumulated position with adaptive decay
+                        accumulatedStickX = accumulatedStickX * decayFactor + moveX;
+                        accumulatedStickY = accumulatedStickY * decayFactor + moveY;
+                        
+                        // Clamp to valid stick range to prevent overflow
+                        accumulatedStickX = Math.max(-1.0f, Math.min(1.0f, accumulatedStickX));
+                        accumulatedStickY = Math.max(-1.0f, Math.min(1.0f, accumulatedStickY));
+                    } else {
+                        // Apply stronger decay when not moving for quicker centering
+                        accumulatedStickX *= 0.90f;
+                        accumulatedStickY *= 0.90f;
+                    }
+                    
+                    // Convert to stick values
+                    short rightStickX = (short)(accumulatedStickX * 0x7FFE);
+                    short rightStickY = (short)(-accumulatedStickY * 0x7FFE);
+                    
+                    // Send packet every frame for maximum responsiveness (high packet rate)
+                    sendTouchpadControllerPacket(rightStickX, rightStickY);
+                    
+                    // Update tracking variables
+                    touchpadLastX = normalizedX;
+                    touchpadLastY = normalizedY;
+                    lastTouchpadTime = currentTime;
+                    lastDeltaMagnitude = deltaMagnitude;
+                }
                 break;
 
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_POINTER_UP:
             case MotionEvent.ACTION_CANCEL:
-                // ACTION_CANCEL applies to *all* pointers in the gesture, so it maps to CANCEL_ALL
-                // rather than CANCEL. For a single pointer cancellation, that's indicated via
-                // FLAG_CANCELED on a ACTION_POINTER_UP.
-                // https://developer.android.com/develop/ui/views/touch-and-input/gestures/multi
-                touchType = MoonBridge.LI_TOUCH_EVENT_CANCEL_ALL;
+                if (event.getActionIndex() == 0) {
+                    touchpadTracking = false;
+                    
+                    // Gradual centering instead of immediate reset for smoother feel
+                    // Send a few decay frames to smoothly return to center
+                    new Thread(() -> {
+                        try {
+                            for (int i = 0; i < 5 && (Math.abs(accumulatedStickX) > 0.01f || Math.abs(accumulatedStickY) > 0.01f); i++) {
+                                accumulatedStickX *= 0.7f; // Faster decay during release
+                                accumulatedStickY *= 0.7f;
+                                
+                                short rightStickX = (short)(accumulatedStickX * 0x7FFE);
+                                short rightStickY = (short)(-accumulatedStickY * 0x7FFE);
+                                sendTouchpadControllerPacket(rightStickX, rightStickY);
+                                
+                                Thread.sleep(4); // 8ms between decay frames (~120fps decay)
+                            }
+                            
+                            // Final center
+                            accumulatedStickX = 0;
+                            accumulatedStickY = 0;
+                            sendTouchpadControllerPacket((short)0, (short)0);
+                            
+                        } catch (InterruptedException e) {
+                            // Reset immediately if interrupted
+                            accumulatedStickX = 0;
+                            accumulatedStickY = 0;
+                            sendTouchpadControllerPacket((short)0, (short)0);
+                        }
+                    }).start();
+                }
                 break;
-
-            case MotionEvent.ACTION_BUTTON_PRESS:
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && event.getActionButton() == MotionEvent.BUTTON_PRIMARY) {
-                    context.inputMap |= ControllerPacket.TOUCHPAD_FLAG;
-                    sendControllerInputPacket(context);
-                    return !prefConfig.gamepadTouchpadAsMouse; // Report as unhandled event to trigger mouse handling
-                }
-                return false;
-
-            case MotionEvent.ACTION_BUTTON_RELEASE:
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && event.getActionButton() == MotionEvent.BUTTON_PRIMARY) {
-                    context.inputMap &= ~ControllerPacket.TOUCHPAD_FLAG;
-                    sendControllerInputPacket(context);
-                    return !prefConfig.gamepadTouchpadAsMouse; // Report as unhandled event to trigger mouse handling
-                }
-                return false;
-
-            default:
-                return false;
         }
 
-        // Bail if the user wants gamepad touchpads to control the mouse
-        //
-        // NB: We do this after processing ACTION_BUTTON_PRESS and ACTION_BUTTON_RELEASE
-        // because we want to still send the touchpad button via the gamepad even when
-        // configured to use the touchpad for mouse control.
-        if (prefConfig.gamepadTouchpadAsMouse) {
-            return false;
-        }
-
-        // If we don't have X and Y ranges, we can't process this event
-        if (context.touchpadXRange == null || context.touchpadYRange == null) {
-            return false;
-        }
-
-        if (event.getActionMasked() == MotionEvent.ACTION_MOVE) {
-            // Move events may impact all active pointers
-            for (int i = 0; i < event.getPointerCount(); i++) {
-                if (!sendTouchpadEventForPointer(context, event, touchType, i)) {
-                    // Controller touch events are not supported by the host
-                    return false;
-                }
-            }
-            return true;
-        }
-        else if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
-            // Cancel impacts all active pointers
-            return conn.sendControllerTouchEvent((byte)context.controllerNumber, MoonBridge.LI_TOUCH_EVENT_CANCEL_ALL,
-                    0, 0, 0, 0) != MoonBridge.LI_ERR_UNSUPPORTED;
-        }
-        else {
-            // Down and Up events impact the action index pointer
-            return sendTouchpadEventForPointer(context, event, touchType, event.getActionIndex());
-        }
+        return true;
     }
 
     public boolean handleMotionEvent(MotionEvent event) {
@@ -1948,6 +2073,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
         }
 
+        // Process all input normally - left stick is isolated from touchpad interference
         handleAxisSet(context, lsX, lsY, rsX, rsY, lt, rt, hatX, hatY);
 
         return true;

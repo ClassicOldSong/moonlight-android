@@ -48,6 +48,7 @@ public class PreferenceConfiguration {
     private static final String ENFORCE_DISPLAY_MODE_PREF_STRING = "checkbox_enforce_display_mode";
     private static final String USE_VIRTUAL_DISPLAY_PREF_STRING = "checkbox_use_virtual_display";
     private static final String AUTO_INVERT_VIDEO_RESOLUTION_PREF_STRING = "checkbox_auto_invert_video_resolution";
+    private static final String TOUCHPAD_AS_STICK_PREF_STRING = "checkbox_touchpad_as_stick";
     private static final String RESOLUTION_SCALE_FACTOR_PREF_STRING = "seekbar_resolution_scale_factor";
     private static final String RESUME_WITHOUT_CONFIRM_PREF_STRING = "checkbox_resume_without_confirm";
     private static final String VIDEO_SCALE_MODE_PREF_STRING = "list_video_scale_mode";
@@ -178,6 +179,7 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_REDUCE_REFRESH_RATE = false;
     private static final boolean DEFAULT_FULL_RANGE = false;
     private static final boolean DEFAULT_GAMEPAD_TOUCHPAD_AS_MOUSE = false;
+    private static final boolean DEFAULT_TOUCHPAD_AS_STICK = false;
     private static final boolean DEFAULT_GAMEPAD_MOTION_SENSORS = true;
     private static final boolean DEFAULT_GAMEPAD_MOTION_FALLBACK = false;
     private static final boolean DEFAULT_FORCE_MOTION_SENSORS_FALLBACK = false;
@@ -264,6 +266,7 @@ public class PreferenceConfiguration {
     public boolean enableLatencyToast;
     public boolean enableBackMenu;
     public boolean enableFloatingButton;
+    public boolean touchpadAsStick;
     public boolean showOverlayZoomToggleButton;
 
     //Invert video width/height
@@ -855,6 +858,11 @@ public class PreferenceConfiguration {
         String mouseMode = prefs.getString("mouse_mode_list", "0");
         int mouseModeInt = Integer.parseInt(mouseMode);
         switch (mouseModeInt) {
+            case 6: // Touchpad as right stick
+                config.touchpadAsStick = true;
+                config.enableMultiTouchScreen = false;
+                config.touchscreenTrackpad = false;
+                break;
             case 0: // Multi-touch
                 config.enableMultiTouchScreen = true;
                 config.touchscreenTrackpad = false;
@@ -896,6 +904,7 @@ public class PreferenceConfiguration {
         config.enableLatencyToast = prefs.getBoolean(LATENCY_TOAST_PREF_STRING, DEFAULT_LATENCY_TOAST);
         config.enableBackMenu = prefs.getBoolean(CHECKBOX_ENABLE_QUIT_DIALOG,true);
         config.enableFloatingButton = prefs.getBoolean(CHECKBOX_ENABLE_FLOATING_BUTTON,DEFAULT_ENABLE_FLOATING_BUTTON);
+        config.touchpadAsStick = prefs.getBoolean(TOUCHPAD_AS_STICK_PREF_STRING, DEFAULT_TOUCHPAD_AS_STICK);
         config.showOverlayZoomToggleButton = prefs.getBoolean(CHECKBOX_SHOW_OVERLAY_ZOOM_TOGGLE_BUTTON, DEFAULT_SHOW_OVERLAY_TOGGLE_BUTTON);
         config.autoOrientation = prefs.getBoolean(CHECKBOX_AUTO_ORIENTATION,false);
         config.autoInvertVideoResolution = prefs.getBoolean(AUTO_INVERT_VIDEO_RESOLUTION_PREF_STRING, DEFAULT_AUTO_INVERT_VIDEO_RESOLUTION);
