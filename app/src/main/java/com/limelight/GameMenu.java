@@ -298,6 +298,8 @@ public class GameMenu implements Game.GameMenuCallbacks {
         options.add(new MenuOption(getString(R.string.game_menu_fetch_clipboard), true,
                 () -> game.getClipboard(0)));
 
+        options.add(new MenuOption("Toggle Keys/Gamepad Overlay", true, game::toggleKeyboardOrVirtualController));
+
         options.add(new MenuOption(getString(R.string.game_menu_server_cmd), true,
                 () -> {
                     ArrayList<String> serverCmds = game.getServerCmds();
