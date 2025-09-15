@@ -48,7 +48,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     // Set true to enable a 'latest-only' fast path in the render loop.
     private boolean preferLowerDelays = false;
 
-    
+
 // Force tight thresholds regardless of device refresh (use vsyncPeriodNs always)
 private volatile boolean forceTightThresholds = false;
 /** Toggle tight frame pacing thresholds globally. */
@@ -1155,7 +1155,7 @@ try {
                 final int tfps = (targetFps > 0 ? targetFps : 60);
                 final long streamPeriodNs = (long) (1_000_000_000L / Math.max(1, tfps));
 
-                
+
                 // Adaptive period selection to avoid added latency on high-refresh devices
                 final boolean highRefresh = displayHz >= 90f;
                 final boolean managedMode = (prefs != null && prefs.framePacing == PreferenceConfiguration.FRAME_PACING_BALANCED);
@@ -1439,24 +1439,7 @@ boolean isC2Decoder = false;
                         doCodecRecoveryIfRequired(CR_FLAG_RENDER_THREAD);
                     }
                 }
-
-                    /* WATCHDOG_C2_SLEEP */
-                    try {
-                        final long __nowNs = System.nanoTime();
-                        if (__nowNs - lastOutputNs > 1_200_000_000L) { // ~1.2s senza output → probabile C2 sleep
-                            LimeLog.warning("Decoder watchdog: no output >1.2s, flushing codec to recover...");
-                            try {
-                                videoDecoder.flush();
-                            } catch (Throwable ignored) {}
-                            try {
-                                android.os.Bundle __poke = new android.os.Bundle();
-                                __poke.putInt("priority", 0);
-                                videoDecoder.setParameters(__poke);
-                            } catch (Throwable ignored) {}
-                            lastOutputNs = __nowNs;
-                        }
-                    } catch (Throwable ignored) {}
-            }
+                            }
         };
         rendererThread.setName("Video - Renderer (MediaCodec)");
         rendererThread.setPriority(Thread.NORM_PRIORITY + 2);
