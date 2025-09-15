@@ -590,8 +590,6 @@ return videoFormat;
 
         videoDecoder.configure(format, renderTarget, null, 0);
 
-        try { applySurfaceFrameRate(renderTarget, targetFps); } catch (Throwable ignored) {}
-
 try {
     MediaCodecInfo __info = (android.os.Build.VERSION.SDK_INT >= 21) ? videoDecoder.getCodecInfo() : null;
     String __name = (__info != null) ? __info.getName() : "<unknown>";
@@ -1235,7 +1233,7 @@ boolean isC2Decoder = false;
                         int outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs());
 
                         if (outIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                            // backoff ridotto 0–500 µs
+                            // reduced backoff 0–500 µs
                             tryAgainStreak++;
                             int backoffUs = Math.min(getOutputDequeueTimeoutUs(), (tryAgainStreak <= 2) ? 250 : 500);
                             outIndex = videoDecoder.dequeueOutputBuffer(info, backoffUs);
@@ -1268,7 +1266,7 @@ boolean isC2Decoder = false;
                                 // Get the last output buffer in the queue
                                 while ((outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs())) >= 0) {
                                     videoDecoder.releaseOutputBuffer(lastIndex, false);
-                                    frameDropped = true; // stiamo scartando il più vecchio
+                                    frameDropped = true; // we're discarding the oldest one
 
                                     numFramesOut++;
                                     lastIndex = outIndex;
@@ -1282,7 +1280,7 @@ boolean isC2Decoder = false;
                                         final long nowNs = System.nanoTime();
                                         final long frameAgeNs = nowNs - (presentationTimeUs * 1000L);
 
-                                        // Smoothness: soglia più stretta 1.05..1.2×
+                                        // Smoothness: tighter threshold 1.05..1.2×
                                         double pressure = Math.min(1.0, (ewmaJitterNs / vsyncPeriodNs) + (recentDrops * 0.1));
                                         double factorSmooth = 1.2 - 0.15 * (1.0 - pressure);
                                         factorSmooth = Math.max(1.05, Math.min(1.2, factorSmooth));
@@ -1414,8 +1412,7 @@ boolean isC2Decoder = false;
                             }
 
                             // --- Fallback stats update ---
-                            // Se non abbiamo aggiornato le stats in-branch e il frame non è stato droppato,
-                            // aggiorniamo ora (ripristina il comportamento classico, utile per BALANCED).
+                            // If we didn't update the stats in-branch and the frame wasn't dropped,
                             if (!statsUpdated && !frameDropped) {
                                 updateDecodeLatencyStats(presentationTimeUs);
                             }
@@ -2354,22 +2351,6 @@ boolean isC2Decoder = false;
             return str;
         }
     }
-
-
-private void applySurfaceFrameRate(android.view.Surface surface, int targetFps) {
-    if (surface == null) return;
-    try {
-        // API 30+ supports Surface.setFrameRate; for older, attempt View-based call elsewhere.
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
-            surface.setFrameRate((float) targetFps,
-                    android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
-            LimeLog.info("Applied Surface frame rate: " + targetFps + " Hz");
-        }
-    } catch (Throwable t) {
-        // best-effort
-    }
-}
-
 
 
 private boolean isMTKDecoderName(String name) {
