@@ -3158,12 +3158,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         // some devices report inverted axis when trackpad pointer is captured
                         // but not when they're simulated as swipes on the screen
                         if (invertAxis) {
+                            aTouchContextMap.setActualPointerCount(actualPointerCount);
                             aTouchContextMap.touchMoveEvent(
                                     historicalY,
                                     historicalX,
                                     event.getHistoricalEventTime(i)
                             );
                         } else {
+                            aTouchContextMap.setActualPointerCount(actualPointerCount);
                             aTouchContextMap.touchMoveEvent(
                                     historicalX,
                                     historicalY,
@@ -3222,7 +3224,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             case MotionEvent.ACTION_DOWN:
                 for (TouchContext touchContext : inputContextMap) {
                     touchContext.setPointerCount(pointerCount);
+                    touchContext.setActualPointerCount(actualPointerCount);
                 }
+                context.setActualPointerCount(actualPointerCount);
                 context.touchDownEvent(eventX, eventY, event.getEventTime(), true);
                 break;
             case MotionEvent.ACTION_POINTER_UP:
@@ -3251,11 +3255,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     context.cancelTouch();
                 }
                 else {
+                    context.setActualPointerCount(actualPointerCount);
                     context.touchUpEvent(eventX, eventY, event.getEventTime());
                 }
 
                 for (TouchContext touchContext : inputContextMap) {
                     touchContext.setPointerCount(pointerCount - 1);
+                    touchContext.setActualPointerCount(actualPointerCount);
                 }
                 if (actionIndex == 0 && pointerCount > 1 && !context.isCancelled()) {
                     // The original secondary touch now becomes primary
@@ -3266,6 +3272,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         pointer1X = (int)normalizedCoords[0];
                         pointer1Y = (int)normalizedCoords[1];
                     }
+                    context.setActualPointerCount(actualPointerCount);
                     context.touchDownEvent(
                             pointer1X,
                             pointer1Y,
@@ -3276,6 +3283,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 for (TouchContext aTouchContext : inputContextMap) {
                     aTouchContext.cancelTouch();
                     aTouchContext.setPointerCount(0);
+                    aTouchContext.setActualPointerCount(0);
                 }
                 break;
             default:
@@ -3341,6 +3349,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         for (TouchContext aTouchContext : touchContextMap) {
             aTouchContext.cancelTouch();
             aTouchContext.setPointerCount(0);
+            aTouchContext.setActualPointerCount(0);
         }
     }
 
