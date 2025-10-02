@@ -1461,13 +1461,23 @@ boolean isC2Decoder = false;
                                         try { __std = __fmt.getInteger("color-standard"); } catch (Throwable ignored) {}
                                         try { __tr  = __fmt.getInteger("color-transfer"); } catch (Throwable ignored) {}
                                         try { __rng = __fmt.getInteger("color-range"); } catch (Throwable ignored) {}
-                                        boolean __isHdr = (__std == 6) && (__tr == 6 || __tr == 7);
+                                        // BT.2020 + (PQ o HLG) => HDR
+                                        boolean __isHdr =
+                                                (__std == android.media.MediaFormat.COLOR_STANDARD_BT2020) &&
+                                                        (__tr  == android.media.MediaFormat.COLOR_TRANSFER_ST2084
+                                                                || __tr  == android.media.MediaFormat.COLOR_TRANSFER_HLG);
+                                        // Update shared flag so overlays/renderer can see it
+                                        hdrActive = __isHdr;
                                         // Notify window color mode (no-op <26)
                                         try { com.limelight.Game.updateHdrWindowMode(__isHdr); } catch (Throwable ignored) {}
                                         // Pass HDR static info to GL upscaler if available
                                         java.nio.ByteBuffer __hdr = null;
                                         try { __hdr = __fmt.getByteBuffer("hdr-static-info"); } catch (Throwable ignored) {}
-                                        byte[] __hdrArr = null; if (__hdr != null && __hdr.remaining() > 0) { __hdrArr = new byte[__hdr.remaining()]; __hdr.get(__hdrArr); }
+                                        byte[] __hdrArr = null;
+                                        if (__hdr != null && __hdr.remaining() > 0) {
+                                            __hdrArr = new byte[__hdr.remaining()];
+                                            __hdr.get(__hdrArr);
+                                        }
                                     } catch (Throwable ignored) {}
                                     LimeLog.info("New output format: " + outputFormat);
                                     break;
