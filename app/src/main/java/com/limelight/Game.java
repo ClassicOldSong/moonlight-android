@@ -878,56 +878,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         overlayToggleButton = findViewById(R.id.overlayToggleZoomButton);
         setupOverlayToggleButton();
-    
-        //fixed size + pacing without back-pressure on MTK
-        try {
-            View root = findViewById(android.R.id.content);
-            // Niente getIdentifier: troviamo la prima SurfaceView nel layout
-            SurfaceView streamSurfaceView = findFirstSurfaceViewFrom(root);
-
-            if (streamSurfaceView != null) {
-                // 1) Evita resize/glitch che mandano in crisi il compositor
-                int vw = (prefConfig != null && prefConfig.width > 0) ? prefConfig.width : displayWidth;
-                int vh = (prefConfig != null && prefConfig.height > 0) ? prefConfig.height : displayHeight;
-                try { streamSurfaceView.getHolder().setFixedSize(vw, vh); } catch (Throwable ignored) {}
-                try { streamSurfaceView.setZOrderOnTop(false); } catch (Throwable ignored) {}
-                try { streamSurfaceView.setZOrderMediaOverlay(false); } catch (Throwable ignored) {}
-
-                // 2) setFrameRate via reflection (compat < 30)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                    float displayHz = 60f;
-                    try {
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                            displayHz = currentDisplay.getMode().getRefreshRate();
-                        } else {
-                            displayHz = currentDisplay.getRefreshRate();
-                        }
-                    } catch (Throwable ignored) {}
-
-                    float targetFps = (prefConfig != null && prefConfig.fps > 0) ? prefConfig.fps : displayHz;
-
-                    boolean isMTKDevice;
-                    try {
-                        String sum = (android.os.Build.MANUFACTURER + " " + android.os.Build.HARDWARE + " " + android.os.Build.BOARD)
-                                .toLowerCase(java.util.Locale.US);
-                        isMTKDevice = sum.contains("mtk") || sum.contains("mediatek");
-                    } catch (Throwable t) { isMTKDevice = false; }
-
-                    int compat = isMTKDevice
-                            ? Surface.FRAME_RATE_COMPATIBILITY_DEFAULT
-                            : Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE;
-
-                    try {
-                        java.lang.reflect.Method m = SurfaceView.class.getMethod("setFrameRate", float.class, int.class);
-                        m.invoke(streamSurfaceView, Math.min(targetFps, displayHz), compat);
-                    } catch (Throwable ignored) {}
-                    // Apply latency policy (LFR/ULL vs managed)
-                    try { applyLatencyPolicy(decoderRenderer, prefConfig); } catch (Throwable ignored) {}
-
-                }
-            }
-        } catch (Throwable ignored) {}
-}
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     private void setupOverlayToggleButton() {
