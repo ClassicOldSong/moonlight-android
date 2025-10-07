@@ -276,7 +276,13 @@ public class PreferenceConfiguration {
 
     public boolean enablePerfOverlayLiteDialog;
 
+    public boolean enablePerfOverlayMini;
+
+    public boolean enablePerfOverlayMiniDialog;
+
     public boolean enablePerfOverlayBottom;
+
+    public boolean enableAndroidTvForceGpuComposition;
 
     public boolean enableLatencyToast;
     public boolean enableBackMenu;
@@ -923,7 +929,9 @@ private static int getFramePacingValue(Context context) {
         config.enablePerfOverlay = prefs.getBoolean(ENABLE_PERF_OVERLAY_STRING, DEFAULT_ENABLE_PERF_OVERLAY);
         config.enablePerfLogging = prefs.getBoolean(ENABLE_PERF_LOGGING, DEFAULT_ENABLE_PERF_LOGGING);
         config.enablePerfOverlayLite = prefs.getBoolean("checkbox_enable_perf_overlay_lite",DEFAULT_ENABLE_PERF_OVERLAY);
+        config.enablePerfOverlayMini = prefs.getBoolean("checkbox_enable_perf_overlay_mini",DEFAULT_ENABLE_PERF_OVERLAY);
         config.enablePerfOverlayBottom = prefs.getBoolean("checkbox_enable_perf_overlay_bottom",DEFAULT_PERF_OVERLAY_BOTTOM);
+        config.enableAndroidTvForceGpuComposition = prefs.getBoolean("checkbox_enable_android_tv_force_gpu_composition", false);
         config.bindAllUsb = prefs.getBoolean(BIND_ALL_USB_STRING, DEFAULT_BIND_ALL_USB);
         config.mouseEmulation = prefs.getBoolean(MOUSE_EMULATION_STRING, DEFAULT_MOUSE_EMULATION);
         config.mouseNavButtons = prefs.getBoolean(MOUSE_NAV_BUTTONS_STRING, DEFAULT_MOUSE_NAV_BUTTONS);
@@ -981,7 +989,7 @@ private static int getFramePacingValue(Context context) {
 
         config.enableMultiTouchGestures = prefs.getBoolean("checkbox_multi_touch_gestures", false);
 
-
+        
         config.enablePerfOverlayLiteDialog=prefs.getBoolean("checkbox_enable_perf_overlay_lite_dialog",false);
 
         config.disableDefaultExtraKeys =prefs.getBoolean("checkbox_enable_clear_default_special_button", false);

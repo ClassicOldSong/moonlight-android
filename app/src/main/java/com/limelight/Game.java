@@ -227,8 +227,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private View performanceOverlayView;
 
     private TextView performanceOverlayLite;
+    
+    private TextView performanceOverlayMini;
 
     private TextView performanceOverlayBig;
+
+    private TextView androidTvForceGpuComposition;
+    private boolean gpuCompositionToggle = false;
 
     private MediaCodecDecoderRenderer decoderRenderer;
     private boolean reportedCrash;
@@ -521,7 +526,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         performanceOverlayLite = findViewById(R.id.performanceOverlayLite);
 
+        performanceOverlayMini = findViewById(R.id.performanceOverlayMini);
+
         performanceOverlayBig = findViewById(R.id.performanceOverlayBig);
+
+        androidTvForceGpuComposition = findViewById(R.id.androidTvForceGpuComposition);
 
         inputCaptureProvider = InputCaptureManager.getInputCaptureProvider(this, this);
 
@@ -633,19 +642,35 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Check if the user has enabled performance stats overlay
         if (prefConfig.enablePerfOverlay) {
             performanceOverlayView.setVisibility(View.VISIBLE);
+            
             if (prefConfig.enablePerfOverlayLite) {
                 performanceOverlayLite.setVisibility(View.VISIBLE);
                 if(prefConfig.enablePerfOverlayLiteDialog){
                     performanceOverlayLite.setOnClickListener(v -> showGameMenu(null));
                 }
+            } else if (prefConfig.enablePerfOverlayMini) {
+                performanceOverlayMini.setVisibility(View.VISIBLE);
+                if(prefConfig.enablePerfOverlayMiniDialog){
+                    performanceOverlayMini.setOnClickListener(v -> showGameMenu(null));
+                }
             } else {
                 performanceOverlayBig.setVisibility(View.VISIBLE);
             }
+            
             if (prefConfig.enablePerfOverlayBottom) {
                 //performanceOverlayView.getLayoutParams().layout_gravity = Gravity.BOTTOM;
                 FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) performanceOverlayView.getLayoutParams();
                 params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
                 performanceOverlayView.setLayoutParams(params);
+            }
+        }
+
+        // Configure Force GPU Composition for Android TV
+        if (androidTvForceGpuComposition != null) {
+            if (prefConfig.enableAndroidTvForceGpuComposition) {
+                androidTvForceGpuComposition.setVisibility(View.VISIBLE);
+            } else {
+                androidTvForceGpuComposition.setVisibility(View.GONE);
             }
         }
 
@@ -3934,8 +3959,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             public void run() {
                 if(prefConfig.enablePerfOverlayLite){
                     performanceOverlayLite.setText(text);
+                }else if(prefConfig.enablePerfOverlayMini){
+                    performanceOverlayMini.setText(text);
                 }else{
                     performanceOverlayBig.setText(text);
+                }
+                
+                // Toggle GPU composition on Android TV by alternating an invisible character
+                if (androidTvForceGpuComposition != null && prefConfig.enableAndroidTvForceGpuComposition) {
+                    gpuCompositionToggle = !gpuCompositionToggle;
+                    androidTvForceGpuComposition.setText(gpuCompositionToggle ? "·" : ".");
                 }
             }
         });
@@ -4198,6 +4231,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             performanceOverlayView.setVisibility(View.VISIBLE);
             if(prefConfig.enablePerfOverlayLite){
                 performanceOverlayLite.setVisibility(View.VISIBLE);
+            }else if(prefConfig.enablePerfOverlayMini){
+                performanceOverlayMini.setVisibility(View.VISIBLE);
             }else{
                 performanceOverlayBig.setVisibility(View.VISIBLE);
             }

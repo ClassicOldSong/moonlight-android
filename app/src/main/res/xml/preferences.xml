@@ -910,6 +910,13 @@
         <CheckBoxPreference
             android:defaultValue="false"
             android:dependency="checkbox_enable_perf_overlay"
+            android:key="checkbox_enable_perf_overlay_mini"
+            android:summary="@string/summary_checkbox_enable_perf_overlay_mini"
+            android:title="@string/title_checkbox_enable_perf_overlay_mini"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:dependency="checkbox_enable_perf_overlay"
             android:key="checkbox_enable_perf_overlay_bottom"
             android:summary="@string/summary_checkbox_enable_perf_overlay_bottom"
             android:title="@string/title_checkbox_enable_perf_overlay_bottom"
@@ -972,6 +979,12 @@
             android:key="checkbox_prevent_packet_loss"
             android:summary="@string/summary_prevent_packet_loss"
             android:title="@string/title_prevent_packet_loss"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_enable_android_tv_force_gpu_composition"
+            android:summary="@string/summary_checkbox_enable_android_tv_force_gpu_composition"
+            android:title="@string/title_checkbox_enable_android_tv_force_gpu_composition"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
 

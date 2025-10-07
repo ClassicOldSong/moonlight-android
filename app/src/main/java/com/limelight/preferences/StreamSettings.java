@@ -956,6 +956,36 @@ public class StreamSettings extends AppCompatActivity {
                     }
                 });
             }
+
+            // Mutual exclusion between Lite and Mini overlay modes
+            CheckBoxPreference litePref = findPreference("checkbox_enable_perf_overlay_lite");
+            CheckBoxPreference miniPref = findPreference("checkbox_enable_perf_overlay_mini");
+            
+            if (litePref != null && miniPref != null) {
+                litePref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+                    @Override
+                    public boolean onPreferenceChange(Preference preference, Object newValue) {
+                        Boolean isEnabled = (Boolean) newValue;
+                        if (isEnabled && miniPref.isChecked()) {
+                            // Disable mini when enabling lite
+                            miniPref.setChecked(false);
+                        }
+                        return true;
+                    }
+                });
+                
+                miniPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+                    @Override
+                    public boolean onPreferenceChange(Preference preference, Object newValue) {
+                        Boolean isEnabled = (Boolean) newValue;
+                        if (isEnabled && litePref.isChecked()) {
+                            // Disable lite when enabling mini
+                            litePref.setChecked(false);
+                        }
+                        return true;
+                    }
+                });
+            }
         }
 
         private void removeEntryFromListAndSetValue(String resolutionPrefString, String entryToRemove, String nextDefault) {

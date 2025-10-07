@@ -450,6 +450,8 @@
     <string name="summary_checkbox_onscreen_style_official">If you still like the old style of official virtual gamepad buttons, you can select this option.\nButton shapes can be square if you selected the bottom virtual button [Normal buttons are square buttons]</string>
     <string name="title_checkbox_enable_perf_overlay_lite">Enable Lite mode</string>
     <string name="summary_checkbox_enable_perf_overlay_lite">Display simplified performance information: Network Speed / Latency / Decode / Packet Loss Rate / FPS</string>
+    <string name="title_checkbox_enable_perf_overlay_mini">Enable Mini mode</string>
+    <string name="summary_checkbox_enable_perf_overlay_mini">Display simplified performance mini information</string>
     <string name="title_checkbox_enable_perf_logging">Enable Performance Logging</string>
     <string name="summary_checkbox_enable_perf_logging">"Stores performance data per configuration. (Offline only) "</string>
     <string name="title_checkbox_enable_perf_overlay_lite_dialog">Lite mode click to pop up quick options</string>
@@ -698,6 +700,8 @@
     <string name="summary_checkbox_remember_zoom_pan">Save changes to zoom and pan position between sessions</string>
     <string name="title_checkbox_enable_perf_overlay_bottom">Move overlay to bottom</string>
     <string name="summary_checkbox_enable_perf_overlay_bottom">Useful when Display in Top Center and Lite mode are enabled during non-native resolution streaming.</string>
+    <string name="title_checkbox_enable_android_tv_force_gpu_composition">Force GPU Composition (Android TV)</string>
+    <string name="summary_checkbox_enable_android_tv_force_gpu_composition">Fixes frame sync issues on Android TV by forcing GPU composition. Enable if video playback has stuttering or frame drops.</string>
     <string name="title_edit_profile">Edit Profile</string>
     <string name="profile_manager_new_profile">New Profile</string>
     <string name="profile_manager_profile_not_found">Profile not found</string>
