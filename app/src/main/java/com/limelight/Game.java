@@ -292,6 +292,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         boolean isMenuOpen();
     }
 
+    //Samsung SemWindowManager
+    private static boolean isSamsungDevice() {
+        try { return "samsung".equalsIgnoreCase(android.os.Build.MANUFACTURER); }
+        catch (Throwable ignored) { return false; }
+    }
+
+
     public GameMenuCallbacks gameMenuCallbacks;
 
     public boolean isInputOnly = true;
@@ -1334,26 +1341,27 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     public void setMetaKeyCaptureState(boolean enabled) {
-        // This uses custom APIs present on some Samsung devices to allow capture of
-        // meta key events while streaming.
-        try {
-            Class<?> semWindowManager = Class.forName("com.samsung.android.view.SemWindowManager");
-            Method getInstanceMethod = semWindowManager.getMethod("getInstance");
-            Object manager = getInstanceMethod.invoke(null);
+        if (!isSamsungDevice()) return; // niente Samsung → niente reflection
 
-            if (manager != null) {
-                Class<?>[] parameterTypes = new Class<?>[2];
-                parameterTypes[0] = ComponentName.class;
-                parameterTypes[1] = boolean.class;
-                Method requestMetaKeyEventMethod = semWindowManager.getDeclaredMethod("requestMetaKeyEvent", parameterTypes);
-                requestMetaKeyEventMethod.invoke(manager, this.getComponentName(), enabled);
+        try {
+            Class<?> semWm = Class.forName("com.samsung.android.view.SemWindowManager");
+            Method getInstance = semWm.getMethod("getInstance");
+            Object mgr = getInstance.invoke(null);
+            if (mgr == null) return;
+
+            Method requestMeta;
+            try {
+
+                requestMeta = semWm.getMethod("requestMetaKeyEvent", ComponentName.class, boolean.class);
+            } catch (NoSuchMethodException e) {
+
+                requestMeta = semWm.getDeclaredMethod("requestMetaKeyEvent", ComponentName.class, boolean.class);
+                requestMeta.setAccessible(true);
             }
-            else {
-                LimeLog.warning("SemWindowManager.getInstance() returned null");
-            }
-        } catch (ClassNotFoundException | NoSuchMethodException | InvocationTargetException |
-                 IllegalAccessException e) {
-            e.printStackTrace();
+
+            requestMeta.invoke(mgr, getComponentName(), enabled);
+        } catch (Throwable ignored) {
+
         }
     }
 
@@ -1865,7 +1873,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         // Grab/ungrab system keyboard shortcuts
-        setMetaKeyCaptureState(grab);
+        if (isSamsungDevice()) {
+            try { setMetaKeyCaptureState(grab); } catch (Throwable ignored) {}
+        }
 
         grabbedInput = grab;
     }
