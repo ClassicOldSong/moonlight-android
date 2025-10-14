@@ -57,9 +57,9 @@ public void setForceTightThresholds(boolean v) { this.forceTightThresholds = v; 
     // Decode latency tracking: map PTS(us) -> enqueue time (ns)
     private final LongSparseArray<Long> enqueueNsByPtsUs = new LongSparseArray<>();
 
-    // When preferLowerDelays=true we use this configurable timeout (µs) for output dequeue.
-// When preferLowerDelays=false we force 0µs (non-blocking, latest-frame rendering).
-    private volatile int preferLowerDelaysTimeoutUs = 2000;
+    // When preferLowerDelays = true (LFR/ULL): force non-blocking by default.
+    // When preferLowerDelays = false (Balanced/managed): use a small timeout for smoothing.
+    private volatile int preferLowerDelaysTimeoutUs = 0; // default 0 for ULL; policy may override if needed
     public void setPreferLowerDelaysTimeoutUs(int us) { this.preferLowerDelaysTimeoutUs = Math.max(0, us); }
 
     private int getOutputDequeueTimeoutUs(){ return preferLowerDelays ? preferLowerDelaysTimeoutUs : 0; }
@@ -1189,7 +1189,7 @@ boolean isC2Decoder = false;
                 long lastOutputNs = System.nanoTime();
                 while (!stopping) {
                 /* LATEST_ONLY_LOW_LATENCY */
-                if (!preferLowerDelays) {
+                if (preferLowerDelays) {
     try {
         android.media.MediaCodec.BufferInfo __tmpInfo = new android.media.MediaCodec.BufferInfo();
         int __idx = videoDecoder.dequeueOutputBuffer(__tmpInfo, 0);
