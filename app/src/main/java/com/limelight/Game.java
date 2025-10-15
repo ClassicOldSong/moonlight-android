@@ -932,7 +932,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                     try {
                         java.lang.reflect.Method m = SurfaceView.class.getMethod("setFrameRate", float.class, int.class);
-                        LimeLog.info("MYLOG TARGETTEST " + targetFps + " " + displayHz);
                         m.invoke(streamSurfaceView, Math.min(targetFps, displayHz), compat);
                     } catch (Throwable ignored) {}
                 }
@@ -1629,7 +1628,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             LimeLog.info("surfaceChanged-->"+(double)displayWidth / (double)displayHeight);
             LimeLog.info("scaleMode-->"+prefConfig.videoScaleMode);
         }
-        // streamContainer.setAsIs(true);
 
         // Set the desired refresh rate that will get passed into setFrameRate() later
         desiredRefreshRate = displayRefreshRate;
