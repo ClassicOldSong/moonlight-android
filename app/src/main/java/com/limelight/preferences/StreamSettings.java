@@ -76,7 +76,7 @@ public class StreamSettings extends AppCompatActivity {
 
     void reloadSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display.Mode mode = getActiveDisplay(StreamSettings.this, previousPrefs).getMode();
+            Display.Mode mode = getActiveDisplay(StreamSettings.this).getMode();
             previousDisplayPixelCount = mode.getPhysicalWidth() * mode.getPhysicalHeight();
         }
         prefsFragment = new SettingsFragment(PreferenceConfiguration.readPreferences(
@@ -125,7 +125,7 @@ public class StreamSettings extends AppCompatActivity {
         super.onConfigurationChanged(newConfig);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display.Mode mode = getActiveDisplay(StreamSettings.this, previousPrefs).getMode();
+            Display.Mode mode = getActiveDisplay(StreamSettings.this).getMode();
 
             // If the display's physical pixel count has changed, we consider that it's a new display
             // and we should reload our settings (which include display-dependent values).
@@ -439,7 +439,7 @@ public class StreamSettings extends AppCompatActivity {
                     }
                 }
             }
-            
+
             // Check custom refresh rate
             String customRefreshRateStr = prevPrefConfig.customRefreshRate;
             if (customRefreshRateStr != null && !customRefreshRateStr.isEmpty()) {
@@ -904,7 +904,7 @@ public class StreamSettings extends AppCompatActivity {
                     try {
                         int width = Integer.parseInt(resolutionSegments[0]);
                         int height = Integer.parseInt(resolutionSegments[1]);
-                        
+
                         if (width <= 0 || height <= 0) {
                             Toast.makeText(getActivity(), getString(R.string.pref_error_occurred), Toast.LENGTH_SHORT).show();
                             return false;
@@ -934,14 +934,14 @@ public class StreamSettings extends AppCompatActivity {
                         Toast.makeText(getActivity(), getString(R.string.pref_enter_value_0_9999), Toast.LENGTH_SHORT).show();
                         return false;
                     }
-                    
+
                     try {
                         float refreshRate = Float.parseFloat(value);
                         if (refreshRate <= 0) {
                             Toast.makeText(getActivity(), getString(R.string.pref_enter_value_0_9999), Toast.LENGTH_SHORT).show();
                             return false;
                         }
-                        
+
                         // Format to max 3 decimal places
                         String formattedValue = String.format("%.3f", refreshRate);
                         // Remove trailing zeros

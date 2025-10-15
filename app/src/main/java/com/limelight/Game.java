@@ -398,15 +398,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         boolean shouldInvertDecoderResolution = false;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                && onExternelDisplay
-                && prefConfig.renderMode == 0 // For 3D we want to maintain configured resolution
-        ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && onExternelDisplay) {
             Display.Mode currentMode = currentDisplay.getMode();
-            displayWidth = currentMode.getPhysicalWidth();
-            displayHeight = currentMode.getPhysicalHeight();
-            prefConfig.width = displayWidth;
-            prefConfig.height = displayHeight;
+            displayWidth = prefConfig.width;
+            displayHeight = prefConfig.height;
             prefConfig.fps = currentMode.getRefreshRate();
             prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
             prefConfig.enableFloatingButton = false;
@@ -668,7 +663,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 willStreamHdr,
                 shouldInvertDecoderResolution,
                 glPrefs.glRenderer,
-                this);
+                this,
+                currentDisplay);
 
 // --- Force tight thresholds (prefConfig.forceTightThresholds) ---
         try {
@@ -748,7 +744,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // Set to the optimal mode for streaming
         float displayRefreshRate = prepareDisplayForRendering(currentDisplay);
-        LimeLog.info("Display refresh rate: "+displayRefreshRate);
+
+        // Set WindowAttributes is not working on external screens and received fps were wrong
+        // leading to weird stream connection with barely 500kbs
+        if (isOnExternalDisplay() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            displayRefreshRate = currentDisplay.getMode().getRefreshRate();
+        }
 
         // If the user requested frame pacing using a capped FPS, we will need to change our
         // desired FPS setting here in accordance with the active display refresh rate.
@@ -774,6 +775,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         if (prefConfig.framePacingWarpFactor > 0) {
             chosenFrameRate *= prefConfig.framePacingWarpFactor;
+        }
+        //As external displays might return 60.004 fps, it seems to cause low quality stream
+        if(isOnExternalDisplay()) {
+            chosenFrameRate = (int) chosenFrameRate;
         }
 
         StreamConfiguration config = new StreamConfiguration.Builder()
@@ -927,6 +932,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                     try {
                         java.lang.reflect.Method m = SurfaceView.class.getMethod("setFrameRate", float.class, int.class);
+                        LimeLog.info("MYLOG TARGETTEST " + targetFps + " " + displayHz);
                         m.invoke(streamSurfaceView, Math.min(targetFps, displayHz), compat);
                     } catch (Throwable ignored) {}
                 }
@@ -1142,7 +1148,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void setPreferredOrientationForActivity() {
-        Display display = getActiveDisplay(Game.this, prefConfig);
+        Display display = getActiveDisplay(Game.this);
 
         // For semi-square displays, we use more complex logic to determine which orientation to use (if any)
         if (PreferenceConfiguration.isSquarishScreen(display)) {
@@ -1429,7 +1435,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display display = getActiveDisplay(Game.this, prefConfig);
+            Display display = getActiveDisplay(Game.this);
             for (Display.Mode candidate : display.getSupportedModes()) {
                 // Ignore insets if this is an exact match for the display resolution
                 if ((width == candidate.getPhysicalWidth() && height == candidate.getPhysicalHeight()) ||
@@ -1623,6 +1629,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             LimeLog.info("surfaceChanged-->"+(double)displayWidth / (double)displayHeight);
             LimeLog.info("scaleMode-->"+prefConfig.videoScaleMode);
         }
+        // streamContainer.setAsIs(true);
 
         // Set the desired refresh rate that will get passed into setFrameRate() later
         desiredRefreshRate = displayRefreshRate;

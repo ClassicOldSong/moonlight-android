@@ -13,7 +13,7 @@ public class ReflectivePaddingInt8Minimal {
      */
     public static void applyReflectedPadding(ByteBuffer buffer) {
         final int size = 256;
-        final int band = (int)(size * 0.15); // obere/untere 20%
+        final int band = (int)(size * 0.1); // obere/untere 20%
         final int featherPx = 12;
         final int blurKsize = 7;
 

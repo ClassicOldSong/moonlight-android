@@ -61,8 +61,9 @@ public class ServerHelper {
         i.setAction(Intent.ACTION_DEFAULT);
         return i;
     }
-    public static Display getActiveDisplay(Context context, PreferenceConfiguration prefs) {
+    public static Display getActiveDisplay(Context context) {
         Display secondary = getSecondaryDisplay(context);
+        PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(context);
         if (secondary != null && (prefs.enableFullExDisplay)) {
             return secondary;
         } else {

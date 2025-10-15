@@ -6,7 +6,6 @@ import android.graphics.SurfaceTexture;
 import android.opengl.GLES20;
 import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
-import android.os.Build;
 import android.util.Log;
 import android.view.Surface;
 
@@ -33,8 +32,12 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -122,11 +125,10 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     private BlockingQueue<ByteBuffer> freeSmoothedBuffers;
     private BlockingQueue<RenderResult> inferenceInputQueue = new ArrayBlockingQueue<>(1);
     private PreferenceConfiguration prefConfig;
-    private ByteBuffer previousPixelBuffer;
     private Surface videoSurface;
     private SurfaceTexture videoSurfaceTexture;
 
-    private float ON_DRAW_CHANGE_TRESHOLD = 2.0f;
+    private float ON_DRAW_CHANGE_TRESHOLD = 2.5f;
 
 
     public interface OnSurfaceReadyListener {
@@ -210,7 +212,6 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         });
 
         if (filledOutputBuffers != null) filledOutputBuffers.clear();
-        previousPixelBuffer = null;
         currentlyRenderingMap = null;
         prefConfig = null;
         drawDelay = 0.0f;
@@ -241,7 +242,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
         depthMapTextureId = createEmptyTexture(modelInputWidth, modelInputHeight);
 
-        simple3dProgram = createProgram(ShaderUtils.SIMPLE_VERTEX_SHADER, ShaderUtils.SIMPLE_FRAGMENT_SHADER);
+        simple3dProgram = createProgram(ShaderUtils.VERTEX_SHADER, ShaderUtils.SIMPLE_FRAGMENT_SHADER);
         bilateralBlurProgram = createProgram(ShaderUtils.VERTEX_SHADER, ShaderUtils.OPTIMIZED_SINGLE_PASS_GAUSSIAN_BLUR_SHADER);
         dibr3dProgram = createProgram(ShaderUtils.VERTEX_SHADER, ShaderUtils.FRAGMENT_SHADER_3D);
 
@@ -259,7 +260,6 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         }
 
         int pboSize = modelInputWidth * modelInputHeight * 4;
-        previousPixelBuffer = ByteBuffer.allocateDirect(pboSize).order(ByteOrder.nativeOrder());
         previousFrameForComparison = ByteBuffer.allocateDirect(pboSize).order(ByteOrder.nativeOrder());
         int inputPixelSize = modelInputWidth * modelInputHeight * 4;
         freeInputBuffers = new ArrayBlockingQueue<>(NUM_INPUT_BUFFERS);
@@ -298,7 +298,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     }
 
     private float getParallax() {
-        return prefConfig.parallax_depth * 0.7f;
+        return prefConfig.parallax_depth * 0.2f;
     }
 
     private void applyTwoPassGaussianBlur() {
@@ -349,7 +349,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         int viewWidth = glSurfaceView.getWidth();
         int viewHeight = glSurfaceView.getHeight();
 
-        float parallax = getParallax() * 0.06f;
+        float parallax = getParallax() * 0.2f;
 
         GLES20.glViewport(0, 0, viewWidth / 2, viewHeight);
         drawEye(dualBubble3dProgram, -parallax, convergence, shift);
@@ -602,34 +602,6 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         }
     }
 
-    public static double calculateAverageDifferenceOCV(ByteBuffer buffer1, ByteBuffer buffer2, int width, int height) {
-        if (buffer1 == null || buffer2 == null) {
-            return 1;
-        }
-
-        Mat mat1 = null;
-        Mat mat2 = null;
-        Mat diffMat = null;
-        try {
-            mat1 = new Mat(height, width, CvType.CV_8UC1, buffer1);
-            mat2 = new Mat(height, width, CvType.CV_8UC1, buffer2);
-            diffMat = new Mat();
-            Core.absdiff(mat1, mat2, diffMat);
-            Scalar meanDifference = Core.mean(diffMat);
-            return meanDifference.val[0] / 255.0;
-        } finally {
-            if (mat1 != null) {
-                mat1.release();
-            }
-            if (mat2 != null) {
-                mat2.release();
-            }
-            if (diffMat != null) {
-                diffMat.release();
-            }
-        }
-    }
-
     private void initializePBOs() {
         PBO_SIZE = modelInputWidth * modelInputHeight * 4;
 
@@ -655,35 +627,6 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
 
         return true;
-    }
-
-    private boolean readPixelsForAI_Async(ByteBuffer destinationBuffer) {
-        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboHandle);
-        GLES20.glViewport(0, 0, modelInputWidth, modelInputHeight);
-        drawQuad(simple3dProgram, 1.0f, 0.0f);
-        int writeIndex = pboIndex;
-        int readIndex = (pboIndex + 1) % 2;
-        GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, pboHandles[writeIndex]);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            GLES30.glReadPixels(0, 0, modelInputWidth, modelInputHeight, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, 0);
-        }
-        GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, pboHandles[readIndex]);
-        ByteBuffer mappedBuffer = (ByteBuffer) GLES30.glMapBufferRange(
-                GLES30.GL_PIXEL_PACK_BUFFER, 0, PBO_SIZE, GLES30.GL_MAP_READ_BIT);
-        boolean success = false;
-        if (mappedBuffer != null) {
-            destinationBuffer.rewind();
-            mappedBuffer.rewind();
-            destinationBuffer.put(mappedBuffer);
-            GLES30.glUnmapBuffer(GLES30.GL_PIXEL_PACK_BUFFER);
-            success = true;
-        }
-
-        GLES30.glBindBuffer(GLES30.GL_PIXEL_PACK_BUFFER, 0);
-        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-
-        pboIndex = readIndex;
-        return success;
     }
 
     private void initializeTfLite() {
@@ -858,6 +801,104 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         }
         return program;
     }
+
+    private double computeColorSimilarity(ByteBuffer newPixelBuffer, ByteBuffer oldPixelBuffer) {
+        if (newPixelBuffer == null || oldPixelBuffer == null || newPixelBuffer.capacity() != oldPixelBuffer.capacity()) {
+            return 0.0; // komplett unterschiedlich
+        }
+
+        // ByteBuffers zurücksetzen
+        newPixelBuffer.rewind();
+        oldPixelBuffer.rewind();
+
+        Mat mat1 = null, mat2 = null;
+        Mat matBGR1 = null, matBGR2 = null;
+        Mat histB1 = null, histG1 = null, histR1 = null;
+        Mat histB2 = null, histG2 = null, histR2 = null;
+
+        List<Mat> bgrPlanes1 = null;
+        List<Mat> bgrPlanes2 = null;
+        try {
+            // Mats aus ByteBuffer
+            mat1 = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC4, newPixelBuffer);
+            mat2 = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC4, oldPixelBuffer);
+
+            // RGBA -> BGR konvertieren
+            matBGR1 = new Mat();
+            matBGR2 = new Mat();
+            Imgproc.cvtColor(mat1, matBGR1, Imgproc.COLOR_RGBA2BGR);
+            Imgproc.cvtColor(mat2, matBGR2, Imgproc.COLOR_RGBA2BGR);
+
+            // Core.split vorbereiten
+            bgrPlanes1 = new ArrayList<>();
+            bgrPlanes1.add(new Mat());
+            bgrPlanes1.add(new Mat());
+            bgrPlanes1.add(new Mat());
+            Core.split(matBGR1, bgrPlanes1);
+
+            bgrPlanes2 = new ArrayList<>();
+            bgrPlanes2.add(new Mat());
+            bgrPlanes2.add(new Mat());
+            bgrPlanes2.add(new Mat());
+            Core.split(matBGR2, bgrPlanes2);
+
+            // Histogramme
+            histB1 = new Mat();
+            histG1 = new Mat();
+            histR1 = new Mat();
+            histB2 = new Mat();
+            histG2 = new Mat();
+            histR2 = new Mat();
+
+            int histSize = 16; // grobe Farbanalyse
+            float[] range = {0f, 256f};
+            MatOfFloat histRange = new MatOfFloat(range);
+
+            // Histogramme berechnen
+            Imgproc.calcHist(Collections.singletonList(bgrPlanes1.get(0)), new MatOfInt(0), new Mat(), histB1, new MatOfInt(histSize), histRange);
+            Imgproc.calcHist(Collections.singletonList(bgrPlanes1.get(1)), new MatOfInt(0), new Mat(), histG1, new MatOfInt(histSize), histRange);
+            Imgproc.calcHist(Collections.singletonList(bgrPlanes1.get(2)), new MatOfInt(0), new Mat(), histR1, new MatOfInt(histSize), histRange);
+
+            Imgproc.calcHist(Collections.singletonList(bgrPlanes2.get(0)), new MatOfInt(0), new Mat(), histB2, new MatOfInt(histSize), histRange);
+            Imgproc.calcHist(Collections.singletonList(bgrPlanes2.get(1)), new MatOfInt(0), new Mat(), histG2, new MatOfInt(histSize), histRange);
+            Imgproc.calcHist(Collections.singletonList(bgrPlanes2.get(2)), new MatOfInt(0), new Mat(), histR2, new MatOfInt(histSize), histRange);
+
+            // Normalisieren
+            Core.normalize(histB1, histB1, 0, 1, Core.NORM_MINMAX);
+            Core.normalize(histG1, histG1, 0, 1, Core.NORM_MINMAX);
+            Core.normalize(histR1, histR1, 0, 1, Core.NORM_MINMAX);
+
+            Core.normalize(histB2, histB2, 0, 1, Core.NORM_MINMAX);
+            Core.normalize(histG2, histG2, 0, 1, Core.NORM_MINMAX);
+            Core.normalize(histR2, histR2, 0, 1, Core.NORM_MINMAX);
+
+            // Histogramm-Korrelation pro Kanal
+            double corrB = Imgproc.compareHist(histB1, histB2, Imgproc.HISTCMP_CORREL);
+            double corrG = Imgproc.compareHist(histG1, histG2, Imgproc.HISTCMP_CORREL);
+            double corrR = Imgproc.compareHist(histR1, histR2, Imgproc.HISTCMP_CORREL);
+
+            return 1f - Math.max(0, (corrB + corrG + corrR) / 3.0);
+
+        } finally {
+            // Alle Mats freigeben
+            if (mat1 != null) mat1.release();
+            if (mat2 != null) mat2.release();
+            if (matBGR1 != null) matBGR1.release();
+            if (matBGR2 != null) matBGR2.release();
+            if (histB1 != null) histB1.release();
+            if (histG1 != null) histG1.release();
+            if (histR1 != null) histR1.release();
+            if (histB2 != null) histB2.release();
+            if (histG2 != null) histG2.release();
+            if (histR2 != null) histR2.release();
+            for (Mat m : new Mat[]{bgrPlanes1.get(0), bgrPlanes1.get(1), bgrPlanes1.get(2)})
+                m.release();
+            for (Mat m : new Mat[]{bgrPlanes2.get(0), bgrPlanes2.get(1), bgrPlanes2.get(2)})
+                m.release();
+        }
+    }
+
+
 
     private double hasFrameChangedSignificantlyOCV(ByteBuffer newPixelBuffer, ByteBuffer oldPixelBuffer) {
         if (newPixelBuffer == null || oldPixelBuffer == null || newPixelBuffer.capacity() != oldPixelBuffer.capacity()) {
@@ -1034,7 +1075,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                     if (pixelBuffer != null) {
                         freeInputBuffers.offer(pixelBuffer);
                     }
-                    Log.d("Stereo3DRenderer", "CalculateTime AiDepthMap: " + duration + " ms " + filledOutputBuffers.remainingCapacity() + " " + waitTimeText + " ms" + "aitime: " + aitimeText);
+                    Log.d("Stereo3DRenderer", "CalculateTime AiDepthMap: " + duration + " ms " + filledOutputBuffers.remainingCapacity() + " " + waitTimeText + " ms " + "aitime: " + aitimeText);
                 }
             }
             isAiRunning.set(false);
@@ -1043,13 +1084,11 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
     private class AiResultHandling implements Runnable {
 
-        private static final double IMAGE_DIFFERENCE_MULTIPLIER = 100.0;
-        private static final double MAX_SMOOTHING_FACTOR = 1;
+        private static final double DEPTH_DIFF_THRESHOLD = 0.1; // large jump threshold
+        private static final double DEPTH_DIFF_AVERAGE_THRESHOLD = 0.05; // large jump threshold
+        private static final double MAX_SMOOTHING = 1.0; // full adoption
+        private static final double MIN_SMOOTHING = 0.0; // ignore
 
-        private static final double MIN_SMOOTHING_FACTOR = 0.005;
-
-        // --- Member Fields ---
-        private final byte[] processedDataArray = new byte[modelInputWidth * modelInputHeight];
         private Mat previousSmoothedMat;
         private boolean isFirstFrame = true;
 
@@ -1060,90 +1099,100 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
             while (!Thread.currentThread().isInterrupted()) {
                 long startTime = System.nanoTime();
-                long waitTime = System.nanoTime();
                 Mat rawMat = null;
-                Mat processedMat = null;
+                Mat rawFloat = null;
                 try {
                     result = filledOutputBuffers.take();
                     resultBuffer = freeSmoothedBuffers.take();
-                    waitTime = System.nanoTime();
 
+                    // Take latest intermediate frame if multiple available
                     InferenceResult intermediate;
                     while ((intermediate = filledOutputBuffers.poll()) != null) {
                         freeInputBuffers.offer(result.pixelBuffer);
                         freeOutputBuffers.offer(result.rawDepthBuffer);
                         result = intermediate;
                     }
-                    ByteBuffer rawDepthBuffer = result.rawDepthBuffer;
-                    ByteBuffer currentPixelBuffer = result.pixelBuffer;
 
-                    currentPixelBuffer.rewind();
-                    double imageDifference = hasFrameChangedSignificantlyOCV(currentPixelBuffer, previousPixelBuffer) * IMAGE_DIFFERENCE_MULTIPLIER;
-
-                    rawMat = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC1, rawDepthBuffer);
-                    processedMat = new Mat();
-                    Core.normalize(rawMat, processedMat, 0, 255, Core.NORM_MINMAX);
+                    rawMat = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC1, result.rawDepthBuffer);
+                    rawFloat = new Mat();
+                    rawMat.convertTo(rawFloat, CvType.CV_32F); // keep un-normalized
 
                     if (isFirstFrame) {
-                        previousSmoothedMat = processedMat.clone();
+                        previousSmoothedMat = rawFloat.clone();
                         isFirstFrame = false;
                     }
 
-                    double smoothing = (imageDifference * 10) / (threeDFps * 3);
-                    smoothing = Math.min(smoothing, MAX_SMOOTHING_FACTOR);
-                    smoothing = Math.max(smoothing, MIN_SMOOTHING_FACTOR);
-                    Mat diff = new Mat();
-                    Core.absdiff(processedMat, previousSmoothedMat, diff);
-                    Core.MinMaxLocResult mmr = Core.minMaxLoc(diff);
-                    double thresholdValue = Math.max(1, mmr.maxVal * ((1.0 - smoothing)) * 0.1);
-                    Mat validMask = new Mat();
-                    Imgproc.threshold(diff, validMask, thresholdValue, 255, Imgproc.THRESH_BINARY_INV);
-                    processedMat.copyTo(previousSmoothedMat, validMask);
-                    Mat blended = new Mat();
-                    Core.addWeighted(processedMat, smoothing, previousSmoothedMat, 1.0 - smoothing, 0.0, blended);
-                    Mat inverseMask = new Mat();
-                    Core.bitwise_not(validMask, inverseMask);
-                    blended.copyTo(previousSmoothedMat, inverseMask);
-                    diff.release();
-                    validMask.release();
-                    inverseMask.release();
-                    blended.release();
-                    previousSmoothedMat.get(0, 0, processedDataArray);
-                    rawDepthBuffer.rewind();
-                    rawDepthBuffer.put(processedDataArray);
+                    // --- Calculate robust depth difference ---
+                    Mat diffMat = new Mat();
+                    Core.absdiff(rawFloat, previousSmoothedMat, diffMat);
 
-                    rawDepthBuffer.rewind();
-                    resultBuffer.rewind();
-                    resultBuffer.put(rawDepthBuffer);
+                    // Mean difference (global)
+                    Scalar sumDiff = Core.sumElems(diffMat);
+                    double meanDiff = sumDiff.val[0] / (diffMat.rows() * diffMat.cols() * 255.0);
 
-                    rawDepthBuffer.rewind();
-                    resultBuffer.rewind();
+                    // Standard deviation (local fluctuations)
+                    Mat diffFloat = new Mat();
+                    diffMat.convertTo(diffFloat, CvType.CV_32F, 1.0 / 255.0);
+                    Scalar meanVal = Core.mean(diffFloat);
+                    Mat meanMat = new Mat(diffFloat.size(), CvType.CV_32F, new Scalar(meanVal.val[0]));
+                    Mat varianceMat = new Mat();
+                    Core.subtract(diffFloat, meanMat, varianceMat);
+                    Core.multiply(varianceMat, varianceMat, varianceMat);
+                    double stdDev = Math.sqrt(Core.sumElems(varianceMat).val[0] / (diffFloat.rows() * diffFloat.cols()));
+
+                    double depthMapDifference = Math.max(meanDiff, stdDev);
+
+                    // --- Determine smoothing factor ---
+                    double smoothing;
+                    if (depthMapDifference > DEPTH_DIFF_THRESHOLD) {
+                        smoothing = MAX_SMOOTHING; // fully adopt large changes
+                    } else if(depthMapDifference > 0.01){
+                        smoothing = depthMapDifference; // proportional to difference
+                        smoothing = Math.max(MIN_SMOOTHING, Math.min(MAX_SMOOTHING, smoothing));
+                    } else {
+                        // Prevents mini pixel shifts reducing sharpness on still images
+                        smoothing = 0;
+                    }
+
+                    // --- Apply smoothing ---
+                    Imgproc.accumulateWeighted(rawFloat, previousSmoothedMat, smoothing);
+
+                    // --- Normalize for shader output ---
+                    Mat normalizedForShader = new Mat();
+                    Core.MinMaxLocResult mmr = Core.minMaxLoc(previousSmoothedMat);
+                    Core.subtract(previousSmoothedMat, new Scalar(mmr.minVal), normalizedForShader);
+                    Core.divide(normalizedForShader, new Scalar(mmr.maxVal - mmr.minVal + 1e-6), normalizedForShader);
+
+                    Mat outputMat = new Mat();
+                    normalizedForShader.convertTo(outputMat, CvType.CV_8U, 255.0);
+                    outputMat.get(0, 0, resultBuffer.array());
+
                     latestDepthMap.set(resultBuffer);
 
-                    previousPixelBuffer.rewind();
-                    previousPixelBuffer.put(currentPixelBuffer);
+                    // --- Cleanup ---
+                    diffMat.release();
+                    diffFloat.release();
+                    meanMat.release();
+                    varianceMat.release();
+                    normalizedForShader.release();
+                    outputMat.release();
+
                 } catch (Exception e) {
                     LimeLog.severe("AI exception " + e.getMessage());
                 } finally {
-                    if (rawMat != null) {
-                        rawMat.release();
-                    }
-                    if (processedMat != null) {
-                        processedMat.release();
-                    }
-                    if (resultBuffer != null) {
-                        freeSmoothedBuffers.offer(resultBuffer);
-                    }
+                    if (rawMat != null) rawMat.release();
+                    if (rawFloat != null) rawFloat.release();
+                    if (resultBuffer != null) freeSmoothedBuffers.offer(resultBuffer);
                     if (result != null) {
                         freeInputBuffers.offer(result.pixelBuffer);
                         freeOutputBuffers.offer(result.rawDepthBuffer);
                     }
                     long duration = (System.nanoTime() - startTime) / 1_000_000;
-                    long waitTimeText = (waitTime - startTime) / 1_000_000;
-                    Log.d("Stereo3DRenderer", "CalculateTime AiResult:    " + duration + " ms" + " " + freeOutputBuffers.remainingCapacity() + " " + waitTimeText + " ms ");
+                    Log.d("Stereo3DRenderer", "CalculateTime AiResult: " + duration + " ms");
                 }
             }
             isAiResultHandlingRunning.set(false);
         }
     }
+
 }
