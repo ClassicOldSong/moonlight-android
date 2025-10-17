@@ -603,7 +603,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             }
         }
 
-        LimeLog.info("Configuring with format: "+format + " " + (renderTarget != null && renderTarget instanceof Surface));
+        LimeLog.info("Configuring with format: "+format);
 
         videoDecoder.configure(format, renderTarget, null, 0);
 
@@ -795,7 +795,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     @Override
     public int setup(int format, int width, int height, int redrawRate) {
-        // External displayes return a redrawRate of zero, so default 60 was wrong.
+        // External displayes occasionally return a redrawRate of zero, so default 60 was wrong.
         int fpsTarget = redrawRate;
         if(display == null && fpsTarget <= 0) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

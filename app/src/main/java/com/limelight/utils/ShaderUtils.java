@@ -22,7 +22,10 @@ public class ShaderUtils {
                     "uniform bool u_debugMode;\n" +
                     "\n" +
                     "void main() {\n" +
-                    "  float depth = texture2D(s_DepthTexture, v_TexCoord - vec2(abs(u_parallax / 2.0), -0.007)).r;\n" +
+                    "  vec2 depthTexCoord = vec2(v_TexCoord.x, 1.0 - v_TexCoord.y);\n" +
+                    "  // Wende deinen bestehenden Offset auf die korrigierte Koordinate an.\n" +
+                    "  depthTexCoord -= vec2(abs(u_parallax / 2.0), -0.007);\n" +
+                    "  float depth = texture2D(s_DepthTexture, depthTexCoord).r;\n" +
                     "\n" +
                     "  const float zone_radius = 0.70; // Breite der neutralen Zone um Konvergenz\n" +
                     "\n" +
@@ -84,11 +87,30 @@ public class ShaderUtils {
                     "  gl_FragColor = finalColor;\n" +
                     "}\n";
 
-
-
-
-
-
+    public static final String FRAGMENT_SHADER_SEPARABLE_DILATE =
+            "precision mediump float;\n" +
+                    "varying vec2 v_TexCoord;\n" +
+                    "uniform sampler2D s_InputTexture;\n" +
+                    "uniform vec2 u_texelSize;\n" +
+                    "uniform int u_radius;\n" +
+                    // NEU: Die Richtung (z.B. (1.0, 0.0) für horizontal)
+                    "uniform vec2 u_direction;\n" +
+                    "\n" +
+                    "void main() {\n" +
+                    "    if (u_radius <= 0) {\n" +
+                    "        gl_FragColor = texture2D(s_InputTexture, v_TexCoord);\n" +
+                    "        return;\n" +
+                    "    }\n" +
+                    "\n" +
+                    "    float maxDepth = texture2D(s_InputTexture, v_TexCoord).r;\n" +
+                    "\n" +
+                    "    // Loop in one direction only\n" +
+                    "    for (int i = -u_radius; i <= u_radius; i++) {\n" +
+                    "        vec2 offset = u_direction * float(i) * u_texelSize;\n" +
+                    "        maxDepth = max(maxDepth, texture2D(s_InputTexture, v_TexCoord + offset).r);\n" +
+                    "    }\n" +
+                    "    gl_FragColor = vec4(vec3(maxDepth), 1.0);\n" +
+                    "}\n";
     /**
      * An optimized, single-pass Gaussian blur shader that works as a drop-in replacement.
      * It achieves better performance by taking fewer texture samples over the same blur radius.

@@ -1,5 +1,8 @@
 package com.limelight.utils;
 
+import static com.limelight.utils.ShaderUtils.FRAGMENT_SHADER_SEPARABLE_DILATE;
+import static com.limelight.utils.ShaderUtils.VERTEX_SHADER;
+
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.SurfaceTexture;
@@ -55,6 +58,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     private static final int GL_TEXTURE_EXTERNAL_OES = 0x8D65;
     private static final float[] QUAD_VERTICES = {-1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f};
     private static final float[] TEXTURE_VERTICES = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+
     private final String AI_MODEL = "midas-midas-v2-w8a8.tflite";
     private final int modelInputHeight = 256;
     private final int modelInputWidth = 256;
@@ -62,7 +66,11 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     private final int NUM_INPUT_BUFFERS = 10;
     private final int NUM_SMOOTHED_BUFFERS = 3;
     private final int[] pboHandles = new int[2];
-    private int pboIndex = 0;
+
+    private int mDilationProgram;
+    // Deine bestehenden Member-Variablen
+    private int intermediateDilutionFboHandle;
+    private int intermediateDilutionTextureId;
 
     public static boolean isMovieMode = true;
     private int PBO_SIZE = modelInputWidth * modelInputHeight * 4;
@@ -242,12 +250,17 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
         depthMapTextureId = createEmptyTexture(modelInputWidth, modelInputHeight);
 
-        simple3dProgram = createProgram(ShaderUtils.VERTEX_SHADER, ShaderUtils.SIMPLE_FRAGMENT_SHADER);
-        bilateralBlurProgram = createProgram(ShaderUtils.VERTEX_SHADER, ShaderUtils.OPTIMIZED_SINGLE_PASS_GAUSSIAN_BLUR_SHADER);
-        dibr3dProgram = createProgram(ShaderUtils.VERTEX_SHADER, ShaderUtils.FRAGMENT_SHADER_3D);
+        simple3dProgram = createProgram(VERTEX_SHADER, ShaderUtils.SIMPLE_FRAGMENT_SHADER);
+        bilateralBlurProgram = createProgram(VERTEX_SHADER, ShaderUtils.OPTIMIZED_SINGLE_PASS_GAUSSIAN_BLUR_SHADER);
+        dibr3dProgram = createProgram(VERTEX_SHADER, ShaderUtils.FRAGMENT_SHADER_3D);
+        mDilationProgram = createProgram(VERTEX_SHADER, FRAGMENT_SHADER_SEPARABLE_DILATE);
+        if (mDilationProgram == 0) {
+            throw new RuntimeException("Konnte Dilation-Shader-Programm nicht erstellen.");
+        }
 
         initializeFilterFbo();
         initializeIntermediateFbo();
+        initializeDilationFbo();
         initializeTfLite();
         initializeFbo();
         initBuffer();
@@ -297,10 +310,95 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
     }
 
+    private void initializeDilationFbo() {
+        // Create the texture to store the dilation result
+        intermediateDilutionTextureId = createRgbaTexture(modelInputWidth, modelInputHeight);
+
+        // Create the framebuffer object (FBO)
+        int[] fbos = new int[1];
+        GLES20.glGenFramebuffers(1, fbos, 0);
+        intermediateDilutionFboHandle = fbos[0];
+
+        // Bind the FBO and attach the texture to it
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, intermediateDilutionFboHandle);
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, intermediateDilutionTextureId, 0);
+
+        // Check if the FBO was created successfully
+        if (GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER) != GLES20.GL_FRAMEBUFFER_COMPLETE) {
+            LimeLog.warning("Dilation Framebuffer is not complete.");
+        }
+
+        // Unbind the FBO to restore the default state
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+    }
+
     private float getParallax() {
         return prefConfig.parallax_depth * 0.2f;
     }
 
+    /**
+     * Wendet einen performanten, zweistufigen Dilation-Filter an.
+     * Dieses Verfahren ist bei großen Radien deutlich schneller als ein einstufiger Filter.
+     * Liest von 'depthMapTextureId', schreibt das Zwischenergebnis nach 'intermediateDilutionFboHandle'
+     * und das Endergebnis nach 'intermediateFboHandle'.
+     */
+    private void applyTwoPassDilation() {
+        // Das NEUE, separable Dilation-Shader-Programm aktivieren
+        GLES20.glUseProgram(mDilationProgram); // Stelle sicher, dass du diese Variable hast
+
+        // Handles für Attribute und Uniforms holen (sollten als Member-Variablen gecached sein)
+        int posHandle = GLES20.glGetAttribLocation(mDilationProgram, "a_Position");
+        int texHandle = GLES20.glGetAttribLocation(mDilationProgram, "a_TexCoord");
+        int inputTextureHandle = GLES20.glGetUniformLocation(mDilationProgram, "s_InputTexture");
+        int texelSizeHandle = GLES20.glGetUniformLocation(mDilationProgram, "u_texelSize");
+        int radiusHandle = GLES20.glGetUniformLocation(mDilationProgram, "u_radius");
+        int directionHandle = GLES20.glGetUniformLocation(mDilationProgram, "u_direction");
+
+        // Vertex-Daten verbinden (mit den KORREKTEN, nicht-gespiegelten Koordinaten)
+        GLES20.glVertexAttribPointer(posHandle, 2, GLES20.GL_FLOAT, false, 0, quadVertexBuffer);
+        GLES20.glVertexAttribPointer(texHandle, 2, GLES20.GL_FLOAT, false, 0, textureVertexBuffer);
+        GLES20.glEnableVertexAttribArray(posHandle);
+        GLES20.glEnableVertexAttribArray(texHandle);
+
+        // --- 1. DURCHGANG: HORIZONTAL ---
+        // Ziel ist der erste Zwischenspeicher (`intermediateDilutionFboHandle`).
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, intermediateDilutionFboHandle);
+        GLES20.glViewport(0, 0, modelInputWidth, modelInputHeight);
+
+        // Input ist die rohe, originale Tiefenkarte.
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, depthMapTextureId);
+
+        // Setze alle Uniforms für den horizontalen Durchgang.
+        GLES20.glUniform1i(inputTextureHandle, 0);
+        GLES20.glUniform1i(radiusHandle, 15); // Dein gewünschter, großer Radius.
+        GLES20.glUniform2f(texelSizeHandle, 1.0f / modelInputWidth, 1.0f / modelInputHeight);
+        GLES20.glUniform2f(directionHandle, 1.0f, 0.0f); // Richtung: Horizontal (X-Achse)
+
+        // Führe den ersten Shader-Durchgang aus.
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+
+
+        // --- 2. DURCHGANG: VERTIKAL ---
+        // Ziel ist der zweite Zwischenspeicher (`intermediateFboHandle`),
+        // aus dem der Gauß-Filter später lesen wird.
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, intermediateFboHandle);
+        // Viewport muss nicht neu gesetzt werden, wenn die Größe gleich bleibt.
+
+        // Input ist jetzt das Ergebnis des ersten Durchgangs.
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, intermediateDilutionTextureId);
+
+        // Die meisten Uniforms bleiben gleich, wir ändern nur die Richtung.
+        GLES20.glUniform2f(directionHandle, 0.0f, 1.0f); // Richtung: Vertikal (Y-Achse)
+
+        // Führe den zweiten Shader-Durchgang aus.
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+
+        // WICHTIG: Der Framebuffer (`intermediateFboHandle`) bleibt für den
+        // nachfolgenden Gauß-Filter gebunden. Er wird erst am Ende der
+        // gesamten Filterkette (in onDrawFrame) auf 0 zurückgesetzt.
+    }
     private void applyTwoPassGaussianBlur() {
         int blurProgram = bilateralBlurProgram;
 
@@ -326,7 +424,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         GLES20.glUniform2f(directionHandle, 1.0f, 0.0f);
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, depthMapTextureId);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, intermediateDilutionTextureId);
         GLES20.glUniform1i(inputTextureHandle, 0);
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
@@ -484,6 +582,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                 uploadLatestDepthMapToGpu(currentlyRenderingMap);
             }
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+            applyTwoPassDilation();
             applyTwoPassGaussianBlur();
             drawWithShader();
             long endTime = System.nanoTime();
@@ -780,11 +879,36 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     }
 
     private int createProgram(String vertex, String fragment) {
-        int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertex);
-        if (vertexShader == 0) return 0;
-        int fragmentShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragment);
-        if (fragmentShader == 0) return 0;
+        // --- VERTEX SHADER COMPILATION ---
+        int vertexShader = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER);
+        GLES20.glShaderSource(vertexShader, vertex);
+        GLES20.glCompileShader(vertexShader);
 
+        // --- NEUES LOGGING HINZUGEFÜGT ---
+        int[] compiled = new int[1];
+        GLES20.glGetShaderiv(vertexShader, GLES20.GL_COMPILE_STATUS, compiled, 0);
+        if (compiled[0] == 0) {
+            LimeLog.severe("Could not compile vertex shader:");
+            LimeLog.severe(GLES20.glGetShaderInfoLog(vertexShader));
+            GLES20.glDeleteShader(vertexShader);
+            return 0;
+        }
+
+        // --- FRAGMENT SHADER COMPILATION ---
+        int fragmentShader = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER);
+        GLES20.glShaderSource(fragmentShader, fragment);
+        GLES20.glCompileShader(fragmentShader);
+
+        // --- NEUES LOGGING HINZUGEFÜGT ---
+        GLES20.glGetShaderiv(fragmentShader, GLES20.GL_COMPILE_STATUS, compiled, 0);
+        if (compiled[0] == 0) {
+            LimeLog.severe("Could not compile fragment shader:");
+            LimeLog.severe(GLES20.glGetShaderInfoLog(fragmentShader));
+            GLES20.glDeleteShader(fragmentShader);
+            return 0;
+        }
+
+        // --- PROGRAM LINKING (DEIN BESTEHENDER CODE) ---
         int program = GLES20.glCreateProgram();
         if (program != 0) {
             GLES20.glAttachShader(program, vertexShader);
@@ -801,7 +925,6 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         }
         return program;
     }
-
     private double computeColorSimilarity(ByteBuffer newPixelBuffer, ByteBuffer oldPixelBuffer) {
         if (newPixelBuffer == null || oldPixelBuffer == null || newPixelBuffer.capacity() != oldPixelBuffer.capacity()) {
             return 0.0; // komplett unterschiedlich
