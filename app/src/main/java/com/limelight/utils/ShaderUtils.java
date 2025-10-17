@@ -24,7 +24,7 @@ public class ShaderUtils {
                     "void main() {\n" +
                     "  vec2 depthTexCoord = vec2(v_TexCoord.x, 1.0 - v_TexCoord.y);\n" +
                     "  // Wende deinen bestehenden Offset auf die korrigierte Koordinate an.\n" +
-                    "  depthTexCoord -= vec2(abs(u_parallax / 2.0), 0.04);\n" +
+                    "  depthTexCoord -= vec2(abs(u_parallax / 2.0), 0);\n" +
                     "  float depth = texture2D(s_DepthTexture, depthTexCoord).r;\n" +
                     "\n" +
                     "  const float zone_radius = 0.70; // Breite der neutralen Zone um Konvergenz\n" +

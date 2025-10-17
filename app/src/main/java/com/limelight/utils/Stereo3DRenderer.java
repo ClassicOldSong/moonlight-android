@@ -1037,85 +1037,164 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         private static final double DEPTH_DIFF_THRESHOLD = 0.1;
         private static final double MAX_SMOOTHING = 1.0;
         private static final double MIN_SMOOTHING = 0.0;
-        private Mat previousSmoothedMat;
+        private Mat previousSmoothedMat; // Bleibt Member, hält Zustand über Frames
         private boolean isFirstFrame = true;
+
+        // --- Wiederverwendbare Mat-Objekte für diesen Thread ---
+        private Mat reusableRawMat = null; // Wird nur als Header verwendet
+        private Mat reusableRawFloat = new Mat();
+        private Mat reusableDiffMat = new Mat();
+        private Mat reusableDiffFloat = new Mat();
+        private Mat reusableMeanMat = new Mat();
+        private Mat reusableVarianceMat = new Mat();
+        private Mat reusableNormalizedForShader = new Mat();
+        private Mat reusableOutputMat = new Mat();
 
         @Override
         public void run() {
-            ByteBuffer resultBuffer = createFlatDepthMap();
+            ByteBuffer resultBuffer = createFlatDepthMap(); // Initialer flacher Puffer
             InferenceResult result = null;
-            while (!Thread.currentThread().isInterrupted()) {
+
+            // Markierung, ob der Thread noch laufen soll
+            while (isAiResultHandlingRunning.get() && !Thread.currentThread().isInterrupted()) {
                 long startTime = System.nanoTime();
-                Mat rawMat = null;
-                Mat rawFloat = null;
                 try {
-                    result = filledOutputBuffers.take();
-                    resultBuffer = freeSmoothedBuffers.take();
+                    result = filledOutputBuffers.take(); // Blockiert, bis Ergebnis da ist
+                    resultBuffer = freeSmoothedBuffers.take(); // Blockiert, bis Puffer frei ist
+
+                    // Verarbeite nur das letzte verfügbare Ergebnis
                     InferenceResult intermediate;
                     while ((intermediate = filledOutputBuffers.poll()) != null) {
-                        freeInputBuffers.offer(result.pixelBuffer);
+                        freeInputBuffers.offer(result.pixelBuffer); // Gib alte Buffer zurück
                         freeOutputBuffers.offer(result.rawDepthBuffer);
-                        result = intermediate;
+                        result = intermediate; // Behalte das Neueste
                     }
-                    rawMat = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC1, result.rawDepthBuffer);
-                    rawFloat = new Mat();
-                    rawMat.convertTo(rawFloat, CvType.CV_32F);
+
+                    // --- Verwende wiederverwendbare Mats ---
+                    // Erstelle nur den Header neu, zeigt auf den Buffer, keine Datenkopie
+                    reusableRawMat = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC1, result.rawDepthBuffer);
+                    reusableRawMat.convertTo(reusableRawFloat, CvType.CV_32F);
+
                     if (isFirstFrame) {
-                        previousSmoothedMat = rawFloat.clone();
+                        // Initialisiere previousSmoothedMat sicher
+                        if (previousSmoothedMat == null) {
+                            previousSmoothedMat = new Mat();
+                        }
+                        reusableRawFloat.copyTo(previousSmoothedMat);
                         isFirstFrame = false;
+                    } else if (previousSmoothedMat == null || previousSmoothedMat.empty()) {
+                        // Fallback, falls Initialisierung fehlschlug
+                        if (previousSmoothedMat == null) previousSmoothedMat = new Mat();
+                        reusableRawFloat.copyTo(previousSmoothedMat);
+                        LimeLog.warning("previousSmoothedMat war null/leer, neu initialisiert in Schleife.");
                     }
-                    Mat diffMat = new Mat();
-                    Core.absdiff(rawFloat, previousSmoothedMat, diffMat);
-                    Scalar sumDiff = Core.sumElems(diffMat);
-                    double meanDiff = sumDiff.val[0] / (diffMat.rows() * diffMat.cols() * 255.0);
-                    Mat diffFloat = new Mat();
-                    diffMat.convertTo(diffFloat, CvType.CV_32F, 1.0 / 255.0);
-                    Scalar meanVal = Core.mean(diffFloat);
-                    Mat meanMat = new Mat(diffFloat.size(), CvType.CV_32F, new Scalar(meanVal.val[0]));
-                    Mat varianceMat = new Mat();
-                    Core.subtract(diffFloat, meanMat, varianceMat);
-                    Core.multiply(varianceMat, varianceMat, varianceMat);
-                    double stdDev = Math.sqrt(Core.sumElems(varianceMat).val[0] / (diffFloat.rows() * diffFloat.cols()));
+
+                    // --- Differenzberechnung ---
+                    Core.absdiff(reusableRawFloat, previousSmoothedMat, reusableDiffMat);
+                    Scalar sumDiff = Core.sumElems(reusableDiffMat);
+                    // Vermeide Division durch Null, falls Mat leer ist
+                    double totalPixels = reusableDiffMat.total();
+                    double meanDiff = (totalPixels > 0) ? sumDiff.val[0] / (totalPixels * 255.0) : 0.0;
+
+                    reusableDiffMat.convertTo(reusableDiffFloat, CvType.CV_32F, 1.0 / 255.0);
+                    Scalar meanVal = Core.mean(reusableDiffFloat);
+
+                    // Stelle sicher, dass meanMat die korrekte Größe/Typ hat, bevor setTo verwendet wird
+                    if (reusableMeanMat.empty() || !reusableMeanMat.size().equals(reusableDiffFloat.size()) || reusableMeanMat.type() != reusableDiffFloat.type()) {
+                        reusableMeanMat.create(reusableDiffFloat.size(), reusableDiffFloat.type());
+                    }
+                    reusableMeanMat.setTo(new Scalar(meanVal.val[0]));
+
+                    Core.subtract(reusableDiffFloat, reusableMeanMat, reusableVarianceMat); // reusableVarianceMat wird überschrieben
+                    Core.multiply(reusableVarianceMat, reusableVarianceMat, reusableVarianceMat); // In-place quadrieren
+                    double varianceSum = Core.sumElems(reusableVarianceMat).val[0];
+                    double stdDev = (totalPixels > 0) ? Math.sqrt(varianceSum / totalPixels) : 0.0;
+
                     double depthMapDifference = Math.max(meanDiff, stdDev);
+
+                    // --- Glättungsfaktor ---
                     double smoothing;
                     if (depthMapDifference > DEPTH_DIFF_THRESHOLD) {
                         smoothing = MAX_SMOOTHING;
                     } else if (depthMapDifference > 0.01) {
-                        smoothing = depthMapDifference;
+                        smoothing = depthMapDifference * 2.0; // Evtl. Faktor anpassen
                         smoothing = Math.max(MIN_SMOOTHING, Math.min(MAX_SMOOTHING, smoothing));
                     } else {
                         smoothing = 0;
                     }
-                    Imgproc.accumulateWeighted(rawFloat, previousSmoothedMat, smoothing);
-                    Mat normalizedForShader = new Mat();
+
+                    // --- Glättung anwenden ---
+                    Imgproc.accumulateWeighted(reusableRawFloat, previousSmoothedMat, smoothing);
+
+                    // --- Normalisieren für Ausgabe ---
                     Core.MinMaxLocResult mmr = Core.minMaxLoc(previousSmoothedMat);
-                    Core.subtract(previousSmoothedMat, new Scalar(mmr.minVal), normalizedForShader);
-                    Core.divide(normalizedForShader, new Scalar(mmr.maxVal - mmr.minVal + 1e-6), normalizedForShader);
-                    Mat outputMat = new Mat();
-                    normalizedForShader.convertTo(outputMat, CvType.CV_8U, 255.0);
-                    outputMat.get(0, 0, resultBuffer.array());
+                    double range = mmr.maxVal - mmr.minVal;
+                    if (range < 1e-6) range = 1e-6; // Schutz vor Division durch Null
+
+                    Core.subtract(previousSmoothedMat, new Scalar(mmr.minVal), reusableNormalizedForShader);
+                    Core.divide(reusableNormalizedForShader, new Scalar(range), reusableNormalizedForShader);
+
+                    reusableNormalizedForShader.convertTo(reusableOutputMat, CvType.CV_8U, 255.0);
+
+                    // --- Ergebnis in ByteBuffer kopieren ---
+                    if (reusableOutputMat.isContinuous() && resultBuffer.hasArray()) {
+                        reusableOutputMat.get(0, 0, resultBuffer.array());
+                        // Wichtig: Limit muss evtl. angepasst werden, wenn Puffer größer ist
+                        resultBuffer.limit(reusableOutputMat.rows() * reusableOutputMat.cols() * (int)reusableOutputMat.elemSize());
+                    } else {
+                        // Langsamerer Fallback, falls nicht kontinuierlich oder kein Array hat
+                        int bufferSize = modelInputWidth * modelInputHeight;
+                        byte[] data = new byte[bufferSize];
+                        reusableOutputMat.get(0, 0, data);
+                        resultBuffer.put(data);
+                    }
+                    resultBuffer.rewind(); // Puffer für den Konsumenten vorbereiten
+
                     latestDepthMap.set(resultBuffer);
-                    diffMat.release();
-                    diffFloat.release();
-                    meanMat.release();
-                    varianceMat.release();
-                    normalizedForShader.release();
-                    outputMat.release();
+                    resultBuffer = null; // Besitz wurde an latestDepthMap übergeben
+
+                } catch (InterruptedException e) {
+                    LimeLog.warning("AiResultHandling interrupted.");
+                    Thread.currentThread().interrupt(); // Interrupt-Status wiederherstellen
+                    break; // Schleife verlassen
                 } catch (Exception e) {
-                    LimeLog.severe("AI exception " + e.getMessage());
+                    LimeLog.severe("AI result handling exception: " + e.getMessage());
+                    // Hier könnte man überlegen, ob isFirstFrame zurückgesetzt werden soll
                 } finally {
-                    if (rawMat != null) rawMat.release();
-                    if (rawFloat != null) rawFloat.release();
+                    // Gib nur die Buffer zurück, deren Besitz nicht übertragen wurde
                     if (resultBuffer != null) freeSmoothedBuffers.offer(resultBuffer);
                     if (result != null) {
                         freeInputBuffers.offer(result.pixelBuffer);
                         freeOutputBuffers.offer(result.rawDepthBuffer);
+                        result = null; // Referenz löschen
                     }
+                    // Die wiederverwendeten Mat-Objekte werden NICHT hier freigegeben
+
                     long duration = (System.nanoTime() - startTime) / 1_000_000;
                     Log.d("Stereo3DRenderer", "CalculateTime AiResult: " + duration + " ms");
                 }
+            } // Ende while-Schleife
+
+            // --- Aufräumen, wenn der Thread endet ---
+            releaseMat(previousSmoothedMat); previousSmoothedMat = null;
+            // releaseMat(reusableRawMat); // Ist nur ein Header, muss nicht freigegeben werden
+            releaseMat(reusableRawFloat);
+            releaseMat(reusableDiffMat);
+            releaseMat(reusableDiffFloat);
+            releaseMat(reusableMeanMat);
+            releaseMat(reusableVarianceMat);
+            releaseMat(reusableNormalizedForShader);
+            releaseMat(reusableOutputMat);
+
+            isAiResultHandlingRunning.set(false); // Signal setzen, dass der Thread beendet ist
+            LimeLog.info("AiResultHandling finished.");
+        } // Ende run()
+
+        // Hilfsmethode zum sicheren Freigeben von Mats
+        private void releaseMat(Mat mat) {
+            if (mat != null && !mat.empty()) {
+                mat.release();
             }
-            isAiResultHandlingRunning.set(false);
         }
     }
 }
