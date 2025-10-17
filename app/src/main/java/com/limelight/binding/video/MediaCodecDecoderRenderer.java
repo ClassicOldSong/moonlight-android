@@ -1453,6 +1453,20 @@ boolean isC2Decoder = false;
                                 case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
                                     LimeLog.info("Output format changed");
                                     outputFormat = videoDecoder.getOutputFormat();
+                                    try {
+                                        android.media.MediaFormat __fmt = outputFormat;
+                                        int __std = -1, __tr = -1, __rng = -1;
+                                        try { __std = __fmt.getInteger("color-standard"); } catch (Throwable ignored) {}
+                                        try { __tr  = __fmt.getInteger("color-transfer"); } catch (Throwable ignored) {}
+                                        try { __rng = __fmt.getInteger("color-range"); } catch (Throwable ignored) {}
+                                        boolean __isHdr = (__std == 6) && (__tr == 6 || __tr == 7);
+                                        // Notify window color mode (no-op <26)
+                                        try { com.limelight.Game.updateHdrWindowMode(__isHdr); } catch (Throwable ignored) {}
+                                        // Pass HDR static info to GL upscaler if available
+                                        java.nio.ByteBuffer __hdr = null;
+                                        try { __hdr = __fmt.getByteBuffer("hdr-static-info"); } catch (Throwable ignored) {}
+                                        byte[] __hdrArr = null; if (__hdr != null && __hdr.remaining() > 0) { __hdrArr = new byte[__hdr.remaining()]; __hdr.get(__hdrArr); }
+                                    } catch (Throwable ignored) {}
                                     LimeLog.info("New output format: " + outputFormat);
                                     break;
                                 default:
