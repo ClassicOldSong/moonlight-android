@@ -22,7 +22,7 @@ public class ShaderUtils {
                     "uniform bool u_debugMode;\n" +
                     "\n" +
                     "void main() {\n" +
-                    "  vec2 depthTexCoord = vec2(v_TexCoord.x, 1.0 - v_TexCoord.y);\n" +
+                    "  vec2 depthTexCoord = v_TexCoord;\n" +
                     "  // Wende deinen bestehenden Offset auf die korrigierte Koordinate an.\n" +
                     "  depthTexCoord -= vec2(abs(u_parallax / 2.0), 0);\n" +
                     "  float depth = texture2D(s_DepthTexture, depthTexCoord).r;\n" +

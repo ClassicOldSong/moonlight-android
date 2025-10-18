@@ -107,6 +107,8 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     private int intermediateTextureId;
     private int intermediateDilutionFboHandle;
     private int intermediateDilutionTextureId;
+    private int gaussIntermediateFboHandle;
+    private int gaussIntermediateTextureId;
 
     // --- VORGELADENE SHADER-LOCATIONS FÜR PERFORMANCE ---
     private int mDilationPosHandle, mDilationTexHandle, mDilationInputTextureHandle,
@@ -213,7 +215,8 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                     filteredDepthMapTextureId,
                     fboTextureId,
                     intermediateTextureId,
-                    intermediateDilutionTextureId
+                    intermediateDilutionTextureId,
+
             };
             GLES20.glDeleteTextures(textures.length, textures, 0);
 
@@ -233,6 +236,19 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
     public Surface getVideoSurface() {
         return videoSurface;
+    }
+
+    private void initializeGaussIntermediateFbo() {
+        gaussIntermediateTextureId = createRgbaTexture(modelInputWidth, modelInputHeight); // Oder passende Textur erstellen
+        int[] fbos = new int[1];
+        GLES20.glGenFramebuffers(1, fbos, 0);
+        gaussIntermediateFboHandle = fbos[0];
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, gaussIntermediateFboHandle);
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, gaussIntermediateTextureId, 0);
+        if (GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER) != GLES20.GL_FRAMEBUFFER_COMPLETE) {
+            LimeLog.warning("Gauss Intermediate Framebuffer is not complete.");
+        }
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
     }
 
     @Override
@@ -265,6 +281,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         initializeFilterFbo();
         initializeIntermediateFbo();
         initializeDilationFbo();
+        initializeGaussIntermediateFbo();
         initializeTfLite();
         initializeFbo();
         initBuffer();
@@ -353,41 +370,40 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     }
 
     private float getParallax() {
-        return prefConfig.parallax_depth * 0.2f;
+        return prefConfig.parallax_depth * 0.25f;
     }
 
+    /**
+     * Wendet einen performanten, zweistufigen Dilation-Filter korrekt an.
+     * Liest von 'depthMapTextureId', schreibt das Zwischenergebnis nach 'intermediateDilutionFboHandle' (Tex A)
+     * und das Endergebnis nach 'intermediateFboHandle' (Tex B).
+     */
     private void applyTwoPassDilation() {
         GLES20.glUseProgram(mDilationProgram);
-
-        GLES20.glVertexAttribPointer(mDilationPosHandle, 2, GLES20.GL_FLOAT, false, 0, quadVertexBuffer);
-        GLES20.glVertexAttribPointer(mDilationTexHandle, 2, GLES20.GL_FLOAT, false, 0, textureVertexBuffer);
         GLES20.glEnableVertexAttribArray(mDilationPosHandle);
         GLES20.glEnableVertexAttribArray(mDilationTexHandle);
-
-        // --- 1. DURCHGANG: HORIZONTAL ---
+        GLES20.glVertexAttribPointer(mDilationPosHandle, 2, GLES20.GL_FLOAT, false, 0, quadVertexBuffer);
+        GLES20.glVertexAttribPointer(mDilationTexHandle, 2, GLES20.GL_FLOAT, false, 0, textureVertexBuffer);
+        GLES20.glUniform1i(mDilationInputTextureHandle, 0);
+        GLES20.glUniform2f(mDilationTexelSizeHandle, 1.0f / modelInputWidth, 1.0f / modelInputHeight);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, intermediateDilutionFboHandle);
         GLES20.glViewport(0, 0, modelInputWidth, modelInputHeight);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, depthMapTextureId);
-
-        GLES20.glUniform1i(mDilationInputTextureHandle, 0);
-        GLES20.glUniform1i(mDilationRadiusHandle, 15);
-        GLES20.glUniform2f(mDilationTexelSizeHandle, 1.0f / modelInputWidth, 1.0f / modelInputHeight);
+        GLES20.glUniform1i(mDilationRadiusHandle, 5);
         GLES20.glUniform2f(mDilationDirectionHandle, 1.0f, 0.0f);
-
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
-
-        // --- 2. DURCHGANG: VERTIKAL ---
-        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, intermediateFboHandle);
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, gaussIntermediateFboHandle);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, intermediateDilutionTextureId);
+        GLES20.glUniform1i(mDilationRadiusHandle, 5);
         GLES20.glUniform2f(mDilationDirectionHandle, 0.0f, 1.0f);
-
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+        GLES20.glDisableVertexAttribArray(mDilationPosHandle);
+        GLES20.glDisableVertexAttribArray(mDilationTexHandle);
     }
 
     private void applyTwoPassGaussianBlur() {
-        // WIR VERWENDEN HIER ABSICHTLICH WIEDER DIE LOKALEN VARIABLEN ZUM TESTEN
         int blurProgram = bilateralBlurProgram;
 
         GLES20.glUseProgram(blurProgram);
@@ -404,7 +420,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         GLES20.glViewport(0, 0, modelInputWidth, modelInputHeight);
         GLES20.glUniform2f(mGaussDirectionHandle, 1.0f, 0.0f);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, intermediateDilutionTextureId); // Korrekter Input von Dilation
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, gaussIntermediateTextureId);
         GLES20.glUniform1i(mGaussInputTextureHandle, 0);
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
 
