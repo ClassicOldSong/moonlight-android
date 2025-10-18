@@ -268,7 +268,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
         depthMapTextureId = createEmptyTexture(modelInputWidth, modelInputHeight);
 
-        simple3dProgram = createProgram(VERTEX_SHADER, ShaderUtils.SIMPLE_FRAGMENT_SHADER);
+        simple3dProgram = createProgram(VERTEX_SHADER, ShaderUtils.FLIPPED_FRAGMENT_SHADER);
         bilateralBlurProgram = createProgram(VERTEX_SHADER, ShaderUtils.OPTIMIZED_SINGLE_PASS_GAUSSIAN_BLUR_SHADER);
         dibr3dProgram = createProgram(VERTEX_SHADER, ShaderUtils.FRAGMENT_SHADER_3D);
         mDilationProgram = createProgram(VERTEX_SHADER, FRAGMENT_SHADER_SEPARABLE_DILATE);
@@ -669,6 +669,16 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         }
     }
 
+    public static void fastRgbaToRgb(ByteBuffer rgba, ByteBuffer rgb, int width, int height) {
+        for (int i = 0; i < width * height; i++) {
+            rgb.put(rgba.get()); // R
+            rgb.put(rgba.get()); // G
+            rgb.put(rgba.get()); // B
+            rgba.get();          // skip A
+        }
+    }
+
+
     private void initializePBOs() {
         PBO_SIZE = modelInputWidth * modelInputHeight * 4;
         GLES30.glGenBuffers(2, pboHandles, 0);
@@ -998,7 +1008,9 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
             double difference = 0.0f;
             while (!Thread.currentThread().isInterrupted()) {
                 long startTime = System.nanoTime();
-                long waitTime, aiTime, aiTime_end;
+                long waitTime = System.nanoTime();
+                long aiTime = System.nanoTime();
+                long aiTime_end = System.nanoTime();
                 try {
                     if (tflite == null) return;
                     RenderResult result = inferenceInputQueue.take();
@@ -1012,8 +1024,8 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                         pixelBuffer.rewind();
                         convertRgbaToRgb(pixelBuffer, tfliteInputBuffer, modelInputWidth, modelInputHeight);
                         aiTime = System.nanoTime();
-                        ReflectivePaddingInt8Minimal.applyReflectedPadding(tfliteInputBuffer);
                         tflite.run(tfliteInputBuffer, outputBuffer);
+                        aiTime_end = System.currentTimeMillis();
                         if (previousRawMap == null) {
                             previousRawMap = ByteBuffer.allocateDirect(outputBuffer.capacity());
                         }
@@ -1038,11 +1050,14 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                     LimeLog.severe("AI inference failed: " + e.getMessage());
                     gpuDelegateFailed.set(true);
                 } finally {
-                    long duration = (System.nanoTime() - startTime) / 1_000_000;
                     if (pixelBuffer != null) {
                         freeInputBuffers.offer(pixelBuffer);
                     }
-                    Log.d("Stereo3DRenderer", "CalculateTime AiDepthMap: " + duration + " ms");
+                    long duration = (System.nanoTime() - startTime) / 1_000_000;
+                    long waitTimeText = (waitTime - startTime) / 1_000_000;
+                    long aitimeText = (aiTime_end - aiTime) / 1_000_000;
+                    long restTimeText = ((System.nanoTime() - startTime) - (aiTime_end - aiTime)) / 1_000_000;
+                    Log.d("Stereo3DRenderer", "CalculateTime AiDepthMap: " + duration + " ms waitTime: "  + waitTimeText + " ms " + "aitime: " + aitimeText + " otherTime: " +restTimeText);
                 }
             }
             isAiRunning.set(false);

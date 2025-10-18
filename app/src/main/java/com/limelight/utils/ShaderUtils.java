@@ -153,4 +153,13 @@ public class ShaderUtils {
                     "void main() {\n" +
                     "    gl_FragColor = texture2D(u_Texture, v_TexCoord);\n" +
                     "}\n";
+
+    public static final String FLIPPED_FRAGMENT_SHADER =
+            "#extension GL_OES_EGL_image_external : require\n" +
+                    "precision mediump float;\n" +
+                    "varying vec2 v_TexCoord;\n" +
+                    "uniform samplerExternalOES u_Texture;\n" +
+                    "void main() {\n" +
+                    "    gl_FragColor = texture2D(u_Texture, vec2(v_TexCoord.x, 1.0 - v_TexCoord.y));\n" +
+                    "}\n";
 }
