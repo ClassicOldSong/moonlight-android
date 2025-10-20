@@ -406,6 +406,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 prefConfig.width = displayWidth;
                 prefConfig.height = displayHeight;
                 prefConfig.fps = (int) currentMode.getRefreshRate();
+            } else if(prefConfig.externalScreenAutoConfig) {
+                // For 3d auto config would be half the width
+                displayWidth = currentMode.getPhysicalWidth() / 2;
+                displayHeight = currentMode.getPhysicalHeight();
+                prefConfig.width = displayWidth;
+                prefConfig.height = displayHeight;
+                prefConfig.fps = (int) currentMode.getRefreshRate();
             }
             displayWidth = prefConfig.width;
             displayHeight = prefConfig.height;
