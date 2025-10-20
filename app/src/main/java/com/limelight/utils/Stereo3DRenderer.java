@@ -370,7 +370,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     }
 
     private float getParallax() {
-        return prefConfig.parallax_depth * 0.25f;
+        return prefConfig.parallax_depth * 0.18f;
     }
 
     /**
