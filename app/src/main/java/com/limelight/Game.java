@@ -697,12 +697,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 decoderRenderer.setPreferLowerDelaysTimeoutUs(500);  // 0.5 ms
                 prefConfig.framePacing = PreferenceConfiguration.FRAME_PACING_BALANCED;
                 LimeLog.info("PreferLowerDelays: preferLowerDelays=true, timeout=500us, pacing=BALANCED");
-            } else {
-                // Balanced default
+            } else if(prefConfig.framePacing == PreferenceConfiguration.FRAME_PACING_BALANCED && !isOnExternalDisplay()) {
                 decoderRenderer.setPreferLowerDelays(false);
                 decoderRenderer.setPreferLowerDelaysTimeoutUs(2000); // 2 ms
-                prefConfig.framePacing = PreferenceConfiguration.FRAME_PACING_BALANCED;
                 LimeLog.info("Balanced: preferLowerDelays=false, timeout=2000us, pacing=BALANCED");
+            } else {
+                LimeLog.info("No balance mode selected or on external screen (LFR not working)");
             }
         } catch (Throwable ignored) {}
 
