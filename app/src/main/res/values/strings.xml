@@ -504,7 +504,7 @@
     <string name="summary_exdisplay_mode">Stream display on the monitor, virtual buttons and performance information and other controls on the phone screen.</string>
     <string name="summary_fullexdisplay_mode">Allows full immersive secondary screen mode with automatically matched refresh rate and resolution. Manual settings won\'t apply in this mode.</string>
     <string name="title_fullexdisplay_mode_auto">External Display - auto configuration</string>
-    <string name="summary_fullexdisplay_mode_auto">Resolution, FrameRate and Fit will be automatically picked by externals display actively supported connection.</string>
+    <string name="summary_fullexdisplay_mode_auto">Resolution, FrameRate, Fit and RenderMode will be automatically picked by externals display actively supported connection. If glasses or monitor are in 2d mode, renderMode 3d will be ignored.</string>
     <string name="title_top_center_display">Display in Top Center</string>
     <string name="summary_top_center_display">Streaming picture will be aligned to the top of the screen instead of centered when resolution is not native.</string>
     <string name="title_touch_sensitivity">Touch Screen Sensitivity</string>

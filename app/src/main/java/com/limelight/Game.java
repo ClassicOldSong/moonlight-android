@@ -439,6 +439,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         } else {
             if (prefConfig.renderMode != 0) {
                 prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
+                if(prefConfig.externalScreenAutoConfig) {
+                    prefConfig.renderMode = 0;
+                }
             }
 
             if (prefConfig.autoOrientation) {
