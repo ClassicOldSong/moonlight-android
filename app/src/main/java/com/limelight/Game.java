@@ -404,8 +404,24 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 if(prefConfig.renderMode == 0) {
                     displayWidth = currentMode.getPhysicalWidth();
                 } else {
-                    // For 3d auto config would be half the width
-                    displayWidth = currentMode.getPhysicalWidth() / 2;
+                    float ratio = (float) currentMode.getPhysicalWidth() / (float) currentMode.getPhysicalHeight();
+
+                    // A 32:9 aspect ratio is 3.555...
+                    final float SBS_3D_ASPECT_RATIO = 32.0f / 9.0f;
+
+                    // Use a small tolerance for floating-point comparison
+                    final float EPSILON = 0.01f;
+                    // User can keep render mode 3 in its setting without the need to switch
+                    // so plug in glasses and turn on 3d should trigger it otherwise 2dmode
+                    if (Math.abs(ratio - SBS_3D_ASPECT_RATIO) < EPSILON) {
+                        // This is a 32:9 SbS 3D mode (like 3840x1080).
+                        // We set the displayWidth to be for a single eye (1920).
+                        displayWidth = currentMode.getPhysicalWidth() / 2;
+                    } else {
+                        // This is a standard 16:9, 4:3, etc. mode. Use the full width.
+                        displayWidth = currentMode.getPhysicalWidth();
+                        prefConfig.renderMode = 0;
+                    }
                 }
                 displayHeight = currentMode.getPhysicalHeight();
                 prefConfig.width = displayWidth;
