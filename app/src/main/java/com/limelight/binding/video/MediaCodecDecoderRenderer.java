@@ -1826,9 +1826,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     sb.append("\t");
                     sb.append(context.getString(R.string.perf_overlay_lite_packet_loss) + ": ");
                     sb.append(context.getString(R.string.perf_overlay_lite_netdrops,(float)lastTwo.framesLost / lastTwo.totalFrames * 100));
-                    sb.append("\t FPS：");
-                    sb.append(context.getString(R.string.perf_overlay_lite_fps, fps.totalFps));
                     if(Stereo3DRenderer.isActive) {
+                        sb.append("\t FPS：");
+                        sb.append(context.getString(R.string.perf_overlay_lite_fps, Stereo3DRenderer.fps));
                         sb.append(" ");
                         sb.append(context.getString(R.string.perf_overlay_ai_fps));
                         sb.append(" ");
@@ -1839,10 +1839,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         sb.append(Stereo3DRenderer.renderer);
                         sb.append(" ");
                         sb.append(context.getString(R.string.perf_overlay_drawdelay, Stereo3DRenderer.drawDelay));
+                    } else {
+                        sb.append("\t FPS：");
+                        sb.append(context.getString(R.string.perf_overlay_lite_fps, fps.totalFps));
                     }
                 }else{
                     if(Stereo3DRenderer.isActive) {
-                        sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, fps.totalFps));
+                        sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, Stereo3DRenderer.fps));
                         sb.append('\n');
                         sb.append(" ");
                         sb.append(context.getString(R.string.perf_overlay_ai_fps));

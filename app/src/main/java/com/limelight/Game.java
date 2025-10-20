@@ -400,9 +400,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && onExternelDisplay) {
             Display.Mode currentMode = currentDisplay.getMode();
+            if(prefConfig.externalScreenAutoConfig && prefConfig.renderMode == 0) {
+                displayWidth = currentMode.getPhysicalWidth();
+                displayHeight = currentMode.getPhysicalHeight();
+                prefConfig.width = displayWidth;
+                prefConfig.height = displayHeight;
+                prefConfig.fps = (int) currentMode.getRefreshRate();
+            }
             displayWidth = prefConfig.width;
             displayHeight = prefConfig.height;
-            prefConfig.fps = currentMode.getRefreshRate();
             prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
             prefConfig.enableFloatingButton = false;
             prefConfig.showOverlayZoomToggleButton = false;

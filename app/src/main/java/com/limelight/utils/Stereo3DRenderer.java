@@ -293,9 +293,9 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
             freeSmoothedBuffers.offer(ByteBuffer.allocateDirect(mapSize).order(ByteOrder.nativeOrder()));
         }
 
-        int pboSize = modelInputWidth * modelInputHeight * 4;
+        int pboSize = modelInputWidth * modelInputHeight * 3;
         previousFrameForComparison = ByteBuffer.allocateDirect(pboSize).order(ByteOrder.nativeOrder());
-        int inputPixelSize = modelInputWidth * modelInputHeight * 4;
+        int inputPixelSize = modelInputWidth * modelInputHeight * 3;
         freeInputBuffers = new ArrayBlockingQueue<>(NUM_INPUT_BUFFERS);
         inferenceInputQueue = new ArrayBlockingQueue<>(1);
         for (int i = 0; i < NUM_INPUT_BUFFERS; i++) {
@@ -390,13 +390,13 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         GLES20.glViewport(0, 0, modelInputWidth, modelInputHeight);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, depthMapTextureId);
-        GLES20.glUniform1i(mDilationRadiusHandle, 5);
+        GLES20.glUniform1i(mDilationRadiusHandle, 7);
         GLES20.glUniform2f(mDilationDirectionHandle, 1.0f, 0.0f);
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, gaussIntermediateFboHandle);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, intermediateDilutionTextureId);
-        GLES20.glUniform1i(mDilationRadiusHandle, 5);
+        GLES20.glUniform1i(mDilationRadiusHandle, 7);
         GLES20.glUniform2f(mDilationDirectionHandle, 0.0f, 1.0f);
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
         GLES20.glDisableVertexAttribArray(mDilationPosHandle);
@@ -498,13 +498,9 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
         synchronized (frameLock) {
             if (!frameAvailable.get()) {
-                if (!isMovieMode) {
-                    glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
-                } else {
                     glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
                     return;
-                }
-            } else if (isMovieMode) {
+                } else if (isMovieMode) {
                 block = true;
             }
             frameAvailable.set(false);
@@ -530,8 +526,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                         pixelBufferForAI.rewind();
                         previousFrameForComparison.rewind();
                         previousFrameForComparison.put(pixelBufferForAI);
-
-                        if (inferenceInputQueue.offer(new RenderResult(pixelBufferForAI, difference))) {
+                        if (inferenceInputQueue.offer(new RenderResult(pixelBufferForAI, difference, nextFrameId++))) {
                             Log.d("AiTask", "Success: The AI will now process this buffer.");
                         } else {
                             freeInputBuffers.offer(pixelBufferForAI);
@@ -578,7 +573,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                     drawDelay = ((float) totalDrawTime / fps / 1000000000f);
                 }
                 totalDrawTime = 0;
-                fps = calcFps;
+                fps = (calcFps +1);
                 calcFps = 0;
                 depthMapResultCount = 0;
                 threeDFps = calcThreeDFps;
@@ -647,37 +642,19 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         }
     }
 
-    private static class RenderResult {
-        final ByteBuffer pixelBuffer;
-        final double imageDifference;
-        RenderResult(ByteBuffer pixelBuffer, double imageDifference) {
+    private int nextFrameId = 0;
+
+    public class RenderResult {
+        public final ByteBuffer pixelBuffer;
+        public final double imageDifference;
+        public final int frameId; // new field
+
+        public RenderResult(ByteBuffer pixelBuffer, double imageDifference, int frameId) {
             this.pixelBuffer = pixelBuffer;
             this.imageDifference = imageDifference;
+            this.frameId = frameId;
         }
     }
-
-    public static void convertRgbaToRgb(ByteBuffer rgbaBuffer, ByteBuffer rgbBuffer, int width, int height) {
-        Mat rgbaMat = null;
-        Mat rgbMat = null;
-        try {
-            rgbaMat = new Mat(height, width, CvType.CV_8UC4, rgbaBuffer);
-            rgbMat = new Mat(height, width, CvType.CV_8UC3, rgbBuffer);
-            Imgproc.cvtColor(rgbaMat, rgbMat, Imgproc.COLOR_RGBA2RGB);
-        } finally {
-            if (rgbaMat != null) rgbaMat.release();
-            if (rgbMat != null) rgbMat.release();
-        }
-    }
-
-    public static void fastRgbaToRgb(ByteBuffer rgba, ByteBuffer rgb, int width, int height) {
-        for (int i = 0; i < width * height; i++) {
-            rgb.put(rgba.get()); // R
-            rgb.put(rgba.get()); // G
-            rgb.put(rgba.get()); // B
-            rgba.get();          // skip A
-        }
-    }
-
 
     private void initializePBOs() {
         PBO_SIZE = modelInputWidth * modelInputHeight * 4;
@@ -694,7 +671,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         GLES20.glViewport(0, 0, modelInputWidth, modelInputHeight);
         drawQuad(simple3dProgram, 1.0f, 0.0f);
         destinationBuffer.rewind();
-        GLES20.glReadPixels(0, 0, modelInputWidth, modelInputHeight, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, destinationBuffer);
+        GLES20.glReadPixels(0, 0, modelInputWidth, modelInputHeight, GLES20.GL_RGB, GLES20.GL_UNSIGNED_BYTE, destinationBuffer);
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
         return true;
     }
@@ -769,7 +746,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
     }
 
     private void initializeFbo() {
-        fboTextureId = createRgbaTexture(modelInputWidth, modelInputHeight);
+        fboTextureId = createRgbTexture(modelInputWidth, modelInputHeight);
         int[] fbos = new int[1];
         GLES20.glGenFramebuffers(1, fbos, 0);
         fboHandle = fbos[0];
@@ -779,6 +756,29 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
             LimeLog.severe("Framebuffer is not complete.");
         }
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+    }
+
+    private int createRgbTexture(int width, int height) {
+        int[] textures = new int[1];
+        GLES20.glGenTextures(1, textures, 0);
+        int textureId = textures[0];
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
+        GLES20.glTexImage2D(
+                GLES20.GL_TEXTURE_2D,
+                0,
+                GLES20.GL_RGB,       // <- RGB statt RGBA
+                width,
+                height,
+                0,
+                GLES20.GL_RGB,       // <- RGB statt RGBA
+                GLES20.GL_UNSIGNED_BYTE,
+                null
+        );
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+        return textureId;
     }
 
     private void initializeFilterFbo() {
@@ -875,157 +875,99 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
         return program;
     }
 
-    private double computeColorSimilarity(ByteBuffer newPixelBuffer, ByteBuffer oldPixelBuffer) {
-        if (newPixelBuffer == null || oldPixelBuffer == null || newPixelBuffer.capacity() != oldPixelBuffer.capacity()) {
-            return 0.0;
-        }
-        newPixelBuffer.rewind();
-        oldPixelBuffer.rewind();
-        Mat mat1 = null, mat2 = null, matBGR1 = null, matBGR2 = null, histB1 = null, histG1 = null, histR1 = null, histB2 = null, histG2 = null, histR2 = null;
-        List<Mat> bgrPlanes1 = new ArrayList<>(), bgrPlanes2 = new ArrayList<>();
-        try {
-            mat1 = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC4, newPixelBuffer);
-            mat2 = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC4, oldPixelBuffer);
-            matBGR1 = new Mat();
-            matBGR2 = new Mat();
-            Imgproc.cvtColor(mat1, matBGR1, Imgproc.COLOR_RGBA2BGR);
-            Imgproc.cvtColor(mat2, matBGR2, Imgproc.COLOR_RGBA2BGR);
-            Core.split(matBGR1, bgrPlanes1);
-            Core.split(matBGR2, bgrPlanes2);
-            histB1 = new Mat(); histG1 = new Mat(); histR1 = new Mat();
-            histB2 = new Mat(); histG2 = new Mat(); histR2 = new Mat();
-            int histSize = 16;
-            MatOfFloat histRange = new MatOfFloat(0f, 256f);
-            Imgproc.calcHist(Collections.singletonList(bgrPlanes1.get(0)), new MatOfInt(0), new Mat(), histB1, new MatOfInt(histSize), histRange);
-            Imgproc.calcHist(Collections.singletonList(bgrPlanes1.get(1)), new MatOfInt(0), new Mat(), histG1, new MatOfInt(histSize), histRange);
-            Imgproc.calcHist(Collections.singletonList(bgrPlanes1.get(2)), new MatOfInt(0), new Mat(), histR1, new MatOfInt(histSize), histRange);
-            Imgproc.calcHist(Collections.singletonList(bgrPlanes2.get(0)), new MatOfInt(0), new Mat(), histB2, new MatOfInt(histSize), histRange);
-            Imgproc.calcHist(Collections.singletonList(bgrPlanes2.get(1)), new MatOfInt(0), new Mat(), histG2, new MatOfInt(histSize), histRange);
-            Imgproc.calcHist(Collections.singletonList(bgrPlanes2.get(2)), new MatOfInt(0), new Mat(), histR2, new MatOfInt(histSize), histRange);
-            Core.normalize(histB1, histB1, 0, 1, Core.NORM_MINMAX);
-            Core.normalize(histG1, histG1, 0, 1, Core.NORM_MINMAX);
-            Core.normalize(histR1, histR1, 0, 1, Core.NORM_MINMAX);
-            Core.normalize(histB2, histB2, 0, 1, Core.NORM_MINMAX);
-            Core.normalize(histG2, histG2, 0, 1, Core.NORM_MINMAX);
-            Core.normalize(histR2, histR2, 0, 1, Core.NORM_MINMAX);
-            double corrB = Imgproc.compareHist(histB1, histB2, Imgproc.HISTCMP_CORREL);
-            double corrG = Imgproc.compareHist(histG1, histG2, Imgproc.HISTCMP_CORREL);
-            double corrR = Imgproc.compareHist(histR1, histR2, Imgproc.HISTCMP_CORREL);
-            return 1f - Math.max(0, (corrB + corrG + corrR) / 3.0);
-        } finally {
-            if (mat1 != null) mat1.release();
-            if (mat2 != null) mat2.release();
-            if (matBGR1 != null) matBGR1.release();
-            if (matBGR2 != null) matBGR2.release();
-            if (histB1 != null) histB1.release();
-            if (histG1 != null) histG1.release();
-            if (histR1 != null) histR1.release();
-            if (histB2 != null) histB2.release();
-            if (histG2 != null) histG2.release();
-            if (histR2 != null) histR2.release();
-            for (Mat m : bgrPlanes1) if (m != null) m.release();
-            for (Mat m : bgrPlanes2) if (m != null) m.release();
-        }
-    }
-
-    private double hasFrameChangedSignificantlyOCV(ByteBuffer newPixelBuffer, ByteBuffer oldPixelBuffer) {
-        if (newPixelBuffer == null || oldPixelBuffer == null || newPixelBuffer.capacity() != oldPixelBuffer.capacity()) {
-            return 1.0;
-        }
-        Mat mat1 = null, mat2 = null, gray1 = null, gray2 = null, edges1 = null, edges2 = null,
-                histGray1 = null, histGray2 = null, histEdge1 = null, histEdge2 = null;
-        try {
-            mat1 = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC4, newPixelBuffer);
-            mat2 = new Mat(modelInputHeight, modelInputWidth, CvType.CV_8UC4, oldPixelBuffer);
-            gray1 = new Mat();
-            gray2 = new Mat();
-            Imgproc.cvtColor(mat1, gray1, Imgproc.COLOR_RGBA2GRAY);
-            Imgproc.cvtColor(mat2, gray2, Imgproc.COLOR_RGBA2GRAY);
-            edges1 = new Mat();
-            edges2 = new Mat();
-            Mat gradX1 = new Mat(), gradY1 = new Mat(), gradX2 = new Mat(), gradY2 = new Mat();
-            Imgproc.Sobel(gray1, gradX1, CvType.CV_16S, 1, 0);
-            Imgproc.Sobel(gray1, gradY1, CvType.CV_16S, 0, 1);
-            Core.convertScaleAbs(gradX1, gradX1);
-            Core.convertScaleAbs(gradY1, gradY1);
-            Core.addWeighted(gradX1, 0.5, gradY1, 0.5, 0, edges1);
-            Imgproc.Sobel(gray2, gradX2, CvType.CV_16S, 1, 0);
-            Imgproc.Sobel(gray2, gradY2, CvType.CV_16S, 0, 1);
-            Core.convertScaleAbs(gradX2, gradX2);
-            Core.convertScaleAbs(gradY2, gradY2);
-            Core.addWeighted(gradX2, 0.5, gradY2, 0.5, 0, edges2);
-            gradX1.release(); gradY1.release(); gradX2.release(); gradY2.release();
-            histGray1 = new Mat(); histGray2 = new Mat();
-            Imgproc.calcHist(Collections.singletonList(gray1), new MatOfInt(0), new Mat(), histGray1, new MatOfInt(256), new MatOfFloat(0f, 256f));
-            Imgproc.calcHist(Collections.singletonList(gray2), new MatOfInt(0), new Mat(), histGray2, new MatOfInt(256), new MatOfFloat(0f, 256f));
-            histEdge1 = new Mat(); histEdge2 = new Mat();
-            Imgproc.calcHist(Collections.singletonList(edges1), new MatOfInt(0), new Mat(), histEdge1, new MatOfInt(256), new MatOfFloat(0f, 256f));
-            Imgproc.calcHist(Collections.singletonList(edges2), new MatOfInt(0), new Mat(), histEdge2, new MatOfInt(256), new MatOfFloat(0f, 256f));
-            double grayDiff = 1.0 - Imgproc.compareHist(histGray1, histGray2, Imgproc.HISTCMP_CORREL);
-            double edgeDiff = 1.0 - Imgproc.compareHist(histEdge1, histEdge2, Imgproc.HISTCMP_CORREL);
-            return 0.5 * grayDiff + 0.5 * edgeDiff;
-        } finally {
-            if (mat1 != null) mat1.release(); if (mat2 != null) mat2.release();
-            if (gray1 != null) gray1.release(); if (gray2 != null) gray2.release();
-            if (edges1 != null) edges1.release(); if (edges2 != null) edges2.release();
-            if (histGray1 != null) histGray1.release(); if (histGray2 != null) histGray2.release();
-            if (histEdge1 != null) histEdge1.release(); if (histEdge2 != null) histEdge2.release();
-        }
-    }
-
     private double hasSceneChangedFast(ByteBuffer currentFrame, ByteBuffer previousFrame) {
         if (currentFrame == null || previousFrame == null || currentFrame.capacity() != previousFrame.capacity()) {
             return 0.0;
         }
+
         currentFrame.rewind();
         previousFrame.rewind();
+
         long totalDifference = 0;
         int pixelsSampled = 0;
-        final int PIXEL_STRIDE = 4;
-        final int PIXEL_SAMPLE_RATE = 32;
-        final int ROW_SAMPLE_RATE = 32;
+
+        final int PIXEL_STRIDE = 3;              // RGB = 3 bytes per pixel
+        final int PIXEL_SAMPLE_RATE = 32;        // horizontal sampling
+        final int ROW_SAMPLE_RATE = 32;          // vertical sampling
         final int SAMPLE_STRIDE = PIXEL_STRIDE * PIXEL_SAMPLE_RATE;
         final int ROW_STRIDE = modelInputWidth * PIXEL_STRIDE * ROW_SAMPLE_RATE;
-        for (int row = 0; row < currentFrame.capacity(); row += ROW_STRIDE) {
+        final int frameCapacity = currentFrame.capacity();
+
+        for (int row = 0; row < frameCapacity; row += ROW_STRIDE) {
             for (int col = 0; col < modelInputWidth * PIXEL_STRIDE; col += SAMPLE_STRIDE) {
                 int index = row + col;
-                if (index + 2 >= currentFrame.capacity()) break;
-                totalDifference += Math.abs((currentFrame.get(index) & 0xFF) - (previousFrame.get(index) & 0xFF));
-                totalDifference += Math.abs((currentFrame.get(index + 1) & 0xFF) - (previousFrame.get(index + 1) & 0xFF));
-                totalDifference += Math.abs((currentFrame.get(index + 2) & 0xFF) - (previousFrame.get(index + 2) & 0xFF));
+                if (index + 2 >= frameCapacity) break;
+
+                int rDiff = Math.abs((currentFrame.get(index) & 0xFF) - (previousFrame.get(index) & 0xFF));
+                int gDiff = Math.abs((currentFrame.get(index + 1) & 0xFF) - (previousFrame.get(index + 1) & 0xFF));
+                int bDiff = Math.abs((currentFrame.get(index + 2) & 0xFF) - (previousFrame.get(index + 2) & 0xFF));
+
+                totalDifference += rDiff + gDiff + bDiff;
                 pixelsSampled++;
             }
         }
+
         if (pixelsSampled == 0) return 0.0;
         return (double) totalDifference / pixelsSampled;
     }
 
+
     private class AiTask implements Runnable {
         private ByteBuffer previousRawMap = null;
+        private int lastFrameId = -1; // Track last processed frame ID
+
         @Override
         public void run() {
             ByteBuffer pixelBuffer = null;
             double difference = 0.0f;
+
             while (!Thread.currentThread().isInterrupted()) {
                 long startTime = System.nanoTime();
                 long waitTime = System.nanoTime();
+                long waitTime_end = System.nanoTime();
                 long aiTime = System.nanoTime();
                 long aiTime_end = System.nanoTime();
+
                 try {
                     if (tflite == null) return;
+
+                    // --- Take latest frame from queue ---
                     RenderResult result = inferenceInputQueue.take();
+                    waitTime_end = System.nanoTime();
                     pixelBuffer = result.pixelBuffer;
                     difference = result.imageDifference;
+                    int currentFrameId = result.frameId;
+
+                    // Skip if this frame was already processed
+                    if (currentFrameId == lastFrameId) {
+                        // Reuse previous map
+                        ByteBuffer outputBuffer = freeOutputBuffers.take();
+                        outputBuffer.clear();
+                        previousRawMap.rewind();
+                        outputBuffer.put(previousRawMap);
+                        outputBuffer.rewind();
+                        filledOutputBuffers.put(new InferenceResult(pixelBuffer, outputBuffer));
+                        pixelBuffer = null;
+                        Log.d("Stereo3DRenderer", "CalculateTime AiDepthMap: lastFrameId");
+                        continue;
+                    }
+
+                    lastFrameId = currentFrameId;
+
+                    // --- Process new frame ---
                     ByteBuffer outputBuffer = freeOutputBuffers.take();
-                    waitTime = System.nanoTime();
                     outputBuffer.rewind();
+
                     if (difference > ON_DRAW_CHANGE_TRESHOLD || previousRawMap == null) {
                         tfliteInputBuffer.rewind();
                         pixelBuffer.rewind();
-                        convertRgbaToRgb(pixelBuffer, tfliteInputBuffer, modelInputWidth, modelInputHeight);
+                        tfliteInputBuffer.put(pixelBuffer);
+                        tfliteInputBuffer.rewind();
                         aiTime = System.nanoTime();
                         tflite.run(tfliteInputBuffer, outputBuffer);
-                        aiTime_end = System.currentTimeMillis();
+                        aiTime_end = System.nanoTime();
+
+                        // Store result for reuse
                         if (previousRawMap == null) {
                             previousRawMap = ByteBuffer.allocateDirect(outputBuffer.capacity());
                         }
@@ -1034,17 +976,18 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                         previousRawMap.put(outputBuffer);
                         previousRawMap.rewind();
                     } else {
+                        // No significant change: reuse previous map
                         outputBuffer.clear();
                         previousRawMap.rewind();
                         outputBuffer.put(previousRawMap);
                         outputBuffer.rewind();
                     }
                     calcThreeDFps++;
-                    aiTime_end = System.nanoTime();
                     filledOutputBuffers.put(new InferenceResult(pixelBuffer, outputBuffer));
                     pixelBuffer = null;
+
                 } catch (InterruptedException e) {
-                    LimeLog.severe("AI inference failed: " + e.getMessage());
+                    LimeLog.severe("AI inference interrupted: " + e.getMessage());
                     Thread.currentThread().interrupt();
                 } catch (Exception e) {
                     LimeLog.severe("AI inference failed: " + e.getMessage());
@@ -1053,16 +996,22 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                     if (pixelBuffer != null) {
                         freeInputBuffers.offer(pixelBuffer);
                     }
+
                     long duration = (System.nanoTime() - startTime) / 1_000_000;
-                    long waitTimeText = (waitTime - startTime) / 1_000_000;
+                    long waitTimeText = (waitTime_end - waitTime) / 1_000_000;
                     long aitimeText = (aiTime_end - aiTime) / 1_000_000;
-                    long restTimeText = ((System.nanoTime() - startTime) - (aiTime_end - aiTime)) / 1_000_000;
-                    Log.d("Stereo3DRenderer", "CalculateTime AiDepthMap: " + duration + " ms waitTime: "  + waitTimeText + " ms " + "aitime: " + aitimeText + " otherTime: " +restTimeText);
+                    long restTimeText = ((System.nanoTime() - startTime) - (aiTime_end - aiTime)- (waitTime_end - waitTime)) / 1_000_000;
+
+                    Log.d("Stereo3DRenderer", "CalculateTime AiDepthMap: " + duration +
+                            " ms waitTime: " + waitTimeText +
+                            " ms aitime: " + aitimeText +
+                            " otherTime: " + restTimeText);
                 }
             }
             isAiRunning.set(false);
         }
     }
+
 
     private class AiResultHandling implements Runnable {
         private static final double DEPTH_DIFF_THRESHOLD = 0.1;
@@ -1083,16 +1032,19 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
         @Override
         public void run() {
-            ByteBuffer resultBuffer = createFlatDepthMap(); // Initialer flacher Puffer
+            ByteBuffer resultBuffer = createFlatDepthMap();
             InferenceResult result = null;
 
-            // Markierung, ob der Thread noch laufen soll
             while (isAiResultHandlingRunning.get() && !Thread.currentThread().isInterrupted()) {
                 long startTime = System.nanoTime();
+                long waitTime = System.nanoTime();
+                long waitTime_end = System.nanoTime();
+                long aiTime = System.nanoTime();
+                long aiTime_end = System.nanoTime();
                 try {
                     result = filledOutputBuffers.take(); // Blockiert, bis Ergebnis da ist
                     resultBuffer = freeSmoothedBuffers.take(); // Blockiert, bis Puffer frei ist
-
+                    waitTime_end = System.nanoTime();
                     // Verarbeite nur das letzte verfügbare Ergebnis
                     InferenceResult intermediate;
                     while ((intermediate = filledOutputBuffers.poll()) != null) {
@@ -1120,6 +1072,7 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                         LimeLog.warning("previousSmoothedMat war null/leer, neu initialisiert in Schleife.");
                     }
 
+                    aiTime = System.nanoTime();
                     // --- Differenzberechnung ---
                     Core.absdiff(reusableRawFloat, previousSmoothedMat, reusableDiffMat);
                     Scalar sumDiff = Core.sumElems(reusableDiffMat);
@@ -1167,18 +1120,17 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
 
                     reusableNormalizedForShader.convertTo(reusableOutputMat, CvType.CV_8U, 255.0);
 
-                    // --- Ergebnis in ByteBuffer kopieren ---
                     if (reusableOutputMat.isContinuous() && resultBuffer.hasArray()) {
                         reusableOutputMat.get(0, 0, resultBuffer.array());
                         // Wichtig: Limit muss evtl. angepasst werden, wenn Puffer größer ist
                         resultBuffer.limit(reusableOutputMat.rows() * reusableOutputMat.cols() * (int)reusableOutputMat.elemSize());
                     } else {
-                        // Langsamerer Fallback, falls nicht kontinuierlich oder kein Array hat
                         int bufferSize = modelInputWidth * modelInputHeight;
                         byte[] data = new byte[bufferSize];
                         reusableOutputMat.get(0, 0, data);
                         resultBuffer.put(data);
                     }
+                    aiTime_end = System.nanoTime();
                     resultBuffer.rewind(); // Puffer für den Konsumenten vorbereiten
 
                     latestDepthMap.set(resultBuffer);
@@ -1199,10 +1151,15 @@ public class Stereo3DRenderer implements GLSurfaceView.Renderer, SurfaceTexture.
                         freeOutputBuffers.offer(result.rawDepthBuffer);
                         result = null; // Referenz löschen
                     }
-                    // Die wiederverwendeten Mat-Objekte werden NICHT hier freigegeben
-
                     long duration = (System.nanoTime() - startTime) / 1_000_000;
-                    Log.d("Stereo3DRenderer", "CalculateTime AiResult: " + duration + " ms");
+                    long waitTimeText = (waitTime_end - waitTime) / 1_000_000;
+                    long aitimeText = (aiTime_end - aiTime) / 1_000_000;
+                    long restTimeText = ((System.nanoTime() - startTime) - (aiTime_end - aiTime)- (waitTime_end - waitTime)) / 1_000_000;
+
+                    Log.d("Stereo3DRenderer", "CalculateTime AiResult: " + duration +
+                            " ms waitTime: " + waitTimeText +
+                            " ms calc time: " + aitimeText +
+                            " otherTime: " + restTimeText);
                 }
             } // Ende while-Schleife
 

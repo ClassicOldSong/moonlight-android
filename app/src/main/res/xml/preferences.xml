@@ -163,6 +163,19 @@
             android:summary="@string/summary_checkbox_enforce_display_mode"
             android:title="@string/title_checkbox_enforce_display_mode"
             app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_enable_fullexdisplay"
+            android:summary="@string/summary_fullexdisplay_mode"
+            android:title="@string/title_fullexdisplay_mode"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_enable_fullexdisplay_auto"
+            android:dependency="checkbox_enable_fullexdisplay"
+            android:summary="@string/summary_fullexdisplay_mode_auto"
+            android:title="@string/title_fullexdisplay_mode_auto"
+            app:iconSpaceReserved="false" />
         <ListPreference
             android:defaultValue="0"
             android:entries="@array/render_mode_names"
@@ -209,13 +222,6 @@
             android:key="checkbox_enable_hdr"
             android:summary="@string/summary_enable_hdr"
             android:title="@string/title_enable_hdr"
-            app:iconSpaceReserved="false" />
-
-        <CheckBoxPreference
-            android:defaultValue="false"
-            android:key="checkbox_enable_fullexdisplay"
-            android:summary="@string/summary_fullexdisplay_mode"
-            android:title="@string/title_fullexdisplay_mode"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
