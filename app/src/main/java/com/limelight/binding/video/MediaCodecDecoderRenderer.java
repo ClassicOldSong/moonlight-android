@@ -57,13 +57,33 @@ public void setForceTightThresholds(boolean v) { this.forceTightThresholds = v; 
     // Decode latency tracking: map PTS(us) -> enqueue time (ns)
     private final LongSparseArray<Long> enqueueNsByPtsUs = new LongSparseArray<>();
 
-    // When preferLowerDelays = true (LFR/ULL): force non-blocking by default.
-    // When preferLowerDelays = false (Balanced/managed): use a small timeout for smoothing.
-    private volatile int preferLowerDelaysTimeoutUs = 0; // default 0 for ULL; policy may override if needed
-    public void setPreferLowerDelaysTimeoutUs(int us) { this.preferLowerDelaysTimeoutUs = Math.max(0, us); }
+    // When preferLowerDelays = true (PURE LFR/ULL): force non-blocking (0 µs).
+// When preferLowerDelays = false (managed): small timeout per profile to stabilize pacing.
+    private volatile int preferLowerDelaysTimeoutUs = 0; // default 0 for LFR; policy may override if needed
 
-    private int getOutputDequeueTimeoutUs(){ return preferLowerDelays ? preferLowerDelaysTimeoutUs : 0; }
+    public void setPreferLowerDelaysTimeoutUs(int us) {
+        this.preferLowerDelaysTimeoutUs = Math.max(0, us); // 0 allowed for LFR
+    }
 
+    private int getOutputDequeueTimeoutUs() {
+        // PURE LFR (latest-only): use configured timeout (0 µs)
+        if (preferLowerDelays) return preferLowerDelaysTimeoutUs;
+
+        if (prefs != null) {
+            switch (prefs.framePacing) {
+                case PreferenceConfiguration.FRAME_PACING_BALANCED:
+                    return 1000;
+                case PreferenceConfiguration.FRAME_PACING_MAX_SMOOTHNESS:
+                    return 2000;
+                case PreferenceConfiguration.FRAME_PACING_CAP_FPS:
+                    return 1500;
+                default:
+                    break;
+            }
+        }
+        // Default: small wait to avoid spin on buggy codecs
+        return 500;
+    }
     // Update stats using real decode time: enqueue->dequeue, instead of uptime - PTS
     private void updateDecodeLatencyStats(long presentationTimeUs) {
         Long enqNs = enqueueNsByPtsUs.get(presentationTimeUs);

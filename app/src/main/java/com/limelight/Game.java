@@ -4296,35 +4296,42 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
 
-    // Apply low-latency vs smooth policy to the decoder renderer
-// - When LFR (preferLowerDelays) is enabled, use non-blocking dequeue (0 us) for all pacing profiles.
-// - When LFR is disabled, the renderer decides timeouts internally (we do not set a timeout here).
+// Apply low-latency vs smooth policy to the decoder renderer
+// - LFR ON only for Max Smoothness (tollerante). Bypass on Balanced/CapFPS.
+// - Dequeue timeout: renderer decides per-profile (non-zero) when LFR is OFF.
     private void applyLatencyPolicy(
             com.limelight.binding.video.MediaCodecDecoderRenderer decoderRenderer,
             com.limelight.preferences.PreferenceConfiguration prefConfig) {
         if (decoderRenderer == null || prefConfig == null) return;
+
         try {
-            final boolean lfrActive = prefConfig.preferLowerDelays;
+            final boolean userLfr = prefConfig.preferLowerDelays;
+            final int fp = prefConfig.framePacing;
 
-            // Apply LFR for all pacing profiles
-            decoderRenderer.setPreferLowerDelays(lfrActive);
+            final boolean lfrEffective = isLfrEffective(fp, userLfr);
 
-            // LFR uses 0 us dequeue timeout; otherwise leave renderer defaults untouched
-            if (lfrActive) {
-                decoderRenderer.setPreferLowerDelaysTimeoutUs(0);
-            }
+            decoderRenderer.setPreferLowerDelays(lfrEffective);
+            // LFR path uses 0 µs by default; managed path uses per-profile timeouts inside the renderer
+            decoderRenderer.setPreferLowerDelaysTimeoutUs(0);
 
-            // Tight thresholds follow the UI toggle
             decoderRenderer.setForceTightThresholds(prefConfig.forceTightThresholds);
 
-            // Minimal logging
             try {
-                final String mode = lfrActive
-                        ? "LFR on, timeout=0us"
-                        : "managed, timeout=renderer-default";
-                com.limelight.LimeLog.info("Latency policy -> " + mode +
-                        " | forceTight=" + prefConfig.forceTightThresholds);
-            } catch (Throwable ignored) { }
-        } catch (Throwable ignored) { }
+                com.limelight.LimeLog.info("Latency policy -> LFR(eff)=" + lfrEffective +
+                        " (user=" + userLfr + ", fp=" + fp + "), tight=" + prefConfig.forceTightThresholds);
+            } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {}
+    }
+
+    private static boolean isLfrEffective(int fp, boolean userLfr) {
+        final boolean isBalanced =
+                (fp == PreferenceConfiguration.FRAME_PACING_BALANCED);
+        final boolean isCapFps =
+                (fp == PreferenceConfiguration.FRAME_PACING_CAP_FPS);
+        final boolean isMaxSmooth =
+                (fp == PreferenceConfiguration.FRAME_PACING_MAX_SMOOTHNESS);
+
+        // Bypass LFR on Balanced/CapFPS, allow it on Max Smoothness
+        return userLfr && !isBalanced && !isCapFps;
     }
 }
