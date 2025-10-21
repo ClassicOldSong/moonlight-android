@@ -4336,33 +4336,34 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
 
     // Apply low-latency vs smooth policy to the decoder renderer
-    // Notes (EN):
-    // - In low-latency modes we enforce non-blocking dequeue (0 µs) and tight VSYNC pacing.
-    // - In smooth/balanced modes we allow a small timeout to stabilize pacing.
+// - When LFR (preferLowerDelays) is enabled, use non-blocking dequeue (0 us) for all pacing profiles.
+// - When LFR is disabled, the renderer decides timeouts internally (we do not set a timeout here).
     private void applyLatencyPolicy(
             com.limelight.binding.video.MediaCodecDecoderRenderer decoderRenderer,
             com.limelight.preferences.PreferenceConfiguration prefConfig) {
-        if (decoderRenderer == null) return;
+        if (decoderRenderer == null || prefConfig == null) return;
         try {
-            // UI semantics:
-            // preferLowerDelays = TRUE  → latest-only (0 µs dequeue)  [ULL]
-            // preferLowerDelays = FALSE → managed (+ small timeout)   [Balanced]
-            final boolean latestOnly = (prefConfig != null) && prefConfig.preferLowerDelays;
+            final boolean lfrActive = prefConfig.preferLowerDelays;
 
-            // Balanced: 500 µs, ULL: 0 µs
-            final int timeoutUs = latestOnly ? 0 : 500;
+            // Apply LFR for all pacing profiles
+            decoderRenderer.setPreferLowerDelays(lfrActive);
 
-            // Renderer API: TRUE=latest-only (LFR), FALSE=managed (Balanced)
-            decoderRenderer.setPreferLowerDelays(latestOnly);
-            decoderRenderer.setPreferLowerDelaysTimeoutUs(timeoutUs);
+            // LFR uses 0 us dequeue timeout; otherwise leave renderer defaults untouched
+            if (lfrActive) {
+                decoderRenderer.setPreferLowerDelaysTimeoutUs(0);
+            }
 
-            // Tight thresholds ON se: ULL oppure toggle "Tight VSync" attivo in UI
-            final boolean tightFromUi = (prefConfig != null) && prefConfig.forceTightThresholds;
-            decoderRenderer.setForceTightThresholds(tightFromUi);
+            // Tight thresholds follow the UI toggle
+            decoderRenderer.setForceTightThresholds(prefConfig.forceTightThresholds);
 
-            LimeLog.info("Latency policy → " +
-                    (latestOnly ? "latest-only, timeout=0us" : ("managed, timeout=" + timeoutUs + "us")) +
-                    " | forceTight=" + (tightFromUi));
+            // Minimal logging
+            try {
+                final String mode = lfrActive
+                        ? "LFR on, timeout=0us"
+                        : "managed, timeout=renderer-default";
+                com.limelight.LimeLog.info("Latency policy -> " + mode +
+                        " | forceTight=" + prefConfig.forceTightThresholds);
+            } catch (Throwable ignored) { }
         } catch (Throwable ignored) { }
     }
 }
