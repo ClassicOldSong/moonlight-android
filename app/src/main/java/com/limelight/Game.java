@@ -3,6 +3,7 @@ package com.limelight;
 
 import static com.limelight.StartExternalDisplayControlReceiver.requestFocusToExternalDisplayControl;
 import static com.limelight.binding.input.KeyboardTranslator.getModifier;
+import static com.limelight.utils.DisplayUtils.getDisplayInfo;
 import static com.limelight.utils.ExternalDisplayControlActivity.SECONDARY_SCREEN_NOTIFICATION_ID;
 import static com.limelight.utils.ExternalDisplayControlActivity.closeExternalDisplayControl;
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
@@ -44,6 +45,7 @@ import com.limelight.ui.ExternalControllerView;
 import com.limelight.ui.GameGestures;
 import com.limelight.ui.StreamContainer;
 import com.limelight.utils.Dialog;
+import com.limelight.utils.DisplayUtils;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
 import com.limelight.utils.PanZoomHandler;
@@ -395,39 +397,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         onExternelDisplay = currentDisplay.getDisplayId() != Display.DEFAULT_DISPLAY;
-
         boolean shouldInvertDecoderResolution = false;
+        prepareResolutionAndFps(currentDisplay);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && onExternelDisplay) {
-            Display.Mode currentMode = currentDisplay.getMode();
-            if(prefConfig.externalScreenAutoConfig) {
-                if(prefConfig.renderMode == 0) {
-                    displayWidth = currentMode.getPhysicalWidth();
-                } else {
-                    float ratio = (float) currentMode.getPhysicalWidth() / (float) currentMode.getPhysicalHeight();
-
-                    // A 32:9 aspect ratio is 3.555...
-                    final float SBS_3D_ASPECT_RATIO = 32.0f / 9.0f;
-
-                    // Use a small tolerance for floating-point comparison
-                    final float EPSILON = 0.01f;
-                    // User can keep render mode 3 in its setting without the need to switch
-                    // so plug in glasses and turn on 3d should trigger it otherwise 2dmode
-                    if (Math.abs(ratio - SBS_3D_ASPECT_RATIO) < EPSILON) {
-                        // This is a 32:9 SbS 3D mode (like 3840x1080).
-                        // We set the displayWidth to be for a single eye (1920).
-                        displayWidth = currentMode.getPhysicalWidth() / 2;
-                    } else {
-                        // This is a standard 16:9, 4:3, etc. mode. Use the full width.
-                        displayWidth = currentMode.getPhysicalWidth();
-                        prefConfig.renderMode = 0;
-                    }
-                }
-                displayHeight = currentMode.getPhysicalHeight();
-                prefConfig.width = displayWidth;
-                prefConfig.height = displayHeight;
-                prefConfig.fps = (int) currentMode.getRefreshRate();
-            }
+        if (onExternelDisplay) {
             displayWidth = prefConfig.width;
             displayHeight = prefConfig.height;
             prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
@@ -437,13 +410,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             currentOrientation = Configuration.ORIENTATION_LANDSCAPE;
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE);
         } else {
-            if (prefConfig.renderMode != 0) {
-                prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
-                if(prefConfig.externalScreenAutoConfig) {
-                    prefConfig.renderMode = 0;
-                }
-            }
-
             if (prefConfig.autoOrientation) {
                 currentOrientation = getResources().getConfiguration().orientation;
             } else {
@@ -967,6 +933,48 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 }
             }
         } catch (Throwable ignored) {}
+    }
+
+    private void prepareResolutionAndFps(Display display) {
+        DisplayUtils.DisplayInfo displayInfo = getDisplayInfo(display);
+
+        if(isMatchDisplayFPS()) {
+            prefConfig.fps = (int) displayInfo.refreshRate;
+        }
+        if(prefConfig.renderMode != 0) { // 3D Mode selected
+            float ratio = (float) displayInfo.width / (float) displayInfo.height;
+
+            // A 32:9 aspect ratio is 3.555...
+            final float SBS_3D_ASPECT_RATIO = 32.0f / 9.0f;
+
+            // Use a small tolerance for floating-point comparison
+            final float EPSILON = 0.01f;
+            // User can keep render mode 3 in its setting without the need to switch
+            // so plug in glasses and turn on 3d should trigger it otherwise 2dmode
+            if (Math.abs(ratio - SBS_3D_ASPECT_RATIO) < EPSILON) {
+                // This is a 32:9 SbS 3D mode (like 3840x1080).
+                // We set the displayWidth to be for a single eye (1920).
+                if(isMatchDisplayResolution()) {
+                    prefConfig.width = displayInfo.width / 2;
+                    prefConfig.height = displayInfo.height;
+                }
+            } else {
+                // This is a standard 16:9, 4:3, etc. mode. No 3d needed
+                prefConfig.renderMode = 0;
+            }
+        }
+        if(isMatchDisplayResolution() && prefConfig.renderMode == 0) {
+            prefConfig.width = displayInfo.width;
+            prefConfig.height = displayInfo.height;
+        }
+    }
+
+    private boolean isMatchDisplayResolution() {
+        return prefConfig.width == 0 && prefConfig.height == 0;
+    }
+
+    private boolean isMatchDisplayFPS() {
+        return prefConfig.fps == 0;
     }
 
     @SuppressLint("ClickableViewAccessibility")

@@ -1,5 +1,7 @@
 package com.limelight.preferences;
 
+import static com.limelight.preferences.PreferenceConfiguration.DEFAULT_FPS;
+import static com.limelight.utils.DisplayUtils.getDisplayInfo;
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
 
 import android.content.Context;
@@ -53,6 +55,7 @@ import com.limelight.R;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardControllerConfigurationLoader;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.utils.Dialog;
+import com.limelight.utils.DisplayUtils;
 import com.limelight.utils.FileUriUtils;
 import com.limelight.utils.PerformanceDataTracker;
 import com.limelight.utils.UiHelper;
@@ -306,9 +309,17 @@ public class StreamSettings extends AppCompatActivity {
                 res = prefs.getString(PreferenceConfiguration.RESOLUTION_PREF_STRING, PreferenceConfiguration.DEFAULT_RESOLUTION);
             }
             if (fps == null) {
-                fps = prefs.getString(PreferenceConfiguration.FPS_PREF_STRING, PreferenceConfiguration.DEFAULT_FPS);
+                fps = prefs.getString(PreferenceConfiguration.FPS_PREF_STRING, DEFAULT_FPS);
             }
 
+            // If MatchDisplayRes/FPS is selected we need the actual values
+            DisplayUtils.DisplayInfo displayInfo = getDisplayInfo(getActiveDisplay(getContext()));
+            if(res.equals("0x0")) {
+                res = displayInfo.width + "x" +displayInfo.height;
+            }
+            if(fps.equals("0")) {
+                fps = displayInfo.refreshRate + "";
+            }
             prefs.edit()
                     .putInt(PreferenceConfiguration.BITRATE_PREF_STRING,
                             PreferenceConfiguration.getDefaultBitrate(res, fps))

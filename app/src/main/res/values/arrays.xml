@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="resolution_names">
+        <item>@string/resolution_auto</item>
         <item>@string/resolution_360p</item>
         <item>@string/resolution_480p</item>
         <item>@string/resolution_720p</item>
@@ -11,6 +12,7 @@
 
     <!-- Keep this in sync with PreferenceConfiguration.isNativeResolution()! -->
     <string-array name="resolution_values" translatable="false">
+        <item>0x0</item>
         <item>640x360</item>
         <item>854x480</item>
         <item>1280x720</item>
@@ -20,12 +22,14 @@
     </string-array>
 
     <string-array name="fps_names">
+        <item>@string/fps_auto</item>
         <item>@string/fps_30</item>
         <item>@string/fps_60</item>
         <item>@string/fps_90</item>
         <item>@string/fps_120</item>
     </string-array>
     <string-array name="fps_values" translatable="false">
+        <item>0</item>
         <item>30</item>
         <item>60</item>
         <item>90</item>
