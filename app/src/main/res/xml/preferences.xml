@@ -35,7 +35,7 @@
             app:iconSpaceReserved="false"
             seekbar:divisor="1000"
             seekbar:keyStep="1000"
-            seekbar:min="500"
+            seekbar:min="0"
             seekbar:step="500" />
         <com.limelight.preferences.SeekBarPreference
             android:dialogMessage="@string/summary_seekbar_metered_bitrate"

@@ -1,6 +1,8 @@
 package com.limelight.preferences;
 
+import static com.limelight.preferences.PreferenceConfiguration.BITRATE_RECOMMENDATION_STRING;
 import static com.limelight.preferences.PreferenceConfiguration.DEFAULT_FPS;
+import static com.limelight.preferences.PreferenceConfiguration.getDefaultBitrate;
 import static com.limelight.utils.DisplayUtils.getDisplayInfo;
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
 
@@ -304,25 +306,16 @@ public class StreamSettings extends AppCompatActivity {
             pref.setEntryValues(entryValues);
         }
 
-        private void resetBitrateToDefault(SharedPreferences prefs, String res, String fps) {
+        private void recalculateRecommendedBitrate(SharedPreferences prefs, String res, String fps) {
             if (res == null) {
                 res = prefs.getString(PreferenceConfiguration.RESOLUTION_PREF_STRING, PreferenceConfiguration.DEFAULT_RESOLUTION);
             }
             if (fps == null) {
                 fps = prefs.getString(PreferenceConfiguration.FPS_PREF_STRING, DEFAULT_FPS);
             }
-
-            // If MatchDisplayRes/FPS is selected we need the actual values
-            DisplayUtils.DisplayInfo displayInfo = getDisplayInfo(getActiveDisplay(getContext()));
-            if(res.equals("0x0")) {
-                res = displayInfo.width + "x" +displayInfo.height;
-            }
-            if(fps.equals("0")) {
-                fps = displayInfo.refreshRate + "";
-            }
             prefs.edit()
-                    .putInt(PreferenceConfiguration.BITRATE_PREF_STRING,
-                            PreferenceConfiguration.getDefaultBitrate(res, fps))
+                    .putInt(PreferenceConfiguration.BITRATE_RECOMMENDATION_STRING,
+                            PreferenceConfiguration.getDefaultBitrate(res, fps, getContext()))
                     .apply();
         }
 
@@ -707,12 +700,24 @@ public class StreamSettings extends AppCompatActivity {
                     }
 
                     // Write the new bitrate value
-                    resetBitrateToDefault(prefs, valueStr, null);
+                    recalculateRecommendedBitrate(prefs, valueStr, null);
 
                     // Allow the original preference change to take place
                     return true;
                 }
             });
+            findPreference(PreferenceConfiguration.BITRATE_PREF_STRING).setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+
+                @Override
+                public boolean onPreferenceClick(@NonNull Preference preference) {
+                    int recommendationBitrate = getPrefs().getInt(BITRATE_RECOMMENDATION_STRING, 0);
+                    if(recommendationBitrate != 0) {
+                        Toast.makeText(getContext(), getString(R.string.bitrate_recommendation_toast, recommendationBitrate / 1000), Toast.LENGTH_LONG).show();
+                    }
+                    return true;
+                }
+            }
+                );
             findPreference(PreferenceConfiguration.FPS_PREF_STRING).setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
                 @Override
                 public boolean onPreferenceChange(Preference preference, Object newValue) {
@@ -729,7 +734,7 @@ public class StreamSettings extends AppCompatActivity {
                     }
 
                     // Write the new bitrate value
-                    resetBitrateToDefault(prefs, null, valueStr);
+                    recalculateRecommendedBitrate(prefs, null, valueStr);
 
                     // Allow the original preference change to take place
                     return true;
@@ -975,7 +980,7 @@ public class StreamSettings extends AppCompatActivity {
                 public void run() {
                     SharedPreferences prefs = getPrefs();
                     setValue(resolutionPrefString, nextDefault);
-                    resetBitrateToDefault(prefs, null, null);
+                    recalculateRecommendedBitrate(prefs, null, null);
                 }
             });
         }

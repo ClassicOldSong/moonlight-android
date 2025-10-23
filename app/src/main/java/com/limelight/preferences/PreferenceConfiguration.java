@@ -1,5 +1,8 @@
 package com.limelight.preferences;
 
+import static com.limelight.utils.DisplayUtils.getDisplayInfo;
+import static com.limelight.utils.ServerHelper.getActiveDisplay;
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -8,6 +11,7 @@ import android.view.Display;
 
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.profiles.ProfilesManager;
+import com.limelight.utils.DisplayUtils;
 
 public class PreferenceConfiguration {
 
@@ -42,6 +46,8 @@ public class PreferenceConfiguration {
     static final String RESOLUTION_PREF_STRING = "list_resolution";
     static final String FPS_PREF_STRING = "list_fps";
     static final String BITRATE_PREF_STRING = "seekbar_bitrate_kbps";
+
+    static final String BITRATE_RECOMMENDATION_STRING = "bitrate_recommendation";
     private static final String BITRATE_PREF_OLD_STRING = "seekbar_bitrate";
     private static final String METERED_BITRATE_PREF_STRING = "seekbar_metered_bitrate_kbps";
     private static final String ENABLE_ULTRA_LOW_LATENCY_PREF_STRING = "checkbox_ultra_low_latency";
@@ -491,7 +497,16 @@ public class PreferenceConfiguration {
         }
     }
 
-    public static int getDefaultBitrate(String resString, String fpsString) {
+    public static int getDefaultBitrate(String resString, String fpsString, Context context) {
+
+        // If MatchDisplayRes/FPS is selected we need the actual values
+        DisplayUtils.DisplayInfo displayInfo = getDisplayInfo(getActiveDisplay(context));
+        if(resString.equals("0x0")) {
+            resString = displayInfo.width + "x" +displayInfo.height;
+        }
+        if(fpsString.equals("0")) {
+            fpsString = displayInfo.refreshRate + "";
+        }
         int width = getWidthFromResolutionString(resString);
         int height = getHeightFromResolutionString(resString);
         int fps = Math.round(Float.parseFloat(fpsString));
@@ -578,7 +593,7 @@ public class PreferenceConfiguration {
         SharedPreferences prefs = ProfilesManager.getInstance().getOverlayingSharedPreferences(context);
         return getDefaultBitrate(
                 prefs.getString(RESOLUTION_PREF_STRING, DEFAULT_RESOLUTION),
-                prefs.getString(FPS_PREF_STRING, DEFAULT_FPS));
+                prefs.getString(FPS_PREF_STRING, DEFAULT_FPS), context);
     }
 
     private static FormatOption getVideoFormatValue(Context context) {
@@ -684,6 +699,7 @@ private static int getFramePacingValue(Context context) {
         SharedPreferences prefs = ProfilesManager.getInstance().getOverlayingSharedPreferences(context);
         prefs.edit()
                 .remove(BITRATE_PREF_STRING)
+                .remove(BITRATE_RECOMMENDATION_STRING)
                 .remove(BITRATE_PREF_OLD_STRING)
                 .remove(LEGACY_RES_FPS_PREF_STRING)
                 .remove(RESOLUTION_PREF_STRING)
@@ -831,9 +847,6 @@ private static int getFramePacingValue(Context context) {
 
         // This must happen after the preferences migration to ensure the preferences are populated
         config.bitrate = prefs.getInt(BITRATE_PREF_STRING, prefs.getInt(BITRATE_PREF_OLD_STRING, 0) * 1000);
-        if (config.bitrate == 0) {
-            config.bitrate = getDefaultBitrate(context);
-        }
 
         config.meteredBitrate = prefs.getInt((METERED_BITRATE_PREF_STRING), 0);
         if (config.meteredBitrate == 0) {

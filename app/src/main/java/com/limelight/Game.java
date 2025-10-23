@@ -398,7 +398,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         onExternelDisplay = currentDisplay.getDisplayId() != Display.DEFAULT_DISPLAY;
         boolean shouldInvertDecoderResolution = false;
-        prepareResolutionAndFps(currentDisplay);
+        matchSettings(currentDisplay);
 
         if (onExternelDisplay) {
             displayWidth = prefConfig.width;
@@ -935,7 +935,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         } catch (Throwable ignored) {}
     }
 
-    private void prepareResolutionAndFps(Display display) {
+    private void matchSettings(Display display) {
         DisplayUtils.DisplayInfo displayInfo = getDisplayInfo(display);
 
         if(isMatchDisplayFPS()) {
@@ -967,12 +967,17 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             prefConfig.width = displayInfo.width;
             prefConfig.height = displayInfo.height;
         }
+        if(isMatchBitrate()) {
+            prefConfig.bitrate = PreferenceConfiguration.getDefaultBitrate(prefConfig.width+"x"+prefConfig.height, ((int) prefConfig.fps) +"", this);
+        }
     }
 
     private boolean isMatchDisplayResolution() {
         return prefConfig.width == 0 && prefConfig.height == 0;
     }
-
+    private boolean isMatchBitrate() {
+        return prefConfig.bitrate == 0;
+    }
     private boolean isMatchDisplayFPS() {
         return prefConfig.fps == 0;
     }
