@@ -62,12 +62,10 @@ public class PanZoomHandler {
         }
 
         if (parentHeight >= childHeight) {
-            if (isTopMode) {
-                childY = 0;
-            } else {
-                childY = (parentHeight - childHeight) / 2;
-            }
+            // ALWAYS center it vertically when it's smaller than the parent
+            childY = (parentHeight - childHeight) / 2;
         } else {
+            // This handles panning when the view is larger than the parent
             float boundaryY = parentHeight - childHeight;
             childY = Math.max(boundaryY, Math.min(childY, 0));
         }
@@ -112,7 +110,7 @@ public class PanZoomHandler {
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
             float newScaleFactor = scaleFactor * detector.getScaleFactor();
-            newScaleFactor = Math.max(1, Math.min(newScaleFactor, MAX_SCALE)); // Apply minimum scale
+            newScaleFactor = Math.max(0.5f, Math.min(newScaleFactor, MAX_SCALE)); // Apply minimum scale
 
             // Calculate pivot point
             float focusX = detector.getFocusX();

@@ -4038,16 +4038,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return isPanZoomMode;
     }
     public void toggleZoomMode() {
-        this.isPanZoomMode = !this.isPanZoomMode;
-        if (this.isPanZoomMode) {
-            Toast.makeText(this, getString(R.string.pan_zoom_mode_enabled), Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, getString(R.string.pan_zoom_mode_disabled), Toast.LENGTH_SHORT).show();
-        }
-        updateZoomButtonAppearance();
+        if(prefConfig.renderMode == 0) {
+            this.isPanZoomMode = !this.isPanZoomMode;
+            if (this.isPanZoomMode) {
+                Toast.makeText(this, getString(R.string.pan_zoom_mode_enabled), Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, getString(R.string.pan_zoom_mode_disabled), Toast.LENGTH_SHORT).show();
+            }
+            updateZoomButtonAppearance();
 
-        if (ExternalDisplayControlActivity.instance != null) {
-            ExternalDisplayControlActivity.instance.toggleZoomMode(false);
+            if (ExternalDisplayControlActivity.instance != null) {
+                ExternalDisplayControlActivity.instance.toggleZoomMode(false);
+            }
         }
     }
 
