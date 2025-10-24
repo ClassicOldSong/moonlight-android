@@ -1,7 +1,7 @@
 package com.limelight.preferences;
 
 import static com.limelight.utils.DisplayUtils.getDisplayInfo;
-import static com.limelight.utils.ServerHelper.getActiveDisplay;
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -500,7 +500,7 @@ public class PreferenceConfiguration {
     public static int getDefaultBitrate(String resString, String fpsString, Context context) {
 
         // If MatchDisplayRes/FPS is selected we need the actual values
-        DisplayUtils.DisplayInfo displayInfo = getDisplayInfo(getActiveDisplay(context));
+        DisplayUtils.DisplayInfo displayInfo = getDisplayInfo(getGameStreamDisplay(context));
         if(resString.equals("0x0")) {
             resString = displayInfo.width + "x" +displayInfo.height;
         }

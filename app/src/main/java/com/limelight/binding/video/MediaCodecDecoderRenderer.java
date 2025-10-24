@@ -1,6 +1,6 @@
 package com.limelight.binding.video;
 
-import static com.limelight.utils.ServerHelper.getActiveDisplay;
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -799,7 +799,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         int fpsTarget = redrawRate;
         if(display == null && fpsTarget <= 0) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                fpsTarget = (int) getActiveDisplay(activity).getMode().getRefreshRate();
+                fpsTarget = (int) getGameStreamDisplay(activity).getMode().getRefreshRate();
             }
         }
         this.targetFps = fpsTarget;
@@ -1080,7 +1080,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             if(display == null) {
-                display = getActiveDisplay(activity);
+                display = getGameStreamDisplay(activity);
             }
             frameTimeNanos -= display.getAppVsyncOffsetNanos();
         }
@@ -1175,7 +1175,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 try {
                     if (Build.VERSION.SDK_INT >= 17 && activity != null) {
                         if(display == null) {
-                            display = getActiveDisplay(activity);
+                            display = getGameStreamDisplay(activity);
                         }
                         if (display != null) displayHz = display.getRefreshRate();
                     }

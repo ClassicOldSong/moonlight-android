@@ -2,9 +2,7 @@ package com.limelight.preferences;
 
 import static com.limelight.preferences.PreferenceConfiguration.BITRATE_RECOMMENDATION_STRING;
 import static com.limelight.preferences.PreferenceConfiguration.DEFAULT_FPS;
-import static com.limelight.preferences.PreferenceConfiguration.getDefaultBitrate;
-import static com.limelight.utils.DisplayUtils.getDisplayInfo;
-import static com.limelight.utils.ServerHelper.getActiveDisplay;
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
 
 import android.content.Context;
 import android.content.Intent;
@@ -57,7 +55,6 @@ import com.limelight.R;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardControllerConfigurationLoader;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.utils.Dialog;
-import com.limelight.utils.DisplayUtils;
 import com.limelight.utils.FileUriUtils;
 import com.limelight.utils.PerformanceDataTracker;
 import com.limelight.utils.UiHelper;
@@ -81,7 +78,7 @@ public class StreamSettings extends AppCompatActivity {
 
     void reloadSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display.Mode mode = getActiveDisplay(StreamSettings.this).getMode();
+            Display.Mode mode = getGameStreamDisplay(StreamSettings.this).getMode();
             previousDisplayPixelCount = mode.getPhysicalWidth() * mode.getPhysicalHeight();
         }
         prefsFragment = new SettingsFragment(PreferenceConfiguration.readPreferences(
@@ -130,7 +127,7 @@ public class StreamSettings extends AppCompatActivity {
         super.onConfigurationChanged(newConfig);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display.Mode mode = getActiveDisplay(StreamSettings.this).getMode();
+            Display.Mode mode = getGameStreamDisplay(StreamSettings.this).getMode();
 
             // If the display's physical pixel count has changed, we consider that it's a new display
             // and we should reload our settings (which include display-dependent values).

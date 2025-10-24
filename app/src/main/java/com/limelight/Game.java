@@ -4,10 +4,10 @@ package com.limelight;
 import static com.limelight.StartExternalDisplayControlReceiver.requestFocusToExternalDisplayControl;
 import static com.limelight.binding.input.KeyboardTranslator.getModifier;
 import static com.limelight.utils.DisplayUtils.getDisplayInfo;
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
+import static com.limelight.utils.DisplayUtils.hasSecondaryDisplay;
 import static com.limelight.utils.ExternalDisplayControlActivity.SECONDARY_SCREEN_NOTIFICATION_ID;
 import static com.limelight.utils.ExternalDisplayControlActivity.closeExternalDisplayControl;
-import static com.limelight.utils.ServerHelper.getActiveDisplay;
-import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
 
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
@@ -387,16 +387,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
 
         Display currentDisplay = null;
+        int displayId = -2;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            int displayId = getIntent().getIntExtra(EXTRA_DISPLAY_ID, Display.DEFAULT_DISPLAY);
-            currentDisplay = getSystemService(DisplayManager.class).getDisplay(displayId);
+            displayId = getIntent().getIntExtra(EXTRA_DISPLAY_ID, displayId);
+            if(displayId != -2) {
+                currentDisplay = getSystemService(DisplayManager.class).getDisplay(displayId);
+            }
         }
 
         if (currentDisplay == null) {
             currentDisplay = getWindowManager().getDefaultDisplay();
         }
 
-        onExternelDisplay = currentDisplay.getDisplayId() != Display.DEFAULT_DISPLAY;
+        onExternelDisplay = displayId != -2;
         boolean shouldInvertDecoderResolution = false;
         matchSettings(currentDisplay);
 
@@ -1065,7 +1068,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             @Override
             public void onDisplayRemoved(int displayId) {
-                if (getSecondaryDisplay(getBaseContext()) == null) {
+                if (hasSecondaryDisplay(getBaseContext())) {
                     handleDisplayRemoved();
                     finish();
                 }
@@ -1190,7 +1193,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void setPreferredOrientationForActivity() {
-        Display display = getActiveDisplay(Game.this);
+        Display display = getGameStreamDisplay(Game.this);
 
         // For semi-square displays, we use more complex logic to determine which orientation to use (if any)
         if (PreferenceConfiguration.isSquarishScreen(display)) {
@@ -1477,7 +1480,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display display = getActiveDisplay(Game.this);
+            Display display = getGameStreamDisplay(Game.this);
             for (Display.Mode candidate : display.getSupportedModes()) {
                 // Ignore insets if this is an exact match for the display resolution
                 if ((width == candidate.getPhysicalWidth() && height == candidate.getPhysicalHeight()) ||
