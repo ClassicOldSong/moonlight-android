@@ -268,7 +268,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public static final String EXTRA_SERVER_CERT = "ServerCert";
     public static final String EXTRA_VDISPLAY = "VirtualDisplay";
     public static final String EXTRA_SERVER_COMMANDS = "ServerCommands";
-    public static final String EXTRA_DISPLAY_ID = "DisplayID";
 
     public static final String CLIPBOARD_IDENTIFIER = "ArtemisStreaming";
 
@@ -386,20 +385,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 getResources().getString(R.string.conn_establishing_msg), true);
 
 
-        Display currentDisplay = null;
-        int displayId = -2;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            displayId = getIntent().getIntExtra(EXTRA_DISPLAY_ID, displayId);
-            if(displayId != -2) {
-                currentDisplay = getSystemService(DisplayManager.class).getDisplay(displayId);
-            }
-        }
+        Display currentDisplay = DisplayUtils.getGameStreamDisplay(this);
 
         if (currentDisplay == null) {
-            currentDisplay = getWindowManager().getDefaultDisplay();
+            LimeLog.severe("FATAL: getGameStreamDisplay returned null! Cannot continue.");
+            // Show an error to the user and finish
+            Toast.makeText(this, "Critical Error: Could not determine target display.", Toast.LENGTH_LONG).show();
+            finish();
+            return; // Important: Stop further execution in onCreate
         }
 
-        onExternelDisplay = displayId != -2;
+        onExternelDisplay = (currentDisplay.getDisplayId() != Display.DEFAULT_DISPLAY);
+
         boolean shouldInvertDecoderResolution = false;
         matchSettings(currentDisplay);
 

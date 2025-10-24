@@ -101,8 +101,6 @@ public class ServerHelper {
         if (prefConfig.enableFullExDisplay && hasSecondaryDisplay(parent)) {
             Display gameStreamDisplay = getGameStreamDisplay(parent);
             if (gameStreamDisplay != null) {
-                int gameStreamDisplayId = gameStreamDisplay.getDisplayId();
-                gameIntent.putExtra(Game.EXTRA_DISPLAY_ID, gameStreamDisplayId);
                 Intent touchpadIntent = new Intent(parent, ExternalDisplayControlActivity.class);
                 touchpadIntent.putExtra(ExternalDisplayControlActivity.EXTRA_LAUNCH_INTENT, gameIntent);
                 return touchpadIntent;
