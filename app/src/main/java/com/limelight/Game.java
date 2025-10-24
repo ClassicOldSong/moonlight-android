@@ -1065,7 +1065,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             @Override
             public void onDisplayRemoved(int displayId) {
-                if (hasSecondaryDisplay(getBaseContext())) {
+                if (onExternelDisplay) {
                     handleDisplayRemoved();
                     finish();
                 }
