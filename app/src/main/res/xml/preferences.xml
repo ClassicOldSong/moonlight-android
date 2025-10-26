@@ -35,7 +35,7 @@
             app:iconSpaceReserved="false"
             seekbar:divisor="1000"
             seekbar:keyStep="1000"
-            seekbar:min="500"
+            seekbar:min="0"
             seekbar:step="500" />
         <com.limelight.preferences.SeekBarPreference
             android:dialogMessage="@string/summary_seekbar_metered_bitrate"
@@ -58,12 +58,12 @@
             android:summary="@string/summary_frame_pacing"
             android:title="@string/title_frame_pacing"
             app:iconSpaceReserved="false" />
-    <CheckBoxPreference
-        android:defaultValue="false"
-        android:key="pref_low_latency_frame_balance"
-        android:title="@string/title_low_latency_frame_balance"
-        android:summary="@string/summary_low_latency_frame_balance"
-        app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="pref_low_latency_frame_balance"
+            android:title="@string/title_low_latency_frame_balance"
+            android:summary="@string/summary_low_latency_frame_balance"
+            app:iconSpaceReserved="false" />
 
         <CheckBoxPreference
             android:defaultValue="false"
@@ -163,6 +163,12 @@
             android:summary="@string/summary_checkbox_enforce_display_mode"
             android:title="@string/title_checkbox_enforce_display_mode"
             app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_enable_fullexdisplay"
+            android:summary="@string/summary_fullexdisplay_mode"
+            android:title="@string/title_fullexdisplay_mode"
+            app:iconSpaceReserved="false" />
         <ListPreference
             android:defaultValue="0"
             android:entries="@array/render_mode_names"
@@ -209,13 +215,6 @@
             android:key="checkbox_enable_hdr"
             android:summary="@string/summary_enable_hdr"
             android:title="@string/title_enable_hdr"
-            app:iconSpaceReserved="false" />
-
-        <CheckBoxPreference
-            android:defaultValue="false"
-            android:key="checkbox_enable_fullexdisplay"
-            android:summary="@string/summary_fullexdisplay_mode"
-            android:title="@string/title_fullexdisplay_mode"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
@@ -373,7 +372,7 @@
             android:summary="@string/summary_touchscreen_mode"
             android:title="@string/title_touchscreen_mode"
             app:iconSpaceReserved="false" />
-        
+
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_remember_mouse_mode"
@@ -612,7 +611,7 @@
             android:summary="@string/summary_checkbox_disable_warnings"
             android:title="@string/title_checkbox_disable_warnings"
             app:iconSpaceReserved="false" />
-			
+
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_show_overlay_zoom_toggle_button"

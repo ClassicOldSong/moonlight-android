@@ -1,6 +1,8 @@
 package com.limelight.preferences;
 
-import static com.limelight.utils.ServerHelper.getActiveDisplay;
+import static com.limelight.preferences.PreferenceConfiguration.BITRATE_RECOMMENDATION_STRING;
+import static com.limelight.preferences.PreferenceConfiguration.DEFAULT_FPS;
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
 
 import android.content.Context;
 import android.content.Intent;
@@ -76,7 +78,7 @@ public class StreamSettings extends AppCompatActivity {
 
     void reloadSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display.Mode mode = getActiveDisplay(StreamSettings.this, previousPrefs).getMode();
+            Display.Mode mode = getGameStreamDisplay(StreamSettings.this).getMode();
             previousDisplayPixelCount = mode.getPhysicalWidth() * mode.getPhysicalHeight();
         }
         prefsFragment = new SettingsFragment(PreferenceConfiguration.readPreferences(
@@ -125,7 +127,7 @@ public class StreamSettings extends AppCompatActivity {
         super.onConfigurationChanged(newConfig);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display.Mode mode = getActiveDisplay(StreamSettings.this, previousPrefs).getMode();
+            Display.Mode mode = getGameStreamDisplay(StreamSettings.this).getMode();
 
             // If the display's physical pixel count has changed, we consider that it's a new display
             // and we should reload our settings (which include display-dependent values).
@@ -301,17 +303,16 @@ public class StreamSettings extends AppCompatActivity {
             pref.setEntryValues(entryValues);
         }
 
-        private void resetBitrateToDefault(SharedPreferences prefs, String res, String fps) {
+        private void recalculateRecommendedBitrate(SharedPreferences prefs, String res, String fps) {
             if (res == null) {
                 res = prefs.getString(PreferenceConfiguration.RESOLUTION_PREF_STRING, PreferenceConfiguration.DEFAULT_RESOLUTION);
             }
             if (fps == null) {
-                fps = prefs.getString(PreferenceConfiguration.FPS_PREF_STRING, PreferenceConfiguration.DEFAULT_FPS);
+                fps = prefs.getString(PreferenceConfiguration.FPS_PREF_STRING, DEFAULT_FPS);
             }
-
             prefs.edit()
-                    .putInt(PreferenceConfiguration.BITRATE_PREF_STRING,
-                            PreferenceConfiguration.getDefaultBitrate(res, fps))
+                    .putInt(PreferenceConfiguration.BITRATE_RECOMMENDATION_STRING,
+                            PreferenceConfiguration.getDefaultBitrate(res, fps, getContext()))
                     .apply();
         }
 
@@ -439,7 +440,7 @@ public class StreamSettings extends AppCompatActivity {
                     }
                 }
             }
-            
+
             // Check custom refresh rate
             String customRefreshRateStr = prevPrefConfig.customRefreshRate;
             if (customRefreshRateStr != null && !customRefreshRateStr.isEmpty()) {
@@ -696,12 +697,24 @@ public class StreamSettings extends AppCompatActivity {
                     }
 
                     // Write the new bitrate value
-                    resetBitrateToDefault(prefs, valueStr, null);
+                    recalculateRecommendedBitrate(prefs, valueStr, null);
 
                     // Allow the original preference change to take place
                     return true;
                 }
             });
+            findPreference(PreferenceConfiguration.BITRATE_PREF_STRING).setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+
+                @Override
+                public boolean onPreferenceClick(@NonNull Preference preference) {
+                    int recommendationBitrate = getPrefs().getInt(BITRATE_RECOMMENDATION_STRING, 0);
+                    if(recommendationBitrate != 0) {
+                        Toast.makeText(getContext(), getString(R.string.bitrate_recommendation_toast, recommendationBitrate / 1000), Toast.LENGTH_LONG).show();
+                    }
+                    return true;
+                }
+            }
+                );
             findPreference(PreferenceConfiguration.FPS_PREF_STRING).setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
                 @Override
                 public boolean onPreferenceChange(Preference preference, Object newValue) {
@@ -718,7 +731,7 @@ public class StreamSettings extends AppCompatActivity {
                     }
 
                     // Write the new bitrate value
-                    resetBitrateToDefault(prefs, null, valueStr);
+                    recalculateRecommendedBitrate(prefs, null, valueStr);
 
                     // Allow the original preference change to take place
                     return true;
@@ -904,7 +917,7 @@ public class StreamSettings extends AppCompatActivity {
                     try {
                         int width = Integer.parseInt(resolutionSegments[0]);
                         int height = Integer.parseInt(resolutionSegments[1]);
-                        
+
                         if (width <= 0 || height <= 0) {
                             Toast.makeText(getActivity(), getString(R.string.pref_error_occurred), Toast.LENGTH_SHORT).show();
                             return false;
@@ -934,14 +947,14 @@ public class StreamSettings extends AppCompatActivity {
                         Toast.makeText(getActivity(), getString(R.string.pref_enter_value_0_9999), Toast.LENGTH_SHORT).show();
                         return false;
                     }
-                    
+
                     try {
                         float refreshRate = Float.parseFloat(value);
                         if (refreshRate <= 0) {
                             Toast.makeText(getActivity(), getString(R.string.pref_enter_value_0_9999), Toast.LENGTH_SHORT).show();
                             return false;
                         }
-                        
+
                         // Format to max 3 decimal places
                         String formattedValue = String.format("%.3f", refreshRate);
                         // Remove trailing zeros
@@ -964,7 +977,7 @@ public class StreamSettings extends AppCompatActivity {
                 public void run() {
                     SharedPreferences prefs = getPrefs();
                     setValue(resolutionPrefString, nextDefault);
-                    resetBitrateToDefault(prefs, null, null);
+                    recalculateRecommendedBitrate(prefs, null, null);
                 }
             });
         }

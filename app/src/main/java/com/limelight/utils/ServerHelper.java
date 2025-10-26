@@ -1,5 +1,8 @@
 package com.limelight.utils;
 
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
+import static com.limelight.utils.DisplayUtils.hasSecondaryDisplay;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -61,34 +64,6 @@ public class ServerHelper {
         i.setAction(Intent.ACTION_DEFAULT);
         return i;
     }
-    public static Display getActiveDisplay(Context context, PreferenceConfiguration prefs) {
-        Display secondary = getSecondaryDisplay(context);
-        if (secondary != null && (prefs.enableFullExDisplay)) {
-            return secondary;
-        } else {
-            return ((DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE)).getDisplay(Display.DEFAULT_DISPLAY);
-        }
-    }
-
-    public static Display getSecondaryDisplay(Context context) {
-        DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
-        Display display = null;
-        Display[] displays = displayManager.getDisplays();
-        int mainDisplayId = Display.DEFAULT_DISPLAY;
-        int secondaryDisplayId = -1;
-        for (Display displayVariant : displays) {
-            LimeLog.info(displayVariant.toString());
-            if (displayVariant.getDisplayId() != mainDisplayId) {
-                secondaryDisplayId = displayVariant.getDisplayId();
-                break;
-            }
-        }
-
-        if (secondaryDisplayId != -1) {
-            display = displayManager.getDisplay(secondaryDisplayId);
-        }
-        return display;
-    }
 
     public static Intent createStartIntent(Activity parent, NvApp app, ComputerDetails computer,
                                            ComputerManagerService.ComputerManagerBinder managerBinder,
@@ -96,8 +71,8 @@ public class ServerHelper {
         Intent gameIntent = null;
         PreferenceConfiguration prefConfig = PreferenceConfiguration.readPreferences(parent);
         // Try to add secondary DisplayContext if supported and connected
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && prefConfig.enableFullExDisplay && getSecondaryDisplay(parent) != null) {
-            Context displayContext = parent.createDisplayContext(getSecondaryDisplay(parent)); // use secondary display
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && prefConfig.enableFullExDisplay && hasSecondaryDisplay(parent)) {
+            Context displayContext = parent.createDisplayContext(getGameStreamDisplay(parent)); // use secondary display
             gameIntent = new Intent(displayContext, Game.class);
             gameIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         }
@@ -123,11 +98,9 @@ public class ServerHelper {
             e.printStackTrace();
         }
 
-        if (prefConfig.enableFullExDisplay) {
-            Display secondaryDisplay = getSecondaryDisplay(parent);
-            if (secondaryDisplay != null) {
-                int secondaryDisplayId = secondaryDisplay.getDisplayId();
-                gameIntent.putExtra(Game.EXTRA_DISPLAY_ID, secondaryDisplayId);
+        if (prefConfig.enableFullExDisplay && hasSecondaryDisplay(parent)) {
+            Display gameStreamDisplay = getGameStreamDisplay(parent);
+            if (gameStreamDisplay != null) {
                 Intent touchpadIntent = new Intent(parent, ExternalDisplayControlActivity.class);
                 touchpadIntent.putExtra(ExternalDisplayControlActivity.EXTRA_LAUNCH_INTENT, gameIntent);
                 return touchpadIntent;

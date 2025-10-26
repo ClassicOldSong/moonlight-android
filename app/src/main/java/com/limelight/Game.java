@@ -3,10 +3,11 @@ package com.limelight;
 
 import static com.limelight.StartExternalDisplayControlReceiver.requestFocusToExternalDisplayControl;
 import static com.limelight.binding.input.KeyboardTranslator.getModifier;
+import static com.limelight.utils.DisplayUtils.getDisplayInfo;
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
+import static com.limelight.utils.DisplayUtils.hasSecondaryDisplay;
 import static com.limelight.utils.ExternalDisplayControlActivity.SECONDARY_SCREEN_NOTIFICATION_ID;
 import static com.limelight.utils.ExternalDisplayControlActivity.closeExternalDisplayControl;
-import static com.limelight.utils.ServerHelper.getActiveDisplay;
-import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
 
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
@@ -44,6 +45,7 @@ import com.limelight.ui.ExternalControllerView;
 import com.limelight.ui.GameGestures;
 import com.limelight.ui.StreamContainer;
 import com.limelight.utils.Dialog;
+import com.limelight.utils.DisplayUtils;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
 import com.limelight.utils.PanZoomHandler;
@@ -266,7 +268,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public static final String EXTRA_SERVER_CERT = "ServerCert";
     public static final String EXTRA_VDISPLAY = "VirtualDisplay";
     public static final String EXTRA_SERVER_COMMANDS = "ServerCommands";
-    public static final String EXTRA_DISPLAY_ID = "DisplayID";
 
     public static final String CLIPBOARD_IDENTIFIER = "ArtemisStreaming";
 
@@ -384,30 +385,24 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 getResources().getString(R.string.conn_establishing_msg), true);
 
 
-        Display currentDisplay = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            int displayId = getIntent().getIntExtra(EXTRA_DISPLAY_ID, Display.DEFAULT_DISPLAY);
-            currentDisplay = getSystemService(DisplayManager.class).getDisplay(displayId);
-        }
+        Display currentDisplay = DisplayUtils.getGameStreamDisplay(this);
 
         if (currentDisplay == null) {
-            currentDisplay = getWindowManager().getDefaultDisplay();
+            LimeLog.severe("FATAL: getGameStreamDisplay returned null! Cannot continue.");
+            // Show an error to the user and finish
+            Toast.makeText(this, "Critical Error: Could not determine target display.", Toast.LENGTH_LONG).show();
+            finish();
+            return; // Important: Stop further execution in onCreate
         }
 
-        onExternelDisplay = currentDisplay.getDisplayId() != Display.DEFAULT_DISPLAY;
+        onExternelDisplay = (currentDisplay.getDisplayId() != Display.DEFAULT_DISPLAY);
 
         boolean shouldInvertDecoderResolution = false;
+        matchSettings(currentDisplay);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                && onExternelDisplay
-                && prefConfig.renderMode == 0 // For 3D we want to maintain configured resolution
-        ) {
-            Display.Mode currentMode = currentDisplay.getMode();
-            displayWidth = currentMode.getPhysicalWidth();
-            displayHeight = currentMode.getPhysicalHeight();
-            prefConfig.width = displayWidth;
-            prefConfig.height = displayHeight;
-            prefConfig.fps = currentMode.getRefreshRate();
+        if (onExternelDisplay) {
+            displayWidth = prefConfig.width;
+            displayHeight = prefConfig.height;
             prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
             prefConfig.enableFloatingButton = false;
             prefConfig.showOverlayZoomToggleButton = false;
@@ -415,10 +410,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             currentOrientation = Configuration.ORIENTATION_LANDSCAPE;
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE);
         } else {
-            if (prefConfig.renderMode != 0) {
-                prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
-            }
-
             if (prefConfig.autoOrientation) {
                 currentOrientation = getResources().getConfiguration().orientation;
             } else {
@@ -668,7 +659,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 willStreamHdr,
                 shouldInvertDecoderResolution,
                 glPrefs.glRenderer,
-                this);
+                this,
+                currentDisplay);
 
 // --- Force tight thresholds (prefConfig.forceTightThresholds) ---
         try {
@@ -695,12 +687,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 decoderRenderer.setPreferLowerDelaysTimeoutUs(500);  // 0.5 ms
                 prefConfig.framePacing = PreferenceConfiguration.FRAME_PACING_BALANCED;
                 LimeLog.info("PreferLowerDelays: preferLowerDelays=true, timeout=500us, pacing=BALANCED");
-            } else {
-                // Balanced default
+            } else if(prefConfig.framePacing == PreferenceConfiguration.FRAME_PACING_BALANCED && !isOnExternalDisplay()) {
                 decoderRenderer.setPreferLowerDelays(false);
                 decoderRenderer.setPreferLowerDelaysTimeoutUs(2000); // 2 ms
-                prefConfig.framePacing = PreferenceConfiguration.FRAME_PACING_BALANCED;
                 LimeLog.info("Balanced: preferLowerDelays=false, timeout=2000us, pacing=BALANCED");
+            } else {
+                LimeLog.info("No balance mode selected or on external screen (LFR not working)");
             }
         } catch (Throwable ignored) {}
 
@@ -748,7 +740,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // Set to the optimal mode for streaming
         float displayRefreshRate = prepareDisplayForRendering(currentDisplay);
-        LimeLog.info("Display refresh rate: "+displayRefreshRate);
+
+        // Set WindowAttributes is not working on external screens and received fps were wrong
+        // leading to weird stream connection with barely 500kbs
+        if (isOnExternalDisplay() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            displayRefreshRate = currentDisplay.getMode().getRefreshRate();
+        }
 
         // If the user requested frame pacing using a capped FPS, we will need to change our
         // desired FPS setting here in accordance with the active display refresh rate.
@@ -774,6 +771,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         if (prefConfig.framePacingWarpFactor > 0) {
             chosenFrameRate *= prefConfig.framePacingWarpFactor;
+        }
+        //As external displays might return 60.004 fps, it seems to cause low quality stream
+        if(isOnExternalDisplay()) {
+            chosenFrameRate = (int) chosenFrameRate;
         }
 
         StreamConfiguration config = new StreamConfiguration.Builder()
@@ -934,6 +935,53 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         } catch (Throwable ignored) {}
     }
 
+    private void matchSettings(Display display) {
+        DisplayUtils.DisplayInfo displayInfo = getDisplayInfo(display);
+
+        if(isMatchDisplayFPS()) {
+            prefConfig.fps = (int) displayInfo.refreshRate;
+        }
+        if(prefConfig.renderMode != 0) { // 3D Mode selected
+            float ratio = (float) displayInfo.width / (float) displayInfo.height;
+
+            // A 32:9 aspect ratio is 3.555...
+            final float SBS_3D_ASPECT_RATIO = 32.0f / 9.0f;
+
+            // Use a small tolerance for floating-point comparison
+            final float EPSILON = 0.01f;
+            // User can keep render mode 3 in its setting without the need to switch
+            // so plug in glasses and turn on 3d should trigger it otherwise 2dmode
+            if (Math.abs(ratio - SBS_3D_ASPECT_RATIO) < EPSILON) {
+                // This is a 32:9 SbS 3D mode (like 3840x1080).
+                // We set the displayWidth to be for a single eye (1920).
+                if(isMatchDisplayResolution()) {
+                    prefConfig.width = displayInfo.width / 2;
+                    prefConfig.height = displayInfo.height;
+                }
+            } else {
+                // This is a standard 16:9, 4:3, etc. mode. No 3d needed
+                prefConfig.renderMode = 0;
+            }
+        }
+        if(isMatchDisplayResolution() && prefConfig.renderMode == 0) {
+            prefConfig.width = displayInfo.width;
+            prefConfig.height = displayInfo.height;
+        }
+        if(isMatchBitrate()) {
+            prefConfig.bitrate = PreferenceConfiguration.getDefaultBitrate(prefConfig.width+"x"+prefConfig.height, ((int) prefConfig.fps) +"", this);
+        }
+    }
+
+    private boolean isMatchDisplayResolution() {
+        return prefConfig.width == 0 && prefConfig.height == 0;
+    }
+    private boolean isMatchBitrate() {
+        return prefConfig.bitrate == 0;
+    }
+    private boolean isMatchDisplayFPS() {
+        return prefConfig.fps == 0;
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private void setupOverlayToggleButton() {
         if (overlayToggleButton != null) {
@@ -1017,7 +1065,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             @Override
             public void onDisplayRemoved(int displayId) {
-                if (getSecondaryDisplay(getBaseContext()) == null) {
+                if (onExternelDisplay) {
                     handleDisplayRemoved();
                     finish();
                 }
@@ -1142,7 +1190,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void setPreferredOrientationForActivity() {
-        Display display = getActiveDisplay(Game.this, prefConfig);
+        Display display = getGameStreamDisplay(Game.this);
 
         // For semi-square displays, we use more complex logic to determine which orientation to use (if any)
         if (PreferenceConfiguration.isSquarishScreen(display)) {
@@ -1429,7 +1477,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display display = getActiveDisplay(Game.this, prefConfig);
+            Display display = getGameStreamDisplay(Game.this);
             for (Display.Mode candidate : display.getSupportedModes()) {
                 // Ignore insets if this is an exact match for the display resolution
                 if ((width == candidate.getPhysicalWidth() && height == candidate.getPhysicalHeight()) ||
@@ -3990,16 +4038,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return isPanZoomMode;
     }
     public void toggleZoomMode() {
-        this.isPanZoomMode = !this.isPanZoomMode;
-        if (this.isPanZoomMode) {
-            Toast.makeText(this, getString(R.string.pan_zoom_mode_enabled), Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, getString(R.string.pan_zoom_mode_disabled), Toast.LENGTH_SHORT).show();
-        }
-        updateZoomButtonAppearance();
+        if(prefConfig.renderMode == 0) {
+            this.isPanZoomMode = !this.isPanZoomMode;
+            if (this.isPanZoomMode) {
+                Toast.makeText(this, getString(R.string.pan_zoom_mode_enabled), Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, getString(R.string.pan_zoom_mode_disabled), Toast.LENGTH_SHORT).show();
+            }
+            updateZoomButtonAppearance();
 
-        if (ExternalDisplayControlActivity.instance != null) {
-            ExternalDisplayControlActivity.instance.toggleZoomMode(false);
+            if (ExternalDisplayControlActivity.instance != null) {
+                ExternalDisplayControlActivity.instance.toggleZoomMode(false);
+            }
         }
     }
 
