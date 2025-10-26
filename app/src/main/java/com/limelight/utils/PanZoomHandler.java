@@ -62,10 +62,12 @@ public class PanZoomHandler {
         }
 
         if (parentHeight >= childHeight) {
-            // ALWAYS center it vertically when it's smaller than the parent
-            childY = (parentHeight - childHeight) / 2;
+            if (isTopMode) {
+                childY = 0;
+            } else {
+                childY = (parentHeight - childHeight) / 2;
+            }
         } else {
-            // This handles panning when the view is larger than the parent
             float boundaryY = parentHeight - childHeight;
             childY = Math.max(boundaryY, Math.min(childY, 0));
         }
