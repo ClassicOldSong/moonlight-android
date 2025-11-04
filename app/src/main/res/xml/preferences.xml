@@ -451,6 +451,19 @@
             android:title="@string/title_trackpad_swap_axis"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_secondary_screen_touchpad"
+            android:summary="@string/summary_secondary_screen_touchpad"
+            android:title="@string/title_secondary_screen_touchpad"
+            app:iconSpaceReserved="false" />
+        <com.limelight.preferences.DisplaySelectionPreference
+            android:defaultValue="1"
+            android:dependency="checkbox_secondary_screen_touchpad"
+            android:key="list_touchpad_display"
+            android:summary="@string/summary_touchpad_display"
+            android:title="@string/title_touchpad_display"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
             android:defaultValue="true"
             android:key="checkbox_force_qwerty"
             android:summary="@string/summary_checkbox_force_qwerty"

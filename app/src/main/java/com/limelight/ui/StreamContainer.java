@@ -15,6 +15,7 @@ import android.widget.FrameLayout;
 
 import com.limelight.Game;
 import com.limelight.LimeLog;
+import com.limelight.nvstream.input.KeyboardPacket;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.Stereo3DRenderer;
 
@@ -159,6 +160,11 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
 
     @Override
     public boolean onKeyPreIme(int keyCode, KeyEvent event) {
+        // Allow back button to dismiss keyboard
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            return false;
+        }
+
         if (mInputCallbacks != null) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (mInputCallbacks.handleKeyDown(event)) return true;
@@ -179,24 +185,61 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
 
     @Override
     public boolean onCheckIsTextEditor() {
-        return commitTextEnabled || super.onCheckIsTextEditor();
+        // Always return true so soft keyboard can attach to this view
+        return true;
     }
 
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
-        if (!commitTextEnabled) {
-            return super.onCreateInputConnection(outAttrs);
-        }
-        outAttrs.inputType = android.text.InputType.TYPE_CLASS_TEXT;
-        outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI;
+        // Configure the IME for immediate character input (no buffering)
+        // Use password type to disable predictions and autocomplete
+        outAttrs.inputType = android.text.InputType.TYPE_CLASS_TEXT |
+                            android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD |
+                            android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
+        outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI |
+                              EditorInfo.IME_FLAG_NO_FULLSCREEN;
+
         return new BaseInputConnection(this, false) {
             @Override
-            public boolean commitText(CharSequence text, int newCursorPosition) {
-                return mInputCallbacks != null && mInputCallbacks.handleCommitText(text) || super.commitText(text, newCursorPosition);
+            public boolean setComposingText(CharSequence text, int newCursorPosition) {
+                // Convert composing text to immediate commit for live typing
+                return commitText(text, newCursorPosition);
             }
+
+            @Override
+            public boolean commitText(CharSequence text, int newCursorPosition) {
+                // Send text directly to the streaming connection
+                if (Game.instance != null && Game.instance.conn != null) {
+                    try {
+                        for (int i = 0; i < text.length(); i++) {
+                            Game.instance.conn.sendUtf8Text(String.valueOf(text.charAt(i)));
+                        }
+                        return true;
+                    } catch (Exception e) {
+                        LimeLog.severe("StreamContainer - Error sending text: " + e.getMessage());
+                    }
+                }
+                return false;
+            }
+
             @Override
             public boolean deleteSurroundingText(int beforeLength, int afterLength) {
-                return mInputCallbacks != null && mInputCallbacks.handleDeleteSurroundingText(beforeLength, afterLength) || super.deleteSurroundingText(beforeLength, afterLength);
+                // Send backspace events for deleted characters
+                if (Game.instance != null && Game.instance.getKeyboardTranslator() != null && Game.instance.conn != null) {
+                    try {
+                        short backspaceCode = Game.instance.getKeyboardTranslator().translate(KeyEvent.KEYCODE_DEL, 0, -1);
+                        for (int i = 0; i < beforeLength; i++) {
+                            Game.instance.conn.sendKeyboardInput(backspaceCode,
+                                com.limelight.nvstream.input.KeyboardPacket.KEY_DOWN, (byte)0, (byte)0);
+                            Game.instance.conn.sendKeyboardInput(backspaceCode,
+                                com.limelight.nvstream.input.KeyboardPacket.KEY_UP, (byte)0, (byte)0);
+                        }
+                        return true;
+                    } catch (Exception e) {
+                        LimeLog.severe("StreamContainer - Error sending backspace: " + e.getMessage());
+                    }
+                }
+                return false;
             }
         };
     }

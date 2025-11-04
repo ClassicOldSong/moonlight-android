@@ -535,6 +535,10 @@
     <string name="summary_trackpad_drag_drop_threshold">Set the duration to hold on the trackpad before activating drag-and-drop on Samsung devices.</string>
     <string name="title_trackpad_swap_axis">Swap X and Y axis of the trackpad input</string>
     <string name="summary_trackpad_swap_axis">On some devices, trackpad input may be rotated in axis. Enabling this option may help.</string>
+    <string name="title_secondary_screen_touchpad">Use secondary screen as touchpad</string>
+    <string name="summary_secondary_screen_touchpad">When a secondary screen is detected, use one display as a touchpad for controlling the mouse on the game stream</string>
+    <string name="title_touchpad_display">Touchpad display</string>
+    <string name="summary_touchpad_display">Select which display acts as the touchpad</string>
     <string name="title_checkbox_force_qwerty">Force QWERTY layout</string>
     <string name="summary_checkbox_force_qwerty">Force use QWERTY keyboard layout.\nRequired by GFE.\nTurn off if you want to use a different keyboard layout.</string>
     <string name="title_checkbox_back_as_meta">Back button as Meta</string>
@@ -627,6 +631,9 @@
     <string name="game_menu_server_cmd">Server Commands</string>
     <string name="game_menu_fetch_clipboard">Fetch Clipboard</string>
     <string name="game_menu_upload_clipboard">Upload Clipboard</string>
+    <string name="game_menu_toggle_touchpad">Toggle Touchpad Display</string>
+    <string name="toast_touchpad_shown">Touchpad shown</string>
+    <string name="toast_touchpad_hidden">Touchpad hidden</string>
     <string name="game_dialog_title_server_cmd_empty">No Server Commands</string>
     <string name="game_dialog_message_server_cmd_empty">Please make sure you\'re using Apollo as server software and has been granted this client with "Server Command" permission.</string>
     <string name="vdisplay_not_ready">Virtual display driver isn\'t ready on the server. Please make sure the SudoVDA driver is installed and enabled.</string>

@@ -117,6 +117,10 @@ public class PreferenceConfiguration {
 
     private static final String CHECKBOX_SHOW_OVERLAY_ZOOM_TOGGLE_BUTTON = "checkbox_show_overlay_zoom_toggle_button";
 
+    //Use secondary screen as touchpad
+    private static final String CHECKBOX_SECONDARY_SCREEN_TOUCHPAD = "checkbox_secondary_screen_touchpad";
+    private static final String LIST_TOUCHPAD_DISPLAY = "list_touchpad_display";
+
     //竖屏模式
     private static final String CHECKBOX_AUTO_ORIENTATION = "checkbox_auto_orientation";
     //屏幕特殊按键
@@ -208,6 +212,8 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_ENABLE_COMMIT_TEXT = false;
     private static final String DEFAULT_ONSCREEN_KEYBOARD_ALIGN_MODE = "center";
     private static final boolean DEFAULT_SHOW_OVERLAY_TOGGLE_BUTTON = false;
+    private static final boolean DEFAULT_SECONDARY_SCREEN_TOUCHPAD = false;
+    private static final int DEFAULT_TOUCHPAD_DISPLAY = 1; // Display ID 1 (usually secondary)
 
     private static final boolean DEFAULT_REMEMBER_ZOOM_PAN = false;
     private static final float DEFAULT_ZOOM_SCALE = 1.0f;
@@ -282,6 +288,8 @@ public class PreferenceConfiguration {
     public boolean enableBackMenu;
     public boolean enableFloatingButton;
     public boolean showOverlayZoomToggleButton;
+    public boolean secondaryScreenTouchpad;
+    public int touchpadDisplayId; // Display ID for touchpad mode
 
     //Invert video width/height
     public boolean autoInvertVideoResolution;
@@ -938,6 +946,16 @@ private static int getFramePacingValue(Context context) {
         config.enableBackMenu = prefs.getBoolean(CHECKBOX_ENABLE_QUIT_DIALOG,true);
         config.enableFloatingButton = prefs.getBoolean(CHECKBOX_ENABLE_FLOATING_BUTTON,DEFAULT_ENABLE_FLOATING_BUTTON);
         config.showOverlayZoomToggleButton = prefs.getBoolean(CHECKBOX_SHOW_OVERLAY_ZOOM_TOGGLE_BUTTON, DEFAULT_SHOW_OVERLAY_TOGGLE_BUTTON);
+        config.secondaryScreenTouchpad = prefs.getBoolean(CHECKBOX_SECONDARY_SCREEN_TOUCHPAD, DEFAULT_SECONDARY_SCREEN_TOUCHPAD);
+        // Try to read as int first (new format), fall back to string for backwards compatibility
+        try {
+            String displayIdStr = prefs.getString(LIST_TOUCHPAD_DISPLAY, String.valueOf(DEFAULT_TOUCHPAD_DISPLAY));
+            config.touchpadDisplayId = Integer.parseInt(displayIdStr);
+        } catch (NumberFormatException e) {
+            // Handle legacy string values ("primary"/"secondary")
+            String legacyValue = prefs.getString(LIST_TOUCHPAD_DISPLAY, "secondary");
+            config.touchpadDisplayId = legacyValue.equals("primary") ? Display.DEFAULT_DISPLAY : 1;
+        }
         config.autoOrientation = prefs.getBoolean(CHECKBOX_AUTO_ORIENTATION,false);
         config.autoInvertVideoResolution = prefs.getBoolean(AUTO_INVERT_VIDEO_RESOLUTION_PREF_STRING, DEFAULT_AUTO_INVERT_VIDEO_RESOLUTION);
         config.resolutionScaleFactor = prefs.getInt(RESOLUTION_SCALE_FACTOR_PREF_STRING, DEFAULT_RESOLUTION_SCALE_FACTOR);

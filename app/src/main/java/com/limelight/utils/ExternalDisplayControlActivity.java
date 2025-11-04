@@ -15,6 +15,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.hardware.display.DisplayManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -57,11 +58,15 @@ import com.limelight.ui.ExternalControllerView;
 public class ExternalDisplayControlActivity extends AppCompatActivity implements View.OnKeyListener, KeyBoardLayoutController.ViewCallbacks {
 
     public static String EXTRA_LAUNCH_INTENT = "launchIntent";
+    public static String EXTRA_TOUCHPAD_DISPLAY_ID = "TOUCHPAD_DISPLAY_ID";
+    public static String EXTRA_IS_TOUCHPAD_MODE = "IS_TOUCHPAD_MODE";
 
     @SuppressLint("StaticFieldLeak")
     public static ExternalDisplayControlActivity instance;
 
     private PreferenceConfiguration prefConfig;
+    private boolean isTouchpadMode = false;
+    private int touchpadDisplayId = -1;
 
     private ExternalControllerView rootLayout;
     private ImageButton zoomButton;
@@ -117,27 +122,79 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
         instance = this;
         prefConfig = PreferenceConfiguration.readPreferences(this);
 
+        // Check if we're in touchpad mode
+        isTouchpadMode = getIntent().getBooleanExtra(EXTRA_IS_TOUCHPAD_MODE, false);
+        touchpadDisplayId = getIntent().getIntExtra(EXTRA_TOUCHPAD_DISPLAY_ID, -1);
+
+        LimeLog.info("ExternalDisplayControlActivity onCreate - isTouchpadMode: " + isTouchpadMode + ", touchpadDisplayId: " + touchpadDisplayId);
+
         if (!isGameInstanceAvailable()) {
             Intent gameIntent = getIntent().getParcelableExtra(EXTRA_LAUNCH_INTENT);
+            LimeLog.info("ExternalDisplayControlActivity - gameIntent null: " + (gameIntent == null) + ", Game.instance null: " + (Game.instance == null));
             if (gameIntent == null) {
+                LimeLog.warning("ExternalDisplayControlActivity - No game intent, finishing");
                 finish();
             } else {
-                Display secondaryDisplay = getSecondaryDisplay(this);
-                if (secondaryDisplay != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    ActivityOptions options = ActivityOptions.makeBasic();
-                    options.setLaunchDisplayId(secondaryDisplay.getDisplayId());
-                    Toast.makeText(this,
-                            getString(R.string.external_display_info,
-                                    secondaryDisplay.getMode().getPhysicalWidth(),
-                                    secondaryDisplay.getMode().getPhysicalHeight(),
-                                    secondaryDisplay.getMode().getRefreshRate()),
-                            Toast.LENGTH_LONG).show();
+                if (isTouchpadMode && touchpadDisplayId != -1) {
+                    LimeLog.info("ExternalDisplayControlActivity - Touchpad mode active, touchpadDisplayId: " + touchpadDisplayId);
+                    // In touchpad mode, launch game on the specified display
+                    DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+                    Display targetDisplay = displayManager.getDisplay(touchpadDisplayId);
+                    LimeLog.info("ExternalDisplayControlActivity - targetDisplay: " + (targetDisplay != null ? targetDisplay.getDisplayId() : "null"));
 
-                    startActivity(gameIntent, options.toBundle());
+                    if (targetDisplay != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        // Get the streaming display to show info
+                        Display streamDisplay = null;
+                        for (Display display : displayManager.getDisplays()) {
+                            if (display.getDisplayId() != touchpadDisplayId) {
+                                streamDisplay = display;
+                                break;
+                            }
+                        }
+
+                        LimeLog.info("ExternalDisplayControlActivity - Found stream display: " + (streamDisplay != null ? streamDisplay.getDisplayId() : "null"));
+
+                        if (streamDisplay != null) {
+                            // Launch Game on the stream display explicitly
+                            ActivityOptions options = ActivityOptions.makeBasic();
+                            options.setLaunchDisplayId(streamDisplay.getDisplayId());
+                            LimeLog.info("ExternalDisplayControlActivity - Launching Game on display: " + streamDisplay.getDisplayId());
+
+                            Toast.makeText(this,
+                                    "Touchpad mode: Stream on Display " + streamDisplay.getDisplayId() +
+                                    " (" + streamDisplay.getMode().getPhysicalWidth() + "x" +
+                                    streamDisplay.getMode().getPhysicalHeight() + ")",
+                                    Toast.LENGTH_LONG).show();
+
+                            startActivity(gameIntent, options.toBundle());
+                        } else {
+                            LimeLog.warning("ExternalDisplayControlActivity - No stream display found, launching on default");
+                            startActivity(gameIntent);
+                        }
+                    } else {
+                        LimeLog.warning(getString(R.string.no_external_display));
+                        startActivity(gameIntent);
+                        finish();
+                    }
                 } else {
-                    LimeLog.warning(getString(R.string.no_external_display));
-                    startActivity(gameIntent);
-                    finish();
+                    // Original behavior for full external display mode
+                    Display secondaryDisplay = getSecondaryDisplay(this);
+                    if (secondaryDisplay != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        ActivityOptions options = ActivityOptions.makeBasic();
+                        options.setLaunchDisplayId(secondaryDisplay.getDisplayId());
+                        Toast.makeText(this,
+                                getString(R.string.external_display_info,
+                                        secondaryDisplay.getMode().getPhysicalWidth(),
+                                        secondaryDisplay.getMode().getPhysicalHeight(),
+                                        secondaryDisplay.getMode().getRefreshRate()),
+                                Toast.LENGTH_LONG).show();
+
+                        startActivity(gameIntent, options.toBundle());
+                    } else {
+                        LimeLog.warning(getString(R.string.no_external_display));
+                        startActivity(gameIntent);
+                        finish();
+                    }
                 }
             }
         }
@@ -146,41 +203,66 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     }
 
     private void initViews() {
+        LimeLog.info("ExternalDisplayControlActivity - initViews called, failCount: " + failCount + ", Game.instance: " + (Game.instance != null));
         if (Game.instance == null) {
             if (failCount > 10) {
+                LimeLog.warning("ExternalDisplayControlActivity - Failed to find Game.instance after 10 attempts, finishing");
                 Toast.makeText(this, getString(R.string.no_game_instance), Toast.LENGTH_LONG).show();
                 finish();
             }
             // Wait for the intent to get started
+            LimeLog.info("ExternalDisplayControlActivity - Waiting for Game.instance, retrying in 500ms");
             handler.postDelayed(this::initViews, 500);
             failCount++;
             return;
         }
 
-        WindowInsetsControllerCompat windowInsetsController = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        LimeLog.info("ExternalDisplayControlActivity - Game.instance found, creating UI");
 
-        windowInsetsController.setSystemBarsBehavior(
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        );
+        try {
+            LimeLog.info("ExternalDisplayControlActivity - Setting up window insets");
+            WindowInsetsControllerCompat windowInsetsController = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
 
-        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars());
-        windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars());
+            windowInsetsController.setSystemBarsBehavior(
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            );
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, insets) -> {
-                boolean imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
-                updateKeyboardVisibility(imeVisible || (keyBoardLayoutController != null && keyBoardLayoutController.isKeyboardVisible()));
-                return androidx.core.view.ViewCompat.onApplyWindowInsets(v, insets);
-            });
+            windowInsetsController.hide(WindowInsetsCompat.Type.systemBars());
+            windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars());
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+                androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, insets) -> {
+                    boolean imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
+                    updateKeyboardVisibility(imeVisible || (keyBoardLayoutController != null && keyBoardLayoutController.isKeyboardVisible()));
+                    return androidx.core.view.ViewCompat.onApplyWindowInsets(v, insets);
+                });
+            }
+
+            LimeLog.info("ExternalDisplayControlActivity - Initializing components");
+            initializeComponents();
+
+            LimeLog.info("ExternalDisplayControlActivity - Creating programmatic UI");
+            createProgrammaticUI();
+
+            LimeLog.info("ExternalDisplayControlActivity - Checking notification permission");
+            checkNotificationPermission();
+
+            LimeLog.info("ExternalDisplayControlActivity - Initializing touch event handling");
+            initTouchEventHandling();
+
+            LimeLog.info("ExternalDisplayControlActivity - Setting up inactivity timeout");
+            setupInactivityTimeoutForBrightness();
+
+            LimeLog.info("ExternalDisplayControlActivity - Requesting focus to game");
+            requestFocusToGameActivity(false);
+
+            LimeLog.info("ExternalDisplayControlActivity - UI initialization complete!");
+        } catch (Exception e) {
+            LimeLog.severe("ExternalDisplayControlActivity - Error during UI creation: " + e.getMessage());
+            e.printStackTrace();
+            finish();
         }
-
-        initializeComponents();
-        createProgrammaticUI();
-        checkNotificationPermission();
-        initTouchEventHandling();
-        setupInactivityTimeoutForBrightness();
-        requestFocusToGameActivity(false);
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -198,7 +280,10 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     @Override
     protected void onResume() {
         super.onResume();
-        if (!isGameInstanceAvailable() && gameMenu != null) {
+        LimeLog.info("ExternalDisplayControlActivity - onResume, isTouchpadMode: " + isTouchpadMode + ", gameMenu: " + (gameMenu != null) + ", Game.instance: " + (Game.instance != null));
+        // In touchpad mode, we should stay open even if Game isn't available
+        if (!isTouchpadMode && !isGameInstanceAvailable() && gameMenu != null) {
+            LimeLog.info("ExternalDisplayControlActivity - Finishing due to no Game instance (not touchpad mode)");
             finish();
         }
     }
@@ -206,7 +291,10 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     @Override
     protected void onPause() {
         super.onPause();
-        if (!isGameInstanceAvailable()) {
+        LimeLog.info("ExternalDisplayControlActivity - onPause, isTouchpadMode: " + isTouchpadMode + ", Game.instance: " + (Game.instance != null));
+        // In touchpad mode, we should stay open even if Game pauses
+        if (!isTouchpadMode && !isGameInstanceAvailable()) {
+            LimeLog.info("ExternalDisplayControlActivity - Finishing due to no Game instance (not touchpad mode)");
             finish();
         }
     }

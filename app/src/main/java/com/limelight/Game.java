@@ -47,6 +47,7 @@ import com.limelight.utils.Dialog;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
 import com.limelight.utils.PanZoomHandler;
+import com.limelight.utils.TouchpadPresentation;
 import com.limelight.utils.PerformanceDataTracker;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
@@ -55,6 +56,7 @@ import com.limelight.utils.UiHelper;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
+import androidx.annotation.RequiresApi;
 import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.app.Service;
@@ -142,6 +144,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         ExternalControllerView.InputCallbacks,
         PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
     public static Game instance;
+    private TouchpadPresentation touchpadPresentation;
 
     private int lastButtonState = 0;
 
@@ -170,6 +173,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     private ControllerHandler controllerHandler;
     private KeyboardTranslator keyboardTranslator;
+
+    public KeyboardTranslator getKeyboardTranslator() {
+        return keyboardTranslator;
+    }
     private VirtualController virtualController;
 
     private KeyBoardController keyBoardController;
@@ -395,6 +402,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         onExternelDisplay = currentDisplay.getDisplayId() != Display.DEFAULT_DISPLAY;
+
+        // Initialize touchpad presentation if in touchpad mode
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && prefConfig.secondaryScreenTouchpad) {
+            initTouchpadPresentation();
+        }
 
         boolean shouldInvertDecoderResolution = false;
 
@@ -1698,12 +1710,81 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         hideSystemUi(50);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    private void initTouchpadPresentation() {
+        try {
+            DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+
+            // Get the touchpad display using DISPLAY_CATEGORY_PRESENTATION
+            Display[] presentations = displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+            Display touchpadDisplay = null;
+
+            LimeLog.info("Game - Found " + presentations.length + " presentation displays");
+
+            // Find the display matching our touchpad display ID
+            for (Display display : presentations) {
+                LimeLog.info("Game - Checking presentation display: " + display.getDisplayId() + " (" + display.getName() + ")");
+                if (display.getDisplayId() == prefConfig.touchpadDisplayId) {
+                    touchpadDisplay = display;
+                    break;
+                }
+            }
+
+            if (touchpadDisplay != null) {
+                LimeLog.info("Game - Creating TouchpadPresentation on display: " + touchpadDisplay.getDisplayId());
+                touchpadPresentation = new TouchpadPresentation(this, touchpadDisplay, prefConfig);
+                touchpadPresentation.show();
+                LimeLog.info("Game - TouchpadPresentation shown successfully");
+            } else {
+                LimeLog.warning("Game - Touchpad display " + prefConfig.touchpadDisplayId + " not found in presentation displays");
+            }
+        } catch (Exception e) {
+            LimeLog.severe("Game - Error initializing touchpad presentation: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void dismissTouchpadPresentation() {
+        if (touchpadPresentation != null) {
+            LimeLog.info("Game - Dismissing touchpad presentation");
+            touchpadPresentation.dismiss();
+            touchpadPresentation = null;
+        }
+    }
+
+    public void onTouchpadPresentationDismissed() {
+        LimeLog.info("Game - Touchpad presentation was dismissed");
+        touchpadPresentation = null;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    public void toggleTouchpadPresentation() {
+        if (touchpadPresentation != null) {
+            // Hide touchpad
+            dismissTouchpadPresentation();
+            Toast.makeText(this, R.string.toast_touchpad_hidden, Toast.LENGTH_SHORT).show();
+        } else if (prefConfig.secondaryScreenTouchpad) {
+            // Show touchpad
+            initTouchpadPresentation();
+            if (touchpadPresentation != null) {
+                Toast.makeText(this, R.string.toast_touchpad_shown, Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    public boolean isTouchpadModeEnabled() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && prefConfig.secondaryScreenTouchpad;
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
         instance = null;
         timerHandler.removeCallbacksAndMessages(null);
+
+        // Dismiss touchpad presentation if active
+        dismissTouchpadPresentation();
 
         if (prefConfig.enableFullExDisplay) handleDisplayRemoved();
 
@@ -1755,6 +1836,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         super.onPause();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        // Recreate touchpad presentation if it was dismissed when app went to background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            prefConfig.secondaryScreenTouchpad &&
+            touchpadPresentation == null &&
+            conn != null) {
+            LimeLog.info("Game - onStart: Recreating touchpad presentation");
+            initTouchpadPresentation();
+        }
     }
 
     @Override
@@ -2402,6 +2497,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public void toggleKeyboard() {
         if (isOnExternalDisplay()) {
             ExternalDisplayControlActivity.toggleKeyboard();
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && prefConfig.secondaryScreenTouchpad && touchpadPresentation != null) {
+            // In touchpad mode, keyboard is shown on touchpad display via the keyboard button
+            // Don't toggle it on the game display
+            LimeLog.info("Touchpad mode active - keyboard should be toggled from touchpad display");
         } else {
             LimeLog.info("Toggling keyboard overlay");
             InputMethodManager inputManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -3289,11 +3388,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         if (eventAction == MotionEvent.ACTION_POINTER_DOWN) {
             if (pointerCount == 3) {
+                LimeLog.info("Game - 3 fingers down detected");
                 threeFingerDownTime = event.getEventTime();
             } else if (pointerCount == 4) {
+                LimeLog.info("Game - 4 fingers down detected");
                 threeFingerDownTime = 0;
                 fourFingerDownTime = event.getEventTime();
             } else if (pointerCount == 5) {
+                LimeLog.info("Game - 5 fingers down detected");
                 threeFingerDownTime = 0;
                 fourFingerDownTime = 0;
                 fiveFingerDownTime = event.getEventTime();
@@ -3315,9 +3417,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     fourFingerDownTime = 0;
                     break;
                 } else if (pointerCount == 3 && threeFingerDownTime > 0 && currentEventTime - threeFingerDownTime < THREE_FINGER_TAP_THRESHOLD) {
+                    LimeLog.info("Game - 3 finger tap detected, toggling keyboard");
                     toggleKeyboard();
                     threeFingerDownTime = 0;
                     break;
+                } else if (pointerCount == 3) {
+                    LimeLog.info("Game - 3 fingers up but not a tap (time: " + (currentEventTime - threeFingerDownTime) + "ms, threshold: " + THREE_FINGER_TAP_THRESHOLD + "ms)");
                 }
                 threeFingerDownTime = 0;
                 fourFingerDownTime = 0;
