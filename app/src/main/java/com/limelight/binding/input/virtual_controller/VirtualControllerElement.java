@@ -39,6 +39,7 @@ public abstract class VirtualControllerElement extends View {
     public static final int EID_RSB = 15;
     public static final int EID_GDB = 16;
     public static final int EID_TOUCHPAD = 65;
+    public static final int EID_FEEDBACK_INDICATOR = 66;
 
     protected VirtualController virtualController;
     protected final int elementId;
@@ -73,6 +74,10 @@ public abstract class VirtualControllerElement extends View {
 
         this.virtualController = controller;
         this.elementId = elementId;
+    }
+
+    public int getElementId() {
+        return elementId;
     }
 
     protected void moveElement(int pressed_x, int pressed_y, int x, int y) {

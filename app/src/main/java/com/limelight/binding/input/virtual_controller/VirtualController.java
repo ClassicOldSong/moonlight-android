@@ -45,6 +45,10 @@ public class VirtualController {
         DisableEnableButtons
     }
 
+    public interface ModeChangeListener {
+        void onModeChanged(ControllerMode newMode);
+    }
+
     private static final boolean _PRINT_DEBUG_INFORMATION = false;
 
     private final ControllerHandler controllerHandler;
@@ -68,6 +72,8 @@ public class VirtualController {
     private List<VirtualControllerElement> elements = new ArrayList<>();
 
     private Vibrator vibrator;
+
+    private ModeChangeListener modeChangeListener = null;
 
     private final VibrationEffect defaultVibrationEffect;
 
@@ -124,6 +130,11 @@ public class VirtualController {
 
                 for (VirtualControllerElement element : elements) {
                     element.invalidate();
+                }
+
+                // Notify listener of mode change
+                if (modeChangeListener != null) {
+                    modeChangeListener.onModeChanged(currentMode);
                 }
             }
         });
@@ -224,6 +235,44 @@ public class VirtualController {
 
     public ControllerMode getControllerMode() {
         return currentMode;
+    }
+
+    public void setModeChangeListener(ModeChangeListener listener) {
+        this.modeChangeListener = listener;
+    }
+
+    public void setControllerMode(ControllerMode mode, boolean notifyListener) {
+        if (currentMode == mode) {
+            return; // Already in this mode
+        }
+
+        ControllerMode previousMode = currentMode;
+        currentMode = mode;
+
+        // Handle visibility based on mode
+        if (mode == ControllerMode.DisableEnableButtons) {
+            showElements();
+        } else if (mode == ControllerMode.MoveButtons || mode == ControllerMode.ResizeButtons) {
+            showEnabledElements();
+        } else if (mode == ControllerMode.Active) {
+            // Save configuration when returning to active mode
+            if (previousMode != ControllerMode.Active) {
+                VirtualControllerConfigurationLoader.saveProfile(this, context);
+                OscProfilesManager.getInstance().saveCurrentConfigToActiveProfile(this);
+            }
+            showEnabledElements();
+        }
+
+        // Invalidate all elements to redraw with new mode
+        buttonConfigure.invalidate();
+        for (VirtualControllerElement element : elements) {
+            element.invalidate();
+        }
+
+        // Notify listener if requested (used for synchronization)
+        if (notifyListener && modeChangeListener != null) {
+            modeChangeListener.onModeChanged(currentMode);
+        }
     }
 
     public ControllerInputContext getControllerInputContext() {

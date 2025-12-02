@@ -38,6 +38,7 @@ import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.input.driver.AbstractController;
 import com.limelight.binding.input.driver.UsbDriverListener;
+import com.limelight.binding.input.GamepadTriggerManager;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.input.ControllerPacket;
@@ -1266,6 +1267,13 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             rightStickY |= maxByMagnitude(rightStickY, defaultContext.rightStickY);
         }
 
+        // Merge virtual trigger button state from cover screen
+        GamepadTriggerManager triggerMgr = GamepadTriggerManager.getInstance();
+        int mergedInputMap = inputMap | triggerMgr.getMergedButtonFlags();
+        byte[] virtualTriggers = triggerMgr.getMergedTriggers();
+        byte mergedLeftTrigger = maxByMagnitude(leftTrigger, virtualTriggers[0]);
+        byte mergedRightTrigger = maxByMagnitude(rightTrigger, virtualTriggers[1]);
+
         if (originalContext.mouseEmulationActive) {
             int changedMask = inputMap ^  originalContext.mouseEmulationLastInputMap;
 
@@ -1345,12 +1353,14 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             }
 
             conn.sendControllerInput(controllerNumber, getActiveControllerMask(),
-                    (short)0, (byte)0, (byte)0, (short)0, (short)0, (short)0, (short)0);
+                    mergedInputMap,
+                    mergedLeftTrigger, mergedRightTrigger,
+                    (short)0, (short)0, (short)0, (short)0);
         }
         else {
             conn.sendControllerInput(controllerNumber, getActiveControllerMask(),
-                    inputMap,
-                    leftTrigger, rightTrigger,
+                    mergedInputMap,
+                    mergedLeftTrigger, mergedRightTrigger,
                     leftStickX, leftStickY,
                     rightStickX, rightStickY);
         }
@@ -2955,6 +2965,16 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
         defaultContext.inputMap = buttonFlags;
 
+        sendControllerInputPacket(defaultContext);
+    }
+
+    /**
+     * Trigger a controller input packet send from cover screen virtual buttons.
+     * This forces an update to be sent with the latest merged inputs.
+     */
+    public void sendVirtualControllerInput() {
+        // Send an update with current default context state
+        // This will merge with cover screen inputs in sendControllerInputPacket
         sendControllerInputPacket(defaultContext);
     }
 

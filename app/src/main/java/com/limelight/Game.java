@@ -22,6 +22,7 @@ import com.limelight.binding.input.evdev.EvdevListener;
 import com.limelight.binding.input.touch.TouchContext;
 import com.limelight.binding.input.touch.TrackpadContext;
 import com.limelight.binding.input.virtual_controller.VirtualController;
+import com.limelight.binding.input.virtual_controller.VirtualControllerElement;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
 import com.limelight.binding.video.CrashListener;
@@ -84,6 +85,7 @@ import android.os.IBinder;
 import android.os.PersistableBundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.util.DisplayMetrics;
 import android.util.Rational;
 import android.view.Display;
 import android.view.Gravity;
@@ -140,7 +142,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         OnGenericMotionListener, OnTouchListener, NvConnectionListener, EvdevListener,
         OnSystemUiVisibilityChangeListener, GameGestures, StreamContainer.InputCallbacks,
         ExternalControllerView.InputCallbacks,
-        PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
+        PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener,
+        com.limelight.binding.input.cover.CoverScreenListener {
     public static Game instance;
 
     private int lastButtonState = 0;
@@ -175,6 +178,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private KeyBoardController keyBoardController;
 
     private KeyBoardLayoutController keyBoardLayoutController;
+
+    private com.limelight.binding.input.cover.CoverScreenManager coverScreenManager;
 
     private PreferenceConfiguration prefConfig;
     private SharedPreferences tombstonePrefs;
@@ -809,6 +814,26 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         controllerHandler = new ControllerHandler(this, conn, this, prefConfig);
         keyboardTranslator = new KeyboardTranslator(prefConfig);
 
+        // Initialize cover screen manager for foldable devices
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            coverScreenManager = new com.limelight.binding.input.cover.CoverScreenManager(this, controllerHandler);
+            getLifecycle().addObserver(coverScreenManager);
+            coverScreenManager.setListener(this);  // Set Game as listener
+            coverScreenManager.initialize();
+
+            // Set up mode synchronization listener for cover screen
+            coverScreenManager.setModeChangeListener(new com.limelight.binding.input.cover.CoverScreenModeChangeListener() {
+                @Override
+                public void onCoverModeChanged(com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode mode) {
+                    // Synchronize main screen OSC to match cover screen mode
+                    if (virtualController != null) {
+                        VirtualController.ControllerMode oscMode = coverModeToOscMode(mode);
+                        virtualController.setControllerMode(oscMode, false); // false = don't notify listener (avoid loop)
+                    }
+                }
+            });
+        }
+
         InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
         inputManager.registerInputDeviceListener(keyboardTranslator, null);
 
@@ -843,6 +868,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 initVirtualController();
             }
         }
+
+        // Note: FeedbackIndicator is initialized via CoverScreenListener.onCoverScreenActivated()
+        // when the cover screen session starts
 
         //特殊按键屏幕布局
         if(prefConfig.enableKeyboard){
@@ -1102,6 +1130,44 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         virtualController = new VirtualController(controllerHandler, (FrameLayout)rootView, this);
         virtualController.refreshLayout();
         virtualController.show();
+
+        // Set up mode synchronization listener for main screen OSC
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && coverScreenManager != null) {
+            virtualController.setModeChangeListener(new VirtualController.ModeChangeListener() {
+                @Override
+                public void onModeChanged(VirtualController.ControllerMode mode) {
+                    // Synchronize cover screen to match main screen OSC mode
+                    com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode coverMode = oscModeToCoverMode(mode);
+                    coverScreenManager.setConfigurationMode(coverMode, false); // false = don't notify listener (avoid loop)
+                }
+            });
+        }
+    }
+
+    private void initFeedbackIndicator(){
+        // FeedbackIndicator is now managed by VirtualController
+        // If OSC is not enabled, create a minimal virtual controller just for the indicator
+        if (virtualController == null) {
+            virtualController = new VirtualController(controllerHandler, (FrameLayout)rootView, this);
+            // Don't call refreshLayout() - manually add only the feedback indicator
+            DisplayMetrics screen = getResources().getDisplayMetrics();
+            int height = screen.heightPixels;
+
+            virtualController.addElement(
+                    new com.limelight.binding.input.feedback.FeedbackIndicator(virtualController, this),
+                    screenScale(4, height),  // x: grid 4
+                    screenScale(4, height),  // y: grid 4
+                    screenScale(20, height), // width: grid 20
+                    screenScale(5, height)   // height: grid 5
+            );
+            virtualController.show();
+        }
+        // If virtualController already exists (OSC enabled), the indicator is already part of it
+    }
+
+    private int screenScale(int gridCoordinate, int screenHeight) {
+        // Convert grid coordinate to pixels (128x72 grid at 16:9)
+        return (int)(gridCoordinate * screenHeight / 72.0f);
     }
 
     private void initkeyBoardLayoutController(){
@@ -1139,6 +1205,37 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return;
         }
         prefConfig.onscreenController= virtualController.switchShowHide() != 0;
+    }
+
+    // Helper methods to convert between OSC and Cover screen configuration modes
+    private VirtualController.ControllerMode coverModeToOscMode(com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode coverMode) {
+        switch (coverMode) {
+            case ACTIVE:
+                return VirtualController.ControllerMode.Active;
+            case MOVE:
+                return VirtualController.ControllerMode.MoveButtons;
+            case RESIZE:
+                return VirtualController.ControllerMode.ResizeButtons;
+            case DISABLE_ENABLE:
+                return VirtualController.ControllerMode.DisableEnableButtons;
+            default:
+                return VirtualController.ControllerMode.Active;
+        }
+    }
+
+    private com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode oscModeToCoverMode(VirtualController.ControllerMode oscMode) {
+        switch (oscMode) {
+            case Active:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.ACTIVE;
+            case MoveButtons:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.MOVE;
+            case ResizeButtons:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.RESIZE;
+            case DisableEnableButtons:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.DISABLE_ENABLE;
+            default:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.ACTIVE;
+        }
     }
 
     private void setPreferredOrientationForActivity() {
@@ -1709,6 +1806,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         if (controllerHandler != null) {
             controllerHandler.destroy();
+        }
+        if (coverScreenManager != null) {
+            coverScreenManager.cleanup();
         }
         if (keyboardTranslator != null) {
             InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
@@ -4360,6 +4460,40 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
         return null;
+    }
+
+    // CoverScreenListener interface implementation
+
+    @Override
+    public void onCoverScreenActivated() {
+        LimeLog.info("Game: Cover screen activated, initializing feedback indicator");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                initFeedbackIndicator();
+            }
+        });
+    }
+
+    @Override
+    public void onCoverScreenDeactivated() {
+        LimeLog.info("Game: Cover screen deactivated");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                // FeedbackIndicator is now managed by VirtualController
+                // Just disable it if cover screen goes away
+                if (virtualController != null) {
+                    for (VirtualControllerElement element : virtualController.getElements()) {
+                        if (element.getElementId() == VirtualControllerElement.EID_FEEDBACK_INDICATOR) {
+                            element.enabled = false;
+                            element.invalidate();
+                            break;
+                        }
+                    }
+                }
+            }
+        });
     }
 
 }

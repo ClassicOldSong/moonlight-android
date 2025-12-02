@@ -408,6 +408,16 @@ public class VirtualControllerConfigurationLoader {
             );
         }
 
+        // Add feedback indicator for cover screen triggers (if available)
+        // Position at top-left, wide and narrow
+        controller.addElement(
+                new com.limelight.binding.input.feedback.FeedbackIndicator(controller, context),
+                screenScale(4, height),  // x: grid 4
+                screenScale(4, height),  // y: grid 4
+                screenScale(20, height), // width: grid 20 (wide)
+                screenScale(5, height)   // height: grid 5 (narrow)
+        );
+
         controller.setOpacity(config.oscOpacity);
     }
 
