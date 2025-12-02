@@ -81,6 +81,23 @@ public abstract class VirtualControllerElement extends View {
 
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) getLayoutParams();
 
+        // Apply snapping if enabled
+        if (virtualController.isSnappingEnabled()) {
+            int[] snapped = SnapHelper.applySnapping(
+                this,
+                newPos_x,
+                newPos_y,
+                getWidth(),
+                getHeight(),
+                virtualController.getDisplayMetrics(),
+                virtualController.getElements(),
+                true,  // snapToGrid
+                true   // snapToButtons
+            );
+            newPos_x = snapped[0];
+            newPos_y = snapped[1];
+        }
+
         layoutParams.leftMargin = newPos_x > 0 ? newPos_x : 0;
         layoutParams.topMargin = newPos_y > 0 ? newPos_y : 0;
         layoutParams.rightMargin = 0;
@@ -94,6 +111,20 @@ public abstract class VirtualControllerElement extends View {
 
         int newHeight = height + (startSize_y - pressed_y);
         int newWidth = width + (startSize_x - pressed_x);
+
+        // Apply paired sizing if enabled
+        if (virtualController.isPairedSizingEnabled()) {
+            int[] pairedSize = SnapHelper.applyPairedSizing(
+                this,
+                startSize_x,
+                startSize_y,
+                newWidth,
+                newHeight,
+                virtualController.getElements()
+            );
+            newWidth = pairedSize[0];
+            newHeight = pairedSize[1];
+        }
 
         layoutParams.height = newHeight > 20 ? newHeight : 20;
         layoutParams.width = newWidth > 20 ? newWidth : 20;

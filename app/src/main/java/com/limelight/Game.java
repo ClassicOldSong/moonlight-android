@@ -2038,6 +2038,22 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return false;
         }
 
+        // Handle Volume Up to toggle snapping in Move mode
+        if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP &&
+                virtualController != null &&
+                virtualController.getControllerMode() == VirtualController.ControllerMode.MoveButtons) {
+            virtualController.toggleSnapping();
+            return true;
+        }
+
+        // Handle Volume Up to toggle paired sizing in Resize mode
+        if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP &&
+                virtualController != null &&
+                virtualController.getControllerMode() == VirtualController.ControllerMode.ResizeButtons) {
+            virtualController.togglePairedSizing();
+            return true;
+        }
+
         // Handle a synthetic back button event that some Android OS versions
         // create as a result of a right-click. This event WILL repeat if
         // the right mouse button is held down, so we ignore those.

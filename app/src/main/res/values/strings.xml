@@ -13,6 +13,11 @@
     <string name="configuration_mode_resize_buttons">Resize buttons mode</string>
     <string name="configuration_mode_disable_enable_buttons">Enable/Disable buttons mode</string>
     <string name="configuration_mode_exiting">Exiting configuration mode</string>
+    <string name="snapping_enabled">Snapping enabled</string>
+    <string name="snapping_disabled">Snapping disabled</string>
+    <string name="paired_sizing_enabled">Paired sizing enabled</string>
+    <string name="paired_sizing_disabled">Paired sizing disabled</string>
+    <string name="osc_profile_menu">OSC Profile</string>
     <string name="help_loading_title">Help Viewer</string>
     <string name="help_loading_msg">Loading help page…</string>
 

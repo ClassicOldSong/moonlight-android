@@ -428,20 +428,30 @@ public class VirtualControllerConfigurationLoader {
     }
 
     public static void loadFromPreferences(final VirtualController controller, final Context context) {
-        SharedPreferences pref = context.getSharedPreferences(OSC_PREFERENCE, Activity.MODE_PRIVATE);
+        // Try loading from profile manager first
+        OscProfilesManager profileManager = OscProfilesManager.getInstance();
+        OscProfile activeProfile = profileManager.getActive();
 
-        for (VirtualControllerElement element : controller.getElements()) {
-            String prefKey = ""+element.elementId;
+        if (activeProfile != null && activeProfile.getElementConfigs() != null && !activeProfile.getElementConfigs().isEmpty()) {
+            // Load from active profile
+            profileManager.loadActiveProfileToController(controller);
+        } else {
+            // Fallback to old SharedPreferences method for backwards compatibility
+            SharedPreferences pref = context.getSharedPreferences(OSC_PREFERENCE, Activity.MODE_PRIVATE);
 
-            String jsonConfig = pref.getString(prefKey, null);
-            if (jsonConfig != null) {
-                try {
-                    element.loadConfiguration(new JSONObject(jsonConfig));
-                } catch (JSONException e) {
-                    e.printStackTrace();
+            for (VirtualControllerElement element : controller.getElements()) {
+                String prefKey = ""+element.elementId;
 
-                    // Remove the corrupt element from the preferences
-                    pref.edit().remove(prefKey).apply();
+                String jsonConfig = pref.getString(prefKey, null);
+                if (jsonConfig != null) {
+                    try {
+                        element.loadConfiguration(new JSONObject(jsonConfig));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+
+                        // Remove the corrupt element from the preferences
+                        pref.edit().remove(prefKey).apply();
+                    }
                 }
             }
         }

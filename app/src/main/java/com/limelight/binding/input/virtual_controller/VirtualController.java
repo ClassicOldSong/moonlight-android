@@ -24,6 +24,7 @@ import com.limelight.preferences.PreferenceConfiguration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class VirtualController {
     public static class ControllerInputContext {
@@ -70,6 +71,12 @@ public class VirtualController {
 
     private final VibrationEffect defaultVibrationEffect;
 
+    // Snapping state
+    private boolean snappingEnabled = true;
+
+    // Paired sizing state
+    private boolean pairedSizingEnabled = true;
+
     public VirtualController(final ControllerHandler controllerHandler, FrameLayout layout, final Context context) {
         this.controllerHandler = controllerHandler;
         this.frame_layout = layout;
@@ -105,7 +112,9 @@ public class VirtualController {
                     message = context.getString(R.string.configuration_mode_resize_buttons);
                 } else {
                     currentMode = ControllerMode.Active;
+                    // Save to both old location (backwards compat) and new profile system
                     VirtualControllerConfigurationLoader.saveProfile(VirtualController.this, context);
+                    OscProfilesManager.getInstance().saveCurrentConfigToActiveProfile(VirtualController.this);
                     message = context.getString(R.string.configuration_mode_exiting);
                 }
 
@@ -273,5 +282,49 @@ public class VirtualController {
 
     public void sendControllerInputContext() {
         sendControllerInputContext(0, 0);
+    }
+
+    public boolean isSnappingEnabled() {
+        return snappingEnabled;
+    }
+
+    public void setSnappingEnabled(boolean enabled) {
+        this.snappingEnabled = enabled;
+    }
+
+    public void toggleSnapping() {
+        snappingEnabled = !snappingEnabled;
+        String message = context.getString(snappingEnabled ?
+            R.string.snapping_enabled : R.string.snapping_disabled);
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+    }
+
+    public boolean isPairedSizingEnabled() {
+        return pairedSizingEnabled;
+    }
+
+    public void setPairedSizingEnabled(boolean enabled) {
+        this.pairedSizingEnabled = enabled;
+    }
+
+    public void togglePairedSizing() {
+        pairedSizingEnabled = !pairedSizingEnabled;
+        String message = context.getString(pairedSizingEnabled ?
+            R.string.paired_sizing_enabled : R.string.paired_sizing_disabled);
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+    }
+
+    public DisplayMetrics getDisplayMetrics() {
+        return context.getResources().getDisplayMetrics();
+    }
+
+    public void switchToProfile(UUID profileId) {
+        OscProfilesManager manager = OscProfilesManager.getInstance();
+        manager.setActive(profileId);
+
+        // Reload the OSC with the new profile's configuration
+        refreshLayout();
+
+        Toast.makeText(context, "Switched to profile: " + manager.getActiveName(), Toast.LENGTH_SHORT).show();
     }
 }

@@ -40,6 +40,7 @@ import android.os.IBinder;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.SubMenu;
 import android.view.View;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.widget.AbsListView;
@@ -81,6 +82,8 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
     private final static int HIDE_APP_ID = 8;
     private final static int START_WITH_VDISPLAY = 20;
     private final static int START_WITH_QUIT_VDISPLAY = 21;
+    private final static int OSC_PROFILE_SUBMENU_ID = 100;
+    private final static int OSC_PROFILE_BASE_ID = 1000; // Base ID for OSC profiles
 
     public final static String HIDDEN_APPS_PREF_FILENAME = "HiddenApps";
 
@@ -495,6 +498,25 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         }
 
         menu.add(Menu.NONE, EXPORT_LAUNCHER_FILE_ID, 6, getResources().getString(R.string.applist_menu_export_launcher));
+
+        // Add OSC Profile submenu
+        SubMenu oscProfileSubmenu = menu.addSubMenu(Menu.NONE, OSC_PROFILE_SUBMENU_ID, 7, getResources().getString(R.string.osc_profile_menu));
+        addOscProfilesToSubmenu(oscProfileSubmenu);
+    }
+
+    private void addOscProfilesToSubmenu(SubMenu submenu) {
+        com.limelight.binding.input.virtual_controller.OscProfilesManager manager =
+                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+        java.util.List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = manager.getProfiles();
+        java.util.UUID activeId = manager.getActiveId();
+
+        int index = 0;
+        for (com.limelight.binding.input.virtual_controller.OscProfile profile : profiles) {
+            MenuItem item = submenu.add(Menu.NONE, OSC_PROFILE_BASE_ID + index, index, profile.getName());
+            item.setCheckable(true);
+            item.setChecked(profile.getUuid().equals(activeId));
+            index++;
+        }
     }
 
     @Override
@@ -617,6 +639,20 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
             }
 
             default: {
+                // Check if this is an OSC profile selection
+                if (itemId >= OSC_PROFILE_BASE_ID && itemId < OSC_PROFILE_BASE_ID + 1000) {
+                    int profileIndex = itemId - OSC_PROFILE_BASE_ID;
+                    com.limelight.binding.input.virtual_controller.OscProfilesManager manager =
+                            com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+                    java.util.List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = manager.getProfiles();
+
+                    if (profileIndex >= 0 && profileIndex < profiles.size()) {
+                        com.limelight.binding.input.virtual_controller.OscProfile selectedProfile = profiles.get(profileIndex);
+                        manager.setActive(selectedProfile.getUuid());
+                        Toast.makeText(this, "OSC Profile: " + selectedProfile.getName(), Toast.LENGTH_SHORT).show();
+                        return true;
+                    }
+                }
                 return super.onContextItemSelected(item);
             }
         }
