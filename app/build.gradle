@@ -12,8 +12,8 @@ android {
         minSdk 21
         targetSdk 34
 
-        versionName "0.20-anatrigs"
-        versionCode = 57
+        versionName "0.55-multitouch"
+        versionCode = 81
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'

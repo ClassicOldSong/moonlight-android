@@ -307,6 +307,9 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
 
         UiHelper.setLocale(this);
 
+        // Load OSC profiles
+        com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance().load(this);
+
         setContentView(R.layout.activity_app_view);
 
         // Allow floating expanded PiP overlays while browsing apps
@@ -525,9 +528,29 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
 
     @Override
     public boolean onContextItemSelected(MenuItem item) {
+        int itemId = item.getItemId();
+
+        // Check if this is an OSC profile selection first (before trying to access MenuInfo)
+        // OSC profile items are from a submenu and don't have AdapterContextMenuInfo
+        if (itemId >= OSC_PROFILE_BASE_ID && itemId < OSC_PROFILE_BASE_ID + 1000) {
+            int profileIndex = itemId - OSC_PROFILE_BASE_ID;
+            com.limelight.binding.input.virtual_controller.OscProfilesManager manager =
+                    com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+            java.util.List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = manager.getProfiles();
+
+            if (profileIndex >= 0 && profileIndex < profiles.size()) {
+                com.limelight.binding.input.virtual_controller.OscProfile selectedProfile = profiles.get(profileIndex);
+                manager.setActive(selectedProfile.getUuid());
+                Toast.makeText(this, "OSC Profile: " + selectedProfile.getName(), Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            return super.onContextItemSelected(item);
+        }
+
+        // For all other items, we need the AdapterContextMenuInfo
         AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
         final AppObject app = (AppObject) appGridAdapter.getItem(info.position);
-        int itemId = item.getItemId();
+
         switch (itemId) {
             case START_WITH_QUIT:
             case START_WITH_QUIT_VDISPLAY: {
@@ -639,20 +662,6 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
             }
 
             default: {
-                // Check if this is an OSC profile selection
-                if (itemId >= OSC_PROFILE_BASE_ID && itemId < OSC_PROFILE_BASE_ID + 1000) {
-                    int profileIndex = itemId - OSC_PROFILE_BASE_ID;
-                    com.limelight.binding.input.virtual_controller.OscProfilesManager manager =
-                            com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
-                    java.util.List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = manager.getProfiles();
-
-                    if (profileIndex >= 0 && profileIndex < profiles.size()) {
-                        com.limelight.binding.input.virtual_controller.OscProfile selectedProfile = profiles.get(profileIndex);
-                        manager.setActive(selectedProfile.getUuid());
-                        Toast.makeText(this, "OSC Profile: " + selectedProfile.getName(), Toast.LENGTH_SHORT).show();
-                        return true;
-                    }
-                }
                 return super.onContextItemSelected(item);
             }
         }

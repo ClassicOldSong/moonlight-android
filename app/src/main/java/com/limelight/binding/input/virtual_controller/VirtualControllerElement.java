@@ -117,22 +117,35 @@ public abstract class VirtualControllerElement extends View {
         int newHeight = height + (startSize_y - pressed_y);
         int newWidth = width + (startSize_x - pressed_x);
 
-        // Apply paired sizing if enabled
+        // Ensure minimum size
+        newHeight = newHeight > 20 ? newHeight : 20;
+        newWidth = newWidth > 20 ? newWidth : 20;
+
+        // Apply paired sizing if enabled - resize all buttons in the same subset
         if (virtualController.isPairedSizingEnabled()) {
-            int[] pairedSize = SnapHelper.applyPairedSizing(
-                this,
-                startSize_x,
-                startSize_y,
-                newWidth,
-                newHeight,
-                virtualController.getElements()
-            );
-            newWidth = pairedSize[0];
-            newHeight = pairedSize[1];
+            SnapHelper.ButtonSubset currentSubset = SnapHelper.getButtonSubset(this.elementId);
+
+            // Only apply to buttons that belong to a defined subset
+            if (currentSubset != SnapHelper.ButtonSubset.OTHER) {
+                // Resize all buttons in the same subset (including this one)
+                for (VirtualControllerElement element : virtualController.getElements()) {
+                    SnapHelper.ButtonSubset otherSubset = SnapHelper.getButtonSubset(element.elementId);
+                    if (otherSubset == currentSubset) {
+                        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) element.getLayoutParams();
+                        if (params != null) {
+                            params.width = newWidth;
+                            params.height = newHeight;
+                            element.requestLayout();
+                        }
+                    }
+                }
+                return; // Exit early since we've already updated all buttons
+            }
         }
 
-        layoutParams.height = newHeight > 20 ? newHeight : 20;
-        layoutParams.width = newWidth > 20 ? newWidth : 20;
+        // If paired sizing not enabled or button not in a subset, just resize this button
+        layoutParams.height = newHeight;
+        layoutParams.width = newWidth;
 
         requestLayout();
     }

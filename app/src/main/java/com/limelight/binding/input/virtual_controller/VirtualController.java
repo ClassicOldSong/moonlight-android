@@ -49,6 +49,14 @@ public class VirtualController {
         void onModeChanged(ControllerMode newMode);
     }
 
+    public interface KeyboardInputListener {
+        void onKeyboardInput(short keyCode, byte keyAction, byte modifiers);
+    }
+
+    public interface ProfileSwitchListener {
+        void onProfileSwitched();
+    }
+
     private static final boolean _PRINT_DEBUG_INFORMATION = false;
 
     private final ControllerHandler controllerHandler;
@@ -74,6 +82,8 @@ public class VirtualController {
     private Vibrator vibrator;
 
     private ModeChangeListener modeChangeListener = null;
+    private KeyboardInputListener keyboardInputListener = null;
+    private ProfileSwitchListener profileSwitchListener = null;
 
     private final VibrationEffect defaultVibrationEffect;
 
@@ -118,9 +128,7 @@ public class VirtualController {
                     message = context.getString(R.string.configuration_mode_resize_buttons);
                 } else {
                     currentMode = ControllerMode.Active;
-                    // Save to both old location (backwards compat) and new profile system
-                    VirtualControllerConfigurationLoader.saveProfile(VirtualController.this, context);
-                    OscProfilesManager.getInstance().saveCurrentConfigToActiveProfile(VirtualController.this);
+                    // No longer auto-save - user must manually save via OSC Profiles menu
                     message = context.getString(R.string.configuration_mode_exiting);
                 }
 
@@ -241,6 +249,20 @@ public class VirtualController {
         this.modeChangeListener = listener;
     }
 
+    public void setKeyboardInputListener(KeyboardInputListener listener) {
+        this.keyboardInputListener = listener;
+    }
+
+    public void setProfileSwitchListener(ProfileSwitchListener listener) {
+        this.profileSwitchListener = listener;
+    }
+
+    public void sendKeyboardInput(short keyCode, byte keyAction, byte modifiers) {
+        if (keyboardInputListener != null) {
+            keyboardInputListener.onKeyboardInput(keyCode, keyAction, modifiers);
+        }
+    }
+
     public void setControllerMode(ControllerMode mode, boolean notifyListener) {
         if (currentMode == mode) {
             return; // Already in this mode
@@ -255,11 +277,7 @@ public class VirtualController {
         } else if (mode == ControllerMode.MoveButtons || mode == ControllerMode.ResizeButtons) {
             showEnabledElements();
         } else if (mode == ControllerMode.Active) {
-            // Save configuration when returning to active mode
-            if (previousMode != ControllerMode.Active) {
-                VirtualControllerConfigurationLoader.saveProfile(this, context);
-                OscProfilesManager.getInstance().saveCurrentConfigToActiveProfile(this);
-            }
+            // No longer auto-save - user must manually save via OSC Profiles menu
             showEnabledElements();
         }
 
@@ -373,6 +391,11 @@ public class VirtualController {
 
         // Reload the OSC with the new profile's configuration
         refreshLayout();
+
+        // Notify listener to restore deposited buttons
+        if (profileSwitchListener != null) {
+            profileSwitchListener.onProfileSwitched();
+        }
 
         Toast.makeText(context, "Switched to profile: " + manager.getActiveName(), Toast.LENGTH_SHORT).show();
     }
