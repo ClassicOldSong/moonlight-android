@@ -366,6 +366,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         boolean profilesLoaded = com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance().load(this);
         LimeLog.info("Game: onCreate() - OSC profiles loaded: " + profilesLoaded);
 
+        // Initialize app-specific OSC profile manager
+        com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance().initialize(this);
+
         if (prefConfig.fullScreen) {
             // Full-screen
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -590,6 +593,35 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         byte[] derCertData = Game.this.getIntent().getByteArrayExtra(EXTRA_SERVER_CERT);
 
         app = new NvApp(appName != null ? appName : "app", appUUID, appId, appSupportsHdr);
+
+        // Load app-specific default OSC profile if one is set
+        if (appUUID != null && !appUUID.isEmpty()) {
+            com.limelight.binding.input.virtual_controller.AppOscProfileManager appOscManager =
+                    com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance();
+            java.util.UUID defaultProfileUUID = appOscManager.getDefaultProfileForApp(appUUID);
+
+            if (defaultProfileUUID != null) {
+                LimeLog.info("Game: Loading default OSC profile for app " + appName + ": " + defaultProfileUUID);
+                com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                        com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+                // Check if the profile still exists
+                com.limelight.binding.input.virtual_controller.OscProfile profile =
+                        profilesManager.getProfiles().stream()
+                                .filter(p -> p.getUuid().equals(defaultProfileUUID))
+                                .findFirst()
+                                .orElse(null);
+
+                if (profile != null) {
+                    profilesManager.setActive(defaultProfileUUID);
+                    LimeLog.info("Game: Switched to default OSC profile: " + profile.getName());
+                } else {
+                    LimeLog.warning("Game: Default OSC profile not found, using current active profile");
+                }
+            } else {
+                LimeLog.info("Game: No default OSC profile set for app " + appName + ", using current active profile");
+            }
+        }
 
         try {
             if (derCertData != null) {

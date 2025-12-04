@@ -73,6 +73,9 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
 
     private PreferenceConfiguration prefConfig;
 
+    // Store the currently selected app for context menu operations (especially OSC profile submenu)
+    private AppObject currentContextMenuApp;
+
     private final static int START_OR_RESUME_ID = 1;
     private final static int QUIT_ID = 2;
     private final static int START_WITH_QUIT = 4;
@@ -310,6 +313,9 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         // Load OSC profiles
         com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance().load(this);
 
+        // Initialize app-specific OSC profile manager
+        com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance().initialize(this);
+
         setContentView(R.layout.activity_app_view);
 
         // Allow floating expanded PiP overlays while browsing apps
@@ -453,6 +459,9 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         AdapterContextMenuInfo info = (AdapterContextMenuInfo) menuInfo;
         AppObject selectedApp = (AppObject) appGridAdapter.getItem(info.position);
 
+        // Store the current app for OSC profile submenu operations
+        currentContextMenuApp = selectedApp;
+
         menu.setHeaderTitle(selectedApp.app.getAppName());
 
         if (lastRunningAppId == 0) {
@@ -511,13 +520,25 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         com.limelight.binding.input.virtual_controller.OscProfilesManager manager =
                 com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
         java.util.List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = manager.getProfiles();
-        java.util.UUID activeId = manager.getActiveId();
+
+        // Get the default profile for the current app
+        java.util.UUID defaultProfileForApp = null;
+        if (currentContextMenuApp != null && currentContextMenuApp.app.getAppUUID() != null) {
+            com.limelight.binding.input.virtual_controller.AppOscProfileManager appOscManager =
+                    com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance();
+            defaultProfileForApp = appOscManager.getDefaultProfileForApp(currentContextMenuApp.app.getAppUUID());
+        }
 
         int index = 0;
         for (com.limelight.binding.input.virtual_controller.OscProfile profile : profiles) {
-            MenuItem item = submenu.add(Menu.NONE, OSC_PROFILE_BASE_ID + index, index, profile.getName());
-            item.setCheckable(true);
-            item.setChecked(profile.getUuid().equals(activeId));
+            String menuText = profile.getName();
+
+            // Mark which profile is the default for this app
+            if (defaultProfileForApp != null && profile.getUuid().equals(defaultProfileForApp)) {
+                menuText += " ✓"; // Show checkmark for default profile
+            }
+
+            MenuItem item = submenu.add(Menu.NONE, OSC_PROFILE_BASE_ID + index, index, menuText);
             index++;
         }
     }
@@ -538,10 +559,23 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
             java.util.List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = manager.getProfiles();
 
-            if (profileIndex >= 0 && profileIndex < profiles.size()) {
+            if (profileIndex >= 0 && profileIndex < profiles.size() && currentContextMenuApp != null) {
                 com.limelight.binding.input.virtual_controller.OscProfile selectedProfile = profiles.get(profileIndex);
-                manager.setActive(selectedProfile.getUuid());
-                Toast.makeText(this, "OSC Profile: " + selectedProfile.getName(), Toast.LENGTH_SHORT).show();
+                String appUUID = currentContextMenuApp.app.getAppUUID();
+                String appName = currentContextMenuApp.app.getAppName();
+
+                if (appUUID != null && !appUUID.isEmpty()) {
+                    // Set this profile as the default for this app
+                    com.limelight.binding.input.virtual_controller.AppOscProfileManager appOscManager =
+                            com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance();
+                    appOscManager.setDefaultProfileForApp(appUUID, selectedProfile.getUuid());
+
+                    Toast.makeText(this,
+                            getString(R.string.osc_profile_set_default, selectedProfile.getName(), appName),
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Cannot set default profile: App UUID is missing", Toast.LENGTH_SHORT).show();
+                }
                 return true;
             }
             return super.onContextItemSelected(item);

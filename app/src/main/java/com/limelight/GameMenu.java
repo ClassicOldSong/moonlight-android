@@ -171,11 +171,17 @@ public class GameMenu implements Game.GameMenuCallbacks {
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_ctrl_v),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL, KeyboardTranslator.VK_V})));
 
+            options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_shift_s),
+                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_S})));
+
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_win),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN})));
 
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_d),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_D})));
+
+            options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_tab),
+                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_TAB})));
 
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_g),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_G})));
