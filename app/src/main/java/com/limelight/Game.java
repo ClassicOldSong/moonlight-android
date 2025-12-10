@@ -369,6 +369,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Initialize app-specific OSC profile manager
         com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance().initialize(this);
 
+        // Initialize app-specific stream profile manager and apply per-game resolution/FPS overrides
+        com.limelight.profiles.AppStreamProfileManager.getInstance().initialize(this);
+        
+        // Read appUUID early to check for per-game stream profiles
+        String earlyAppUUID = getIntent().getStringExtra(EXTRA_APP_UUID);
+        String earlyAppName = getIntent().getStringExtra(EXTRA_APP_NAME);
+        if (earlyAppUUID != null && !earlyAppUUID.isEmpty()) {
+            com.limelight.profiles.GameStreamProfile streamProfile = 
+                    com.limelight.profiles.AppStreamProfileManager.getInstance().getProfileForApp(earlyAppUUID);
+            if (streamProfile != null && streamProfile.hasAnyOverride()) {
+                LimeLog.info("Game: Applying per-game stream profile for " + earlyAppName + ": " + streamProfile);
+                com.limelight.profiles.AppStreamProfileManager.applyProfileToConfig(prefConfig, streamProfile, null);
+            }
+        }
+
         if (prefConfig.fullScreen) {
             // Full-screen
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -615,6 +630,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 if (profile != null) {
                     profilesManager.setActive(defaultProfileUUID);
                     LimeLog.info("Game: Switched to default OSC profile: " + profile.getName());
+
+                    // Properly load the profile layout including deposited buttons
+                    if (virtualController != null) {
+                        virtualController.refreshLayout();              // 1. Clear and create default buttons
+                        restoreDepositedButtons();                      // 2. Create deposited buttons at default positions
+                        profilesManager.loadActiveProfileToController(virtualController); // 3. Apply saved configs to ALL buttons
+                    }
                 } else {
                     LimeLog.warning("Game: Default OSC profile not found, using current active profile");
                 }
@@ -2927,19 +2949,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         SpinnerDialog.closeDialogs(this);
         Dialog.closeDialogs();
 
-        // Save current OSC profile configuration before stopping
-        com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
-                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+        // DO NOT auto-save profile here - it can save transitional/incomplete states
+        // (e.g., during profile switching when buttons are cleared but not yet restored).
+        // User must explicitly save via "Save Current Config" menu option.
+        // This prevents profile data corruption.
         if (virtualController != null) {
-            profilesManager.saveCurrentConfigToActiveProfile(virtualController);
             virtualController.hide();
-        }
-        if (coverScreenManager != null) {
-            com.limelight.binding.input.cover.CoverOscConfiguration coverConfig =
-                    getCoverOscConfiguration();
-            if (coverConfig != null) {
-                profilesManager.saveCoverConfigToActiveProfile(coverConfig);
-            }
         }
 
         if (keyBoardController != null) {
@@ -4640,6 +4655,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             controllerHandler.stop();
 
+            // Dismiss cover screen when connection stops to prevent unresponsive buttons
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && coverScreenManager != null) {
+                coverScreenManager.dismissCoverScreen();
+            }
+
             // Update GameManager state to indicate we're no longer in game
             UiHelper.notifyStreamEnded(this);
 
@@ -4868,6 +4888,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 connected = true;
                 connecting = false;
                 updatePipAutoEnter();
+
+                // Re-present cover screen when new stream starts
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && coverScreenManager != null) {
+                    coverScreenManager.presentOnCoverScreen();
+                }
 
                 // Hide the mouse cursor now after a short delay.
                 // Doing it before dismissing the spinner seems to be undone

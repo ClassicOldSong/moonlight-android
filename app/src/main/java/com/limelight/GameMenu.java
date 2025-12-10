@@ -369,22 +369,9 @@ public class GameMenu implements Game.GameMenuCallbacks {
         com.limelight.LimeLog.info("GameMenu: showOscProfilesMenu() called");
         List<MenuOption> options = new ArrayList<>();
 
-        // Load all profiles from OscProfilesManager
-        com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
-                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
-
-        List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = profilesManager.getProfiles();
-        java.util.UUID activeId = profilesManager.getActiveId();
-        com.limelight.LimeLog.info("GameMenu: Retrieved " + profiles.size() + " profiles from manager");
-
-        // Add each profile as an option with checkmark for active profile
-        for (com.limelight.binding.input.virtual_controller.OscProfile profile : profiles) {
-            boolean isActive = profile.getUuid().equals(activeId);
-            String label = isActive ? "✓ " + profile.getName() : profile.getName();
-            java.util.UUID profileId = profile.getUuid();
-
-            options.add(new MenuOption(label, true, () -> game.switchOscProfile(profileId)));
-        }
+        // Add profile selector dropdown as first option
+        options.add(new MenuOption(getString(R.string.game_menu_osc_profile_select), true,
+                this::showProfileSelector));
 
         // Add profile management options
         options.add(new MenuOption(getString(R.string.game_menu_osc_profile_new),
@@ -399,6 +386,47 @@ public class GameMenu implements Game.GameMenuCallbacks {
         options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
 
         showMenuDialog(getString(R.string.game_menu_osc_profiles), options.toArray(new MenuOption[options.size()]));
+    }
+
+    private void showProfileSelector() {
+        // Load all profiles from OscProfilesManager
+        com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+        List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = profilesManager.getProfiles();
+        java.util.UUID activeId = profilesManager.getActiveId();
+
+        // Create array of profile names
+        String[] profileNames = new String[profiles.size()];
+        int selectedIndex = 0;
+        for (int i = 0; i < profiles.size(); i++) {
+            com.limelight.binding.input.virtual_controller.OscProfile profile = profiles.get(i);
+            profileNames[i] = profile.getName();
+            if (profile.getUuid().equals(activeId)) {
+                selectedIndex = i;
+            }
+        }
+
+        // Track selected profile
+        final int[] checkedItem = {selectedIndex};
+
+        // Create dialog with single choice list
+        int themeResId = game.getApplicationInfo().theme;
+        Context themedContext = new ContextThemeWrapper(dialogScreenContext, themeResId);
+
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(themedContext);
+        builder.setTitle(getString(R.string.game_menu_osc_profile_select))
+                .setSingleChoiceItems(profileNames, selectedIndex, (dialog, which) -> {
+                    checkedItem[0] = which;
+                })
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    if (checkedItem[0] >= 0 && checkedItem[0] < profiles.size()) {
+                        java.util.UUID profileId = profiles.get(checkedItem[0]).getUuid();
+                        game.switchOscProfile(profileId);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void showServerCmd(ArrayList<String> serverCmds) {

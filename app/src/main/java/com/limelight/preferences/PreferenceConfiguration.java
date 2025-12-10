@@ -78,6 +78,8 @@ public class PreferenceConfiguration {
     private static final String MOUSE_NAV_BUTTONS_STRING = "checkbox_mouse_nav_buttons";
     static final String UNLOCK_FPS_STRING = "checkbox_unlock_fps";
     private static final String VIBRATE_OSC_PREF_STRING = "checkbox_vibrate_osc";
+    private static final String OSC_CLICK_FEEDBACK_PREF_STRING = "checkbox_osc_click_feedback";
+    private static final String OSC_CLICK_VOLUME_PREF_STRING = "seekbar_osc_click_volume";
     private static final String VIBRATE_FALLBACK_PREF_STRING = "checkbox_vibrate_fallback";
     private static final String VIBRATE_FALLBACK_STRENGTH_PREF_STRING = "seekbar_vibrate_fallback_strength";
     private static final String FLIP_FACE_BUTTONS_PREF_STRING = "checkbox_flip_face_buttons";
@@ -173,6 +175,8 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_MOUSE_NAV_BUTTONS = false;
     private static final boolean DEFAULT_UNLOCK_FPS = false;
     private static final boolean DEFAULT_VIBRATE_OSC = true;
+    private static final boolean DEFAULT_OSC_CLICK_FEEDBACK = true;
+    private static final int DEFAULT_OSC_CLICK_VOLUME = 13; // 1.25% volume scaled to 0-100 (1.25 * 10 ≈ 13)
     private static final boolean DEFAULT_VIBRATE_FALLBACK = false;
     private static final int DEFAULT_VIBRATE_FALLBACK_STRENGTH = 100;
     private static final boolean DEFAULT_FLIP_FACE_BUTTONS = false;
@@ -361,6 +365,8 @@ public class PreferenceConfiguration {
     public boolean preferLowerDelays;
 
     public boolean vibrateOsc;
+    public boolean oscClickFeedbackEnabled;
+    public int oscClickVolume;
     public boolean vibrateFallbackToDevice;
     public int vibrateFallbackToDeviceStrength;
     public boolean touchscreenTrackpad;
@@ -930,6 +936,8 @@ private static int getFramePacingValue(Context context) {
         config.rememberMouseMode = prefs.getBoolean(REMEMBER_MOUSE_MODE_PREF_STRING, DEFAULT_REMEMBER_MOUSE_MODE);
         config.unlockFps = prefs.getBoolean(UNLOCK_FPS_STRING, DEFAULT_UNLOCK_FPS);
         config.vibrateOsc = prefs.getBoolean(VIBRATE_OSC_PREF_STRING, DEFAULT_VIBRATE_OSC);
+        config.oscClickFeedbackEnabled = prefs.getBoolean(OSC_CLICK_FEEDBACK_PREF_STRING, DEFAULT_OSC_CLICK_FEEDBACK);
+        config.oscClickVolume = prefs.getInt(OSC_CLICK_VOLUME_PREF_STRING, DEFAULT_OSC_CLICK_VOLUME);
         config.vibrateFallbackToDevice = prefs.getBoolean(VIBRATE_FALLBACK_PREF_STRING, DEFAULT_VIBRATE_FALLBACK);
         config.vibrateFallbackToDeviceStrength = prefs.getInt(VIBRATE_FALLBACK_STRENGTH_PREF_STRING, DEFAULT_VIBRATE_FALLBACK_STRENGTH);
         config.flipFaceButtons = prefs.getBoolean(FLIP_FACE_BUTTONS_PREF_STRING, DEFAULT_FLIP_FACE_BUTTONS);

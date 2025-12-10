@@ -59,6 +59,7 @@ import org.xmlpull.v1.XmlPullParserException;
 public class AppView extends AppCompatActivity implements AdapterFragmentCallbacks {
     private AppGridAdapter appGridAdapter;
     private String uuidString;
+    private String computerUniqueId;
     private ShortcutHelper shortcutHelper;
 
     private ComputerDetails computer;
@@ -83,12 +84,14 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
     private final static int CREATE_SHORTCUT_ID = 6;
     private final static int EXPORT_LAUNCHER_FILE_ID = 7;
     private final static int HIDE_APP_ID = 8;
+    private final static int STREAM_SETTINGS_ID = 9;
     private final static int START_WITH_VDISPLAY = 20;
     private final static int START_WITH_QUIT_VDISPLAY = 21;
     private final static int OSC_PROFILE_SUBMENU_ID = 100;
     private final static int OSC_PROFILE_BASE_ID = 1000; // Base ID for OSC profiles
 
     public final static String HIDDEN_APPS_PREF_FILENAME = "HiddenApps";
+    public final static String SORT_MODE_PREF_FILENAME = "AppSortMode";
 
     public final static String NAME_EXTRA = "Name";
     public final static String UUID_EXTRA = "UUID";
@@ -120,9 +123,10 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     shortcutHelper.reportComputerShortcutUsed(computer);
 
                     try {
+                        computerUniqueId = localBinder.getUniqueId();
                         appGridAdapter = new AppGridAdapter(AppView.this,
                                 PreferenceConfiguration.readPreferences(AppView.this),
-                                computer, localBinder.getUniqueId(),
+                                computer, computerUniqueId,
                                 showHiddenApps);
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -131,6 +135,9 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     }
 
                     appGridAdapter.updateHiddenApps(hiddenAppIds, true);
+
+                    // Restore saved sort mode
+                    appGridAdapter.setSortMode(getSavedSortMode());
 
                     // Now make the binder visible. We must do this after appGridAdapter
                     // is set to prevent us from reaching updateUiWithServerinfo() and
@@ -316,6 +323,9 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         // Initialize app-specific OSC profile manager
         com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance().initialize(this);
 
+        // Initialize app-specific stream profile manager (for per-game resolution settings)
+        com.limelight.profiles.AppStreamProfileManager.getInstance().initialize(this);
+
         setContentView(R.layout.activity_app_view);
 
         // Allow floating expanded PiP overlays while browsing apps
@@ -328,6 +338,10 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         // Setup the profiles button
         findViewById(R.id.profilesButton)
             .setOnClickListener(v -> startActivity(new Intent(this, ProfilesActivity.class)));
+
+        // Setup the sort button
+        ImageView sortButton = findViewById(R.id.sortButton);
+        sortButton.setOnClickListener(v -> cycleSortMode());
 
         showHiddenApps = getIntent().getBooleanExtra(SHOW_HIDDEN_APPS_EXTRA, false);
         uuidString = getIntent().getStringExtra(UUID_EXTRA);
@@ -363,6 +377,74 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                 .apply();
 
         appGridAdapter.updateHiddenApps(hiddenAppIds, hideImmediately);
+    }
+
+    private AppGridAdapter.SortMode getSavedSortMode() {
+        SharedPreferences sortModePrefs = getSharedPreferences(SORT_MODE_PREF_FILENAME, MODE_PRIVATE);
+        String sortModeStr = sortModePrefs.getString(uuidString, AppGridAdapter.SortMode.ALPHABETICAL_ASC.name());
+        try {
+            return AppGridAdapter.SortMode.valueOf(sortModeStr);
+        } catch (IllegalArgumentException e) {
+            return AppGridAdapter.SortMode.ALPHABETICAL_ASC;
+        }
+    }
+
+    private void saveSortMode(AppGridAdapter.SortMode mode) {
+        getSharedPreferences(SORT_MODE_PREF_FILENAME, MODE_PRIVATE)
+                .edit()
+                .putString(uuidString, mode.name())
+                .apply();
+    }
+
+    private void recordLastPlayed(int appId) {
+        SharedPreferences prefs = getSharedPreferences("LastPlayed_" + computerUniqueId, MODE_PRIVATE);
+        prefs.edit()
+                .putLong("app_" + appId, System.currentTimeMillis())
+                .apply();
+    }
+
+    private void cycleSortMode() {
+        if (appGridAdapter == null) {
+            return;
+        }
+
+        AppGridAdapter.SortMode currentMode = appGridAdapter.getSortMode();
+        AppGridAdapter.SortMode nextMode;
+
+        // Cycle through all 3 sort modes
+        switch (currentMode) {
+            case LAST_PLAYED:
+                nextMode = AppGridAdapter.SortMode.ALPHABETICAL_ASC;
+                break;
+            case ALPHABETICAL_ASC:
+                nextMode = AppGridAdapter.SortMode.ALPHABETICAL_DESC;
+                break;
+            case ALPHABETICAL_DESC:
+            default:
+                nextMode = AppGridAdapter.SortMode.LAST_PLAYED;
+                break;
+        }
+
+        appGridAdapter.setSortMode(nextMode);
+        saveSortMode(nextMode);
+
+        // Show toast with current sort mode
+        String message;
+        switch (nextMode) {
+            case LAST_PLAYED:
+                message = getString(R.string.sort_mode_last_played);
+                break;
+            case ALPHABETICAL_ASC:
+                message = getString(R.string.sort_mode_alphabetical_asc);
+                break;
+            case ALPHABETICAL_DESC:
+                message = getString(R.string.sort_mode_alphabetical_desc);
+                break;
+            default:
+                message = "";
+                break;
+        }
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
     private void populateAppGridWithCache() {
@@ -511,8 +593,11 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
 
         menu.add(Menu.NONE, EXPORT_LAUNCHER_FILE_ID, 6, getResources().getString(R.string.applist_menu_export_launcher));
 
+        // Add Stream Settings menu item
+        menu.add(Menu.NONE, STREAM_SETTINGS_ID, 7, getResources().getString(R.string.stream_settings_menu));
+
         // Add OSC Profile submenu
-        SubMenu oscProfileSubmenu = menu.addSubMenu(Menu.NONE, OSC_PROFILE_SUBMENU_ID, 7, getResources().getString(R.string.osc_profile_menu));
+        SubMenu oscProfileSubmenu = menu.addSubMenu(Menu.NONE, OSC_PROFILE_SUBMENU_ID, 8, getResources().getString(R.string.osc_profile_menu));
         addOscProfilesToSubmenu(oscProfileSubmenu);
     }
 
@@ -541,6 +626,275 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
             MenuItem item = submenu.add(Menu.NONE, OSC_PROFILE_BASE_ID + index, index, menuText);
             index++;
         }
+    }
+
+    /**
+     * Show dialog for configuring per-game stream settings (resolution, FPS)
+     */
+    private void showStreamSettingsDialog(final AppObject appObject) {
+        final String appUUID = appObject.app.getAppUUID();
+        final String appName = appObject.app.getAppName();
+        
+        if (appUUID == null || appUUID.isEmpty()) {
+            Toast.makeText(this, "Cannot configure stream settings: App UUID is missing", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Ensure manager is initialized
+        com.limelight.profiles.AppStreamProfileManager manager = 
+                com.limelight.profiles.AppStreamProfileManager.getInstance();
+        manager.initialize(this);
+        
+        com.limelight.profiles.GameStreamProfile existingProfile = manager.getProfileForApp(appUUID);
+        
+        // Build the dialog
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle(getString(R.string.stream_settings_dialog_title, appName));
+        
+        // Create a custom layout for the dialog
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(padding, padding, padding, padding);
+        
+        // Resolution section
+        android.widget.TextView resLabel = new android.widget.TextView(this);
+        resLabel.setText(R.string.stream_settings_resolution);
+        resLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16);
+        resLabel.setPadding(0, 0, 0, (int)(8 * getResources().getDisplayMetrics().density));
+        layout.addView(resLabel);
+        
+        // Resolution spinner
+        android.widget.Spinner resSpinner = new android.widget.Spinner(this);
+        String[] resOptions = {
+            getString(R.string.stream_settings_resolution_default),
+            "1280x720",
+            "1920x1080",
+            "2560x1440",
+            "3840x2160",
+            getString(R.string.stream_settings_resolution_native),
+            getString(R.string.stream_settings_resolution_custom)
+        };
+        android.widget.ArrayAdapter<String> resAdapter = new android.widget.ArrayAdapter<>(
+            this, android.R.layout.simple_spinner_item, resOptions);
+        resAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        resSpinner.setAdapter(resAdapter);
+        layout.addView(resSpinner);
+        
+        // Custom resolution input
+        android.widget.EditText customResInput = new android.widget.EditText(this);
+        customResInput.setHint(R.string.stream_settings_custom_resolution_hint);
+        customResInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        customResInput.setVisibility(View.GONE);
+        layout.addView(customResInput);
+        
+        // FPS section
+        android.widget.TextView fpsLabel = new android.widget.TextView(this);
+        fpsLabel.setText(R.string.stream_settings_fps);
+        fpsLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16);
+        fpsLabel.setPadding(0, (int)(16 * getResources().getDisplayMetrics().density), 0, (int)(8 * getResources().getDisplayMetrics().density));
+        layout.addView(fpsLabel);
+        
+        // FPS spinner
+        android.widget.Spinner fpsSpinner = new android.widget.Spinner(this);
+        String[] fpsOptions = {
+            getString(R.string.stream_settings_fps_default),
+            "30",
+            "60",
+            "90",
+            "120",
+            getString(R.string.stream_settings_fps_custom)
+        };
+        android.widget.ArrayAdapter<String> fpsAdapter = new android.widget.ArrayAdapter<>(
+            this, android.R.layout.simple_spinner_item, fpsOptions);
+        fpsAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        fpsSpinner.setAdapter(fpsAdapter);
+        layout.addView(fpsSpinner);
+        
+        // Custom FPS input
+        android.widget.EditText customFpsInput = new android.widget.EditText(this);
+        customFpsInput.setHint(R.string.stream_settings_custom_fps_hint);
+        customFpsInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        customFpsInput.setVisibility(View.GONE);
+        layout.addView(customFpsInput);
+        
+        // Set up spinner listeners to show/hide custom input fields
+        resSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                // Show custom input when "Custom" is selected (last option)
+                customResInput.setVisibility(position == resOptions.length - 1 ? View.VISIBLE : View.GONE);
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+        
+        fpsSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                // Show custom input when "Custom" is selected (last option)
+                customFpsInput.setVisibility(position == fpsOptions.length - 1 ? View.VISIBLE : View.GONE);
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+        
+        // Pre-populate with existing profile if present
+        if (existingProfile != null && existingProfile.hasAnyOverride()) {
+            // Set resolution
+            if (existingProfile.hasResolutionOverride()) {
+                if (existingProfile.isNativeResolution()) {
+                    resSpinner.setSelection(5); // Native
+                } else {
+                    String customRes = existingProfile.getCustomResolution();
+                    if (customRes != null) {
+                        // Check if it matches a preset
+                        boolean found = false;
+                        for (int i = 1; i < resOptions.length - 2; i++) {
+                            if (resOptions[i].equalsIgnoreCase(customRes)) {
+                                resSpinner.setSelection(i);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            resSpinner.setSelection(resOptions.length - 1); // Custom
+                            customResInput.setText(customRes);
+                            customResInput.setVisibility(View.VISIBLE);
+                        }
+                    }
+                }
+            }
+            
+            // Set FPS
+            if (existingProfile.hasFpsOverride()) {
+                Float fps = existingProfile.getFps();
+                String customRefresh = existingProfile.getCustomRefreshRate();
+                String fpsStr = customRefresh != null ? customRefresh : (fps != null ? String.valueOf(fps.intValue()) : null);
+                
+                if (fpsStr != null) {
+                    boolean found = false;
+                    for (int i = 1; i < fpsOptions.length - 1; i++) {
+                        if (fpsOptions[i].equals(fpsStr)) {
+                            fpsSpinner.setSelection(i);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        fpsSpinner.setSelection(fpsOptions.length - 1); // Custom
+                        customFpsInput.setText(fpsStr);
+                        customFpsInput.setVisibility(View.VISIBLE);
+                    }
+                }
+            }
+        }
+        
+        builder.setView(layout);
+        
+        // Save button
+        builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+            int resSelection = resSpinner.getSelectedItemPosition();
+            int fpsSelection = fpsSpinner.getSelectedItemPosition();
+            
+            LimeLog.info("StreamSettings: Save clicked - resSelection=" + resSelection + ", fpsSelection=" + fpsSelection);
+            LimeLog.info("StreamSettings: resOptions.length=" + resOptions.length + ", fpsOptions.length=" + fpsOptions.length);
+            
+            // Check if everything is set to default
+            if (resSelection == 0 && fpsSelection == 0) {
+                // Clear the profile
+                LimeLog.info("StreamSettings: Both defaults selected, clearing profile");
+                manager.removeProfileForApp(appUUID);
+                Toast.makeText(this, getString(R.string.stream_settings_cleared, appName), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Create or update profile
+            com.limelight.profiles.GameStreamProfile profile = new com.limelight.profiles.GameStreamProfile(appUUID, appName);
+            
+            // Process resolution
+            if (resSelection > 0) {
+                LimeLog.info("StreamSettings: Processing resolution, selection=" + resSelection);
+                if (resSelection == 5) {
+                    // Native
+                    LimeLog.info("StreamSettings: Setting Native resolution");
+                    profile.setResolution("Native");
+                } else if (resSelection == resOptions.length - 1) {
+                    // Custom
+                    String customRes = customResInput.getText().toString().trim();
+                    LimeLog.info("StreamSettings: Custom resolution selected, value='" + customRes + "'");
+                    if (!customRes.isEmpty()) {
+                        // Validate format
+                        if (!customRes.matches("\\d+x\\d+")) {
+                            LimeLog.warning("StreamSettings: Invalid resolution format: " + customRes);
+                            Toast.makeText(this, R.string.stream_settings_invalid_resolution, Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        profile.setCustomResolution(customRes);
+                        LimeLog.info("StreamSettings: Set custom resolution to " + customRes);
+                    } else {
+                        LimeLog.warning("StreamSettings: Custom resolution selected but input is empty");
+                    }
+                } else {
+                    // Preset resolution
+                    LimeLog.info("StreamSettings: Preset resolution selected: " + resOptions[resSelection]);
+                    profile.setCustomResolution(resOptions[resSelection]);
+                }
+            }
+            
+            // Process FPS
+            if (fpsSelection > 0) {
+                if (fpsSelection == fpsOptions.length - 1) {
+                    // Custom
+                    String customFps = customFpsInput.getText().toString().trim();
+                    if (!customFps.isEmpty()) {
+                        try {
+                            float fps = Float.parseFloat(customFps);
+                            if (fps > 0) {
+                                profile.setFps(fps);
+                            } else {
+                                Toast.makeText(this, R.string.stream_settings_invalid_fps, Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                        } catch (NumberFormatException e) {
+                            Toast.makeText(this, R.string.stream_settings_invalid_fps, Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
+                } else {
+                    // Preset FPS
+                    profile.setFps(Float.parseFloat(fpsOptions[fpsSelection]));
+                }
+            }
+            
+            // Save if there are any overrides
+            LimeLog.info("StreamSettings: Profile state before save - hasResOverride=" + profile.hasResolutionOverride() + 
+                        ", hasFpsOverride=" + profile.hasFpsOverride() + ", hasAnyOverride=" + profile.hasAnyOverride());
+            LimeLog.info("StreamSettings: Profile details: " + profile.toString());
+            
+            if (profile.hasAnyOverride()) {
+                LimeLog.info("StreamSettings: Saving profile for " + appUUID);
+                manager.setProfileForApp(appUUID, profile);
+                Toast.makeText(this, getString(R.string.stream_settings_saved, appName), Toast.LENGTH_SHORT).show();
+            } else {
+                LimeLog.info("StreamSettings: No overrides detected, clearing profile");
+                manager.removeProfileForApp(appUUID);
+                Toast.makeText(this, getString(R.string.stream_settings_cleared, appName), Toast.LENGTH_SHORT).show();
+            }
+        });
+        
+        // Cancel button
+        builder.setNegativeButton(android.R.string.cancel, null);
+        
+        // Clear button (only show if there's an existing profile)
+        if (existingProfile != null && existingProfile.hasAnyOverride()) {
+            builder.setNeutralButton(R.string.stream_settings_clear, (dialog, which) -> {
+                manager.removeProfileForApp(appUUID);
+                Toast.makeText(this, getString(R.string.stream_settings_cleared, appName), Toast.LENGTH_SHORT).show();
+            });
+        }
+        
+        builder.show();
     }
 
     @Override
@@ -596,6 +950,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                         () -> UiHelper.displayQuitConfirmationDialog(this, new Runnable() {
                             @Override
                             public void run() {
+                                recordLastPlayed(app.app.getAppId());
                                 ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, true);
                             }
                         }, null),
@@ -606,6 +961,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     UiHelper.displayQuitConfirmationDialog(this, new Runnable() {
                         @Override
                         public void run() {
+                            recordLastPlayed(app.app.getAppId());
                             ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, withVDiaplay);
                         }
                     }, null);
@@ -620,11 +976,15 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     UiHelper.displayVdisplayConfirmationDialog(
                             AppView.this,
                             computer,
-                            () -> ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, true),
+                            () -> {
+                                recordLastPlayed(app.app.getAppId());
+                                ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, true);
+                            },
                             null
                     );
                 } else {
                     // Resume is the same as start for us
+                    recordLastPlayed(app.app.getAppId());
                     ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, withVDiaplay);
                 }
                 return true;
@@ -692,6 +1052,11 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                 } else {
                     shortcutHelper.exportLauncherFile(computer, app.app);
                 }
+                return true;
+            }
+
+            case STREAM_SETTINGS_ID: {
+                showStreamSettingsDialog(app);
                 return true;
             }
 
@@ -831,6 +1196,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                 // Only open the context menu if something is running, otherwise start it
                 if (lastRunningAppId != 0) {
                     if (prefConfig.resumeWithoutConfirm && lastRunningAppId == app.app.getAppId()) {
+                        recordLastPlayed(app.app.getAppId());
                         ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, prefConfig.useVirtualDisplay);
                     } else {
                         openContextMenu(arg1);
@@ -840,10 +1206,14 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                         UiHelper.displayVdisplayConfirmationDialog(
                                 AppView.this,
                                 computer,
-                                () -> ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, true),
+                                () -> {
+                                    recordLastPlayed(app.app.getAppId());
+                                    ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, true);
+                                },
                                 null
                         );
                     } else {
+                        recordLastPlayed(app.app.getAppId());
                         ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, prefConfig.useVirtualDisplay);
                     }
                 }

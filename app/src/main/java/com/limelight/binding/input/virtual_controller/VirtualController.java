@@ -12,6 +12,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.DisplayMetrics;
 import android.view.HapticFeedbackConstants;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -76,6 +77,14 @@ public class VirtualController {
     ControllerInputContext inputContext = new ControllerInputContext();
 
     private Button buttonConfigure = null;
+    private boolean configButtonEnabled = true;
+    private float configButtonPressedX = 0;
+    private float configButtonPressedY = 0;
+    private int configButtonStartWidth = 0;
+    private int configButtonStartHeight = 0;
+    private boolean configButtonBeingEdited = false;
+    private long configButtonPressTime = 0;
+    private static final long LONG_PRESS_DURATION = 500; // milliseconds
 
     private List<VirtualControllerElement> elements = new ArrayList<>();
 
@@ -110,43 +119,193 @@ public class VirtualController {
         buttonConfigure.setAlpha(0.25f);
         buttonConfigure.setFocusable(false);
         buttonConfigure.setBackgroundResource(R.drawable.ic_settings);
-        buttonConfigure.setOnClickListener(new View.OnClickListener() {
+        buttonConfigure.setOnTouchListener(new View.OnTouchListener() {
+            private final Handler longPressHandler = new Handler(Looper.getMainLooper());
+            private Runnable longPressRunnable;
+
             @Override
-            public void onClick(View v) {
-                String message;
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        configButtonPressedX = event.getX();
+                        configButtonPressedY = event.getY();
+                        configButtonStartWidth = buttonConfigure.getWidth();
+                        configButtonStartHeight = buttonConfigure.getHeight();
+                        configButtonPressTime = System.currentTimeMillis();
 
-                if (currentMode == ControllerMode.Active) {
-                    currentMode = ControllerMode.DisableEnableButtons;
-                    showElements();
-                    message = context.getString(R.string.configuration_mode_disable_enable_buttons);
-                } else if (currentMode == ControllerMode.DisableEnableButtons){
-                    currentMode = ControllerMode.MoveButtons;
-                    showEnabledElements();
-                    message = context.getString(R.string.configuration_mode_move_buttons);
-                } else if (currentMode == ControllerMode.MoveButtons) {
-                    currentMode = ControllerMode.ResizeButtons;
-                    message = context.getString(R.string.configuration_mode_resize_buttons);
-                } else {
-                    currentMode = ControllerMode.Active;
-                    // No longer auto-save - user must manually save via OSC Profiles menu
-                    message = context.getString(R.string.configuration_mode_exiting);
+                        // Set up long press detection for DisableEnable/Move/Resize modes
+                        if ((currentMode == ControllerMode.DisableEnableButtons ||
+                             currentMode == ControllerMode.MoveButtons ||
+                             currentMode == ControllerMode.ResizeButtons)
+                            && !configButtonBeingEdited) {
+                            longPressRunnable = new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (currentMode == ControllerMode.DisableEnableButtons) {
+                                        // In DisableEnable mode, long press toggles visibility
+                                        configButtonEnabled = !configButtonEnabled;
+                                        buttonConfigure.setVisibility(configButtonEnabled ? View.VISIBLE : View.GONE);
+                                        if (vibrator != null) {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && defaultVibrationEffect != null) {
+                                                vibrator.vibrate(defaultVibrationEffect);
+                                            } else {
+                                                vibrator.vibrate(10);
+                                            }
+                                        }
+                                    } else {
+                                        // In Move/Resize modes, long press enters edit mode
+                                        configButtonBeingEdited = true;
+                                        updateConfigButtonBorder();
+                                        if (vibrator != null) {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && defaultVibrationEffect != null) {
+                                                vibrator.vibrate(defaultVibrationEffect);
+                                            } else {
+                                                vibrator.vibrate(10);
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                            longPressHandler.postDelayed(longPressRunnable, LONG_PRESS_DURATION);
+                        }
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE:
+                        // Only allow movement/resize if in edit mode
+                        if (configButtonBeingEdited) {
+                            if (currentMode == ControllerMode.MoveButtons) {
+                                moveConfigButton(
+                                    (int) configButtonPressedX,
+                                    (int) configButtonPressedY,
+                                    (int) event.getX(),
+                                    (int) event.getY()
+                                );
+                            } else if (currentMode == ControllerMode.ResizeButtons) {
+                                resizeConfigButton(
+                                    (int) configButtonPressedX,
+                                    (int) configButtonPressedY,
+                                    (int) event.getX(),
+                                    (int) event.getY()
+                                );
+                            }
+                        } else {
+                            // Cancel long press if user moves before timeout
+                            if (Math.abs(event.getX() - configButtonPressedX) > 10 ||
+                                Math.abs(event.getY() - configButtonPressedY) > 10) {
+                                if (longPressRunnable != null) {
+                                    longPressHandler.removeCallbacks(longPressRunnable);
+                                    longPressRunnable = null;
+                                }
+                            }
+                        }
+                        return true;
+
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        // Cancel long press detection
+                        if (longPressRunnable != null) {
+                            longPressHandler.removeCallbacks(longPressRunnable);
+                            longPressRunnable = null;
+                        }
+
+                        // If already in edit mode, exit it
+                        if (configButtonBeingEdited) {
+                            configButtonBeingEdited = false;
+                            updateConfigButtonBorder();
+                            return true;
+                        }
+
+                        // Normal tap behavior - only if not dragging and not in edit mode
+                        long pressDuration = System.currentTimeMillis() - configButtonPressTime;
+                        if (Math.abs(event.getX() - configButtonPressedX) < 10 &&
+                            Math.abs(event.getY() - configButtonPressedY) < 10 &&
+                            pressDuration < LONG_PRESS_DURATION) {
+
+                            String message;
+                            if (currentMode == ControllerMode.Active) {
+                                currentMode = ControllerMode.DisableEnableButtons;
+                                showElements();
+                                message = context.getString(R.string.configuration_mode_disable_enable_buttons);
+                            } else if (currentMode == ControllerMode.DisableEnableButtons) {
+                                currentMode = ControllerMode.MoveButtons;
+                                showEnabledElements();
+                                message = context.getString(R.string.configuration_mode_move_buttons);
+                            } else if (currentMode == ControllerMode.MoveButtons) {
+                                currentMode = ControllerMode.ResizeButtons;
+                                message = context.getString(R.string.configuration_mode_resize_buttons);
+                            } else {
+                                currentMode = ControllerMode.Active;
+                                message = context.getString(R.string.configuration_mode_exiting);
+                            }
+
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+
+                            buttonConfigure.invalidate();
+
+                            for (VirtualControllerElement element : elements) {
+                                element.invalidate();
+                            }
+
+                            // Notify listener of mode change
+                            if (modeChangeListener != null) {
+                                modeChangeListener.onModeChanged(currentMode);
+                            }
+                        }
+                        return true;
                 }
-
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
-
-                buttonConfigure.invalidate();
-
-                for (VirtualControllerElement element : elements) {
-                    element.invalidate();
-                }
-
-                // Notify listener of mode change
-                if (modeChangeListener != null) {
-                    modeChangeListener.onModeChanged(currentMode);
-                }
+                return false;
             }
         });
 
+    }
+
+    private void moveConfigButton(int pressed_x, int pressed_y, int x, int y) {
+        int newPos_x = (int) buttonConfigure.getX() + x - pressed_x;
+        int newPos_y = (int) buttonConfigure.getY() + y - pressed_y;
+
+        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) buttonConfigure.getLayoutParams();
+        if (layoutParams != null) {
+            layoutParams.leftMargin = newPos_x > 0 ? newPos_x : 0;
+            layoutParams.topMargin = newPos_y > 0 ? newPos_y : 0;
+            layoutParams.rightMargin = 0;
+            layoutParams.bottomMargin = 0;
+            buttonConfigure.requestLayout();
+        }
+    }
+
+    private void resizeConfigButton(int pressed_x, int pressed_y, int width, int height) {
+        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) buttonConfigure.getLayoutParams();
+        if (layoutParams != null) {
+            int newHeight = height + (configButtonStartHeight - pressed_y);
+            int newWidth = width + (configButtonStartWidth - pressed_x);
+
+            // Ensure minimum size
+            newHeight = newHeight > 20 ? newHeight : 20;
+            newWidth = newWidth > 20 ? newWidth : 20;
+
+            layoutParams.height = newHeight;
+            layoutParams.width = newWidth;
+            buttonConfigure.requestLayout();
+        }
+    }
+
+    private void updateConfigButtonBorder() {
+        if (configButtonBeingEdited) {
+            // Show colored border based on mode
+            if (currentMode == ControllerMode.MoveButtons) {
+                // Red border for Move mode
+                buttonConfigure.setBackgroundColor(0xF0FF0000);
+            } else if (currentMode == ControllerMode.ResizeButtons) {
+                // Magenta border for Resize mode
+                buttonConfigure.setBackgroundColor(0xF0FF00FF);
+            }
+            buttonConfigure.setAlpha(0.5f);
+        } else {
+            // Restore normal appearance
+            buttonConfigure.setBackgroundResource(R.drawable.ic_settings);
+            buttonConfigure.setAlpha(0.25f);
+        }
+        buttonConfigure.invalidate();
     }
 
     Handler getHandler() {
@@ -164,7 +323,7 @@ public class VirtualController {
     public void show() {
         showEnabledElements();
 
-        buttonConfigure.setVisibility(View.VISIBLE);
+        buttonConfigure.setVisibility(configButtonEnabled ? View.VISIBLE : View.GONE);
     }
 
     public int switchShowHide() {
@@ -215,6 +374,34 @@ public class VirtualController {
 
     public List<VirtualControllerElement> getElements() {
         return elements;
+    }
+
+    public org.json.JSONObject getConfigButtonConfiguration() throws org.json.JSONException {
+        org.json.JSONObject configuration = new org.json.JSONObject();
+        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) buttonConfigure.getLayoutParams();
+
+        if (layoutParams != null) {
+            configuration.put("LEFT", layoutParams.leftMargin);
+            configuration.put("TOP", layoutParams.topMargin);
+            configuration.put("WIDTH", layoutParams.width);
+            configuration.put("HEIGHT", layoutParams.height);
+        }
+        configuration.put("ENABLED", configButtonEnabled);
+        return configuration;
+    }
+
+    public void setConfigButtonConfiguration(org.json.JSONObject configuration) throws org.json.JSONException {
+        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) buttonConfigure.getLayoutParams();
+
+        if (layoutParams != null && configuration != null) {
+            layoutParams.leftMargin = configuration.getInt("LEFT");
+            layoutParams.topMargin = configuration.getInt("TOP");
+            layoutParams.width = configuration.getInt("WIDTH");
+            layoutParams.height = configuration.getInt("HEIGHT");
+            buttonConfigure.requestLayout();
+        }
+        configButtonEnabled = configuration.getBoolean("ENABLED");
+        buttonConfigure.setVisibility(configButtonEnabled ? View.VISIBLE : View.GONE);
     }
 
     private static final void _DBG(String text) {
@@ -270,6 +457,12 @@ public class VirtualController {
 
         ControllerMode previousMode = currentMode;
         currentMode = mode;
+
+        // Exit config button edit mode when changing modes
+        if (configButtonBeingEdited) {
+            configButtonBeingEdited = false;
+            updateConfigButtonBorder();
+        }
 
         // Handle visibility based on mode
         if (mode == ControllerMode.DisableEnableButtons) {

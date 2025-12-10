@@ -19,6 +19,24 @@
     <string name="paired_sizing_disabled">Paired sizing disabled</string>
     <string name="osc_profile_menu">OSC Profile</string>
     <string name="osc_profile_set_default">%1$s will load when starting %2$s</string>
+    
+    <!-- Per-game stream settings -->
+    <string name="stream_settings_menu">Stream Settings</string>
+    <string name="stream_settings_dialog_title">Stream Settings for %s</string>
+    <string name="stream_settings_resolution">Resolution</string>
+    <string name="stream_settings_resolution_default">Use Global Setting</string>
+    <string name="stream_settings_resolution_native">Native</string>
+    <string name="stream_settings_resolution_custom">Custom</string>
+    <string name="stream_settings_custom_resolution_hint">e.g., 2184x1968</string>
+    <string name="stream_settings_fps">Frame Rate</string>
+    <string name="stream_settings_fps_default">Use Global Setting</string>
+    <string name="stream_settings_fps_custom">Custom</string>
+    <string name="stream_settings_custom_fps_hint">e.g., 60</string>
+    <string name="stream_settings_saved">Stream settings saved for %s</string>
+    <string name="stream_settings_cleared">Stream settings cleared for %s</string>
+    <string name="stream_settings_invalid_resolution">Invalid resolution format. Use WIDTHxHEIGHT (e.g., 1920x1080)</string>
+    <string name="stream_settings_invalid_fps">Invalid frame rate</string>
+    <string name="stream_settings_clear">Clear Settings</string>
     <string name="help_loading_title">Help Viewer</string>
     <string name="help_loading_msg">Loading help page…</string>
 
@@ -271,6 +289,10 @@
     <string name="summary_hide_osc_when_has_gamepad">Hide OSC when a physical controller is connected</string>
     <string name="title_checkbox_vibrate_osc">Enable vibration</string>
     <string name="summary_checkbox_vibrate_osc">Vibrates your device to emulate rumble for the on-screen controls</string>
+    <string name="title_checkbox_osc_click_feedback">OSC button click feedback</string>
+    <string name="summary_checkbox_osc_click_feedback">Provides haptic vibration and audible click sound when pressing OSC buttons and cover screen triggers</string>
+    <string name="title_seekbar_osc_click_volume">Click sound volume</string>
+    <string name="summary_seekbar_osc_click_volume">Adjust the volume of the button click sound (0-100%)</string>
     <string name="title_only_l3r3">Only show L3 and R3</string>
     <string name="summary_only_l3r3">Hide all virtual buttons except L3 and R3</string>
     <string name="title_show_guide_button">Show Guide Button</string>
@@ -648,6 +670,7 @@
     <string name="game_menu_osc_toggle_cover_triggers">Toggle Cover Triggers Mode</string>
     <string name="game_menu_osc_toggle_trigger_click">Toggle Analog Trigger Click</string>
     <string name="game_menu_osc_profiles">OSC Profiles</string>
+    <string name="game_menu_osc_profile_select">Select a Profile...</string>
     <string name="game_menu_osc_save_config">Save Current Config</string>
     <string name="game_menu_osc_profile_default">Default Profile</string>
     <string name="game_menu_osc_profile_new">Create New Profile</string>
@@ -764,4 +787,12 @@
 
     <string name="title_checkbox_full_screen">Enable Full Screen</string>
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>
+
+    <!-- App sorting -->
+    <string name="sort_apps">Sort apps</string>
+    <string name="sort_mode_last_played">Sorted by: Last Played</string>
+    <string name="sort_mode_alphabetical_asc">Sorted by: A-Z</string>
+    <string name="sort_mode_alphabetical_desc">Sorted by: Z-A</string>
+    <string name="sort_mode_last_updated_asc">Sorted by: Oldest First</string>
+    <string name="sort_mode_last_updated_desc">Sorted by: Newest First</string>
 </resources>

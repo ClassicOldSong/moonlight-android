@@ -678,6 +678,22 @@
             android:title="@string/title_checkbox_vibrate_osc"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
+            android:defaultValue="true"
+            android:dependency="checkbox_show_onscreen_controls"
+            android:key="checkbox_osc_click_feedback"
+            android:summary="@string/summary_checkbox_osc_click_feedback"
+            android:title="@string/title_checkbox_osc_click_feedback"
+            app:iconSpaceReserved="false" />
+        <SeekBarPreference
+            android:defaultValue="13"
+            android:dependency="checkbox_osc_click_feedback"
+            android:key="seekbar_osc_click_volume"
+            android:max="100"
+            android:summary="@string/summary_seekbar_osc_click_volume"
+            android:title="@string/title_seekbar_osc_click_volume"
+            app:iconSpaceReserved="false"
+            app:showSeekBarValue="true" />
+        <CheckBoxPreference
             android:defaultValue="false"
             android:dependency="checkbox_show_onscreen_controls"
             android:key="checkbox_only_show_L3R3"

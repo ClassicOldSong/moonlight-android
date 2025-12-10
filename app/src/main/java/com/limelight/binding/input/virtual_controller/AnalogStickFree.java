@@ -132,6 +132,37 @@ public class AnalogStickFree extends VirtualControllerElement {
     private List<AnalogStickListener> listeners = new ArrayList<>();
     private long timeLastClick = 0;
 
+    // Velocity sensitivity configuration (COMMENTED OUT - using edge-impact method instead)
+    // private static final float SMASH_VELOCITY_THRESHOLD = 1200.0f; // pixels per second for smash detection
+    // private static final long SMASH_TIME_WINDOW = 100; // milliseconds to reach edge for smash
+
+    // Axis snapping configuration - snap to cardinal directions
+    private static final float AXIS_SNAP_THRESHOLD = 15.0f; // degrees from cardinal direction to snap
+
+    // Edge-impact smash detection
+    private static final float EDGE_THRESHOLD = 0.95f; // 95% of max radius triggers smash
+    private static final long SMASH_DURATION = 50; // milliseconds to hold max value on impact
+    private boolean wasAtEdge = false;
+    private boolean isSmashActive = false;
+    private long smashStartTime = 0;
+
+    private final android.os.Handler updateHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable continuousUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (bIsFingerOnScreen && stick_state == STICK_STATE.MOVED_ACTIVE) {
+                // Re-send the current position to maintain smooth updates
+                float complete = radius_complete - radius_analog_stick;
+                float correlated_y = (float) (Math.sin(Math.PI / 2 - movement_angle) * (movement_radius));
+                float correlated_x = (float) (Math.cos(Math.PI / 2 - movement_angle) * (movement_radius));
+                notifyOnMovement(-correlated_x / complete, correlated_y / complete);
+
+                // Schedule next update in 8ms (~120Hz update rate)
+                updateHandler.postDelayed(this, 8);
+            }
+        }
+    };
+
     private int touchID;
     private float touchStartX;
     private float touchStartY;
@@ -324,6 +355,31 @@ public class AnalogStickFree extends VirtualControllerElement {
     private void updatePosition(long eventTime) {
         float complete = radius_complete - radius_analog_stick;
 
+        // Edge-impact smash detection
+        float normalizedRadius = (float) movement_radius / complete;
+        long currentTime = System.currentTimeMillis();
+
+        // Detect edge impact
+        if (!wasAtEdge && normalizedRadius >= EDGE_THRESHOLD) {
+            // Just hit the edge - trigger smash
+            wasAtEdge = true;
+            isSmashActive = true;
+            smashStartTime = currentTime;
+
+            // Haptic feedback
+            performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+
+            _DBG("SMASH! Edge impact detected at radius: " + normalizedRadius);
+        } else if (wasAtEdge && normalizedRadius < EDGE_THRESHOLD * 0.9f) {
+            // Moved away from edge
+            wasAtEdge = false;
+        }
+
+        // Deactivate smash after duration
+        if (isSmashActive && (currentTime - smashStartTime) > SMASH_DURATION) {
+            isSmashActive = false;
+        }
+
         // calculate relative way
         float correlated_y = (float) (Math.sin(Math.PI / 2 - movement_angle) * (movement_radius));
         float correlated_x = (float) (Math.cos(Math.PI / 2 - movement_angle) * (movement_radius));
@@ -343,8 +399,63 @@ public class AnalogStickFree extends VirtualControllerElement {
 
         //  trigger move event if state active
         if (stick_state == AnalogStickFree.STICK_STATE.MOVED_ACTIVE) {
-            notifyOnMovement(-correlated_x / complete, correlated_y / complete);
+            float output_x, output_y;
+
+            // For smash inputs (edge impact), send max value during smash window
+            if (isSmashActive) {
+                // Send max value in current direction
+                float smash_correlated_y = (float) (Math.sin(Math.PI / 2 - movement_angle) * complete);
+                float smash_correlated_x = (float) (Math.cos(Math.PI / 2 - movement_angle) * complete);
+                output_x = -smash_correlated_x / complete;
+                output_y = smash_correlated_y / complete;
+            } else {
+                // Normal smooth movement for tilt inputs
+                output_x = -correlated_x / complete;
+                output_y = correlated_y / complete;
+            }
+
+            // Apply axis snapping to reduce accidental diagonal inputs
+            float[] snapped = applyAxisSnapping(output_x, output_y);
+            notifyOnMovement(snapped[0], snapped[1]);
+
+            // Start continuous update loop if not already running
+            updateHandler.removeCallbacks(continuousUpdateRunnable);
+            updateHandler.postDelayed(continuousUpdateRunnable, 8);
         }
+    }
+
+    /**
+     * Snap to cardinal directions (left, right, up, down) if close enough
+     */
+    private float[] applyAxisSnapping(float x, float y) {
+        // Calculate angle in degrees (0 = right, 90 = down, 180 = left, 270 = up)
+        double angleDegrees = Math.toDegrees(Math.atan2(y, x));
+        if (angleDegrees < 0) angleDegrees += 360;
+
+        // Check distance from each cardinal direction
+        double distFromRight = Math.min(Math.abs(angleDegrees - 0), Math.abs(angleDegrees - 360));
+        double distFromDown = Math.abs(angleDegrees - 90);
+        double distFromLeft = Math.abs(angleDegrees - 180);
+        double distFromUp = Math.abs(angleDegrees - 270);
+
+        float[] result = new float[2];
+        result[0] = x;
+        result[1] = y;
+
+        // Snap to horizontal (left/right) if within threshold
+        if (distFromRight <= AXIS_SNAP_THRESHOLD || distFromLeft <= AXIS_SNAP_THRESHOLD) {
+            result[1] = 0; // Zero out vertical component
+            // Preserve magnitude in horizontal direction
+            result[0] = x > 0 ? (float)Math.sqrt(x*x + y*y) : -(float)Math.sqrt(x*x + y*y);
+        }
+        // Snap to vertical (up/down) if within threshold
+        else if (distFromDown <= AXIS_SNAP_THRESHOLD || distFromUp <= AXIS_SNAP_THRESHOLD) {
+            result[0] = 0; // Zero out horizontal component
+            // Preserve magnitude in vertical direction
+            result[1] = y > 0 ? (float)Math.sqrt(x*x + y*y) : -(float)Math.sqrt(x*x + y*y);
+        }
+
+        return result;
     }
 
     @Override
@@ -378,6 +489,10 @@ public class AnalogStickFree extends VirtualControllerElement {
                     touchStartX = event.getX();
                     touchStartY = event.getY();
                     bIsFingerOnScreen = true;
+
+                    // Reset edge tracking for new input
+                    wasAtEdge = false;
+                    isSmashActive = false;
                 }
 
                 if (touchID == event.getPointerId(event.getActionIndex())) {
@@ -430,6 +545,9 @@ public class AnalogStickFree extends VirtualControllerElement {
             updatePosition(event.getEventTime());
             // when is pressed calculate new positions (will trigger movement if necessary)
         } else {
+            // Stop continuous updates
+            updateHandler.removeCallbacks(continuousUpdateRunnable);
+
             stick_state = STICK_STATE.NO_MOVEMENT;
             notifyOnRevoke();
 

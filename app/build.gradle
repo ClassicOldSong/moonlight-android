@@ -12,8 +12,8 @@ android {
         minSdk 21
         targetSdk 34
 
-        versionName "0.56-multitouch"
-        versionCode = 82
+        versionName "1.36-coversession"
+        versionCode = 118
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
