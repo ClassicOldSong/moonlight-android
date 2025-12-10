@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.app.Activity;
 import android.os.Handler;
 import android.os.Vibrator;
+import android.app.AlertDialog;   // 用於顯示設定對話框
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -42,6 +43,8 @@ import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.widget.EditText;
 import android.widget.Toast;
+import android.widget.SeekBar;      // 用於控制拉桿邏輯
+import android.widget.TextView;     // 用於顯示數值文字
 
 import com.google.gson.Gson;
 import com.limelight.DebugInfoActivity;
@@ -956,6 +959,118 @@ public class StreamSettings extends AppCompatActivity {
                     }
                 });
             }
+
+            // 處理整合式的右搖桿設定選項
+            ListPreference mouseModePref = (ListPreference) findPreference("mouse_mode_list");
+            Preference vectorConfigPref = findPreference("pref_right_stick_vector_configure");
+
+            if (mouseModePref != null && vectorConfigPref != null) {
+                // 1. 設定點擊事件：開啟整合設定對話框
+                vectorConfigPref.setOnPreferenceClickListener(preference -> {
+                    showRightStickConfigDialog(getActivity());
+                    return true;
+                });
+
+                // 2. 定義顯示/隱藏邏輯：直接使用 setVisible
+                Runnable updateVisibility = () -> {
+                    String value = mouseModePref.getValue();
+                    boolean isVectorMode = "6".equals(value);
+                    vectorConfigPref.setVisible(isVectorMode);
+                };
+
+                // 3. 監聽模式切換
+                mouseModePref.setOnPreferenceChangeListener((preference, newValue) -> {
+                    String newModeValue = (String) newValue;
+                    boolean isVectorMode = "6".equals(newModeValue);
+                    vectorConfigPref.setVisible(isVectorMode);
+                    return true;
+                });
+
+                // 4. 初始化顯示狀態
+                updateVisibility.run();
+            }
+        }
+
+        // 顯示整合設定對話框的方法
+        private void showRightStickConfigDialog(Context context) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            builder.setTitle(R.string.mouse_mode_right_stick_vector);
+
+            // 1. 載入 XML Layout
+            LayoutInflater inflater = LayoutInflater.from(context);
+            View view = inflater.inflate(R.layout.dialog_right_stick_config, null);
+            builder.setView(view);
+
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+            SharedPreferences.Editor editor = prefs.edit();
+
+            // 2. 初始化三個拉桿 (X靈敏度, Y靈敏度, 死區補償)
+            setupSeekBarLogic(view, prefs,
+                    R.id.seekbar_sens_x, R.id.text_sens_x,
+                    "seekbar_right_stick_vector_sensitivity_x", 30, 10, 50, 10.0f, "");
+
+            setupSeekBarLogic(view, prefs,
+                    R.id.seekbar_sens_y, R.id.text_sens_y,
+                    "seekbar_right_stick_vector_sensitivity_y", 30, 10, 50, 10.0f, "");
+
+            setupSeekBarLogic(view, prefs,
+                    R.id.seekbar_deadzone, R.id.text_deadzone,
+                    "seekbar_right_stick_vector_anti_deadzone", 30, 0, 50, 1.0f, "%");
+
+            // 3. 確定按鈕：儲存所有設定
+            builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                SeekBar sbX = view.findViewById(R.id.seekbar_sens_x);
+                SeekBar sbY = view.findViewById(R.id.seekbar_sens_y);
+                SeekBar sbDead = view.findViewById(R.id.seekbar_deadzone);
+
+                // 注意：寫入時要加回 min 值 (因為 SeekBar 預設從 0 開始)
+                editor.putInt("seekbar_right_stick_vector_sensitivity_x", sbX.getProgress() + 10);
+                editor.putInt("seekbar_right_stick_vector_sensitivity_y", sbY.getProgress() + 10);
+                editor.putInt("seekbar_right_stick_vector_anti_deadzone", sbDead.getProgress() + 0);
+
+                editor.apply();
+            });
+
+            builder.setNegativeButton(android.R.string.cancel, null);
+            builder.show();
+        }
+
+        // 輔助方法：設定單個 SeekBar 與 TextView 的連動邏輯
+        private void setupSeekBarLogic(View parent, SharedPreferences prefs, int seekBarId, int textId,
+                                       String key, int def, int min, int max, float divisor, String suffix) {
+            SeekBar seekBar = parent.findViewById(seekBarId);
+            TextView textView = parent.findViewById(textId);
+
+            int range = max - min;
+            seekBar.setMax(range);
+
+            int currentVal = prefs.getInt(key, def);
+            // 確保數值在合法範圍內
+            if (currentVal < min) currentVal = min;
+            if (currentVal > max) currentVal = max;
+
+            seekBar.setProgress(currentVal - min);
+
+            Runnable updateText = () -> {
+                int val = seekBar.getProgress() + min;
+                if (divisor == 1.0f) {
+                    textView.setText(val + suffix);
+                } else {
+                    textView.setText(String.format("%.1f%s", val / divisor, suffix));
+                }
+            };
+
+            // 初始化文字顯示
+            updateText.run();
+
+            seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    updateText.run();
+                }
+                @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+                @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+            });
         }
 
         private void removeEntryFromListAndSetValue(String resolutionPrefString, String entryToRemove, String nextDefault) {

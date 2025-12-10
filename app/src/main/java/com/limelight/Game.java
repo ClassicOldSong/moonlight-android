@@ -21,6 +21,7 @@ import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.binding.input.evdev.EvdevListener;
 import com.limelight.binding.input.touch.TouchContext;
 import com.limelight.binding.input.touch.TrackpadContext;
+import com.limelight.binding.input.touch.RightStickTouchContext;
 import com.limelight.binding.input.virtual_controller.VirtualController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
@@ -3144,12 +3145,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     if (aTouchContextMap.getActionIndex() < pointerCount)
                     {
                         int aActionIndex = shouldDuplicateMovement ? 0 : aTouchContextMap.getActionIndex();
-                        int historicalX = (int)event.getHistoricalX(aActionIndex, i);
-                        int historicalY = (int)event.getHistoricalY(aActionIndex, i);
+                        float historicalX = event.getHistoricalX(aActionIndex, i);
+                        float historicalY = event.getHistoricalY(aActionIndex, i);
                         if (isTouchScreen) {
                             float[] normalizedCoords = getNormalizedCoordinates(streamContainer, historicalX, historicalY);
-                            historicalX = (int)normalizedCoords[0];
-                            historicalY = (int)normalizedCoords[1];
+                            historicalX = normalizedCoords[0];
+                            historicalY = normalizedCoords[1];
                         }
 
                         // Invert axis again since synthetic events are not inverted
@@ -3179,12 +3180,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 if (aTouchContextMap.getActionIndex() < pointerCount)
                 {
                     int aActionIndex = shouldDuplicateMovement ? 0 : aTouchContextMap.getActionIndex();
-                    int currentX = (int)event.getX(aActionIndex);
-                    int currentY = (int)event.getY(aActionIndex);
+                    float currentX = event.getX(aActionIndex);
+                    float currentY = event.getY(aActionIndex);
                     if (isTouchScreen) {
                         float[] normalizedCoords = getNormalizedCoordinates(streamContainer, currentX, currentY);
-                        currentX = (int)normalizedCoords[0];
-                        currentY = (int)normalizedCoords[1];
+                        currentX = normalizedCoords[0];
+                        currentY = normalizedCoords[1];
                     }
 
                     // Invert axis again since synthetic events are not inverted
@@ -3206,14 +3207,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return true;
         }
 
-        int eventX = (int)event.getX(actualActionIndex);
-        int eventY = (int)event.getY(actualActionIndex);
+        float eventX = event.getX(actualActionIndex);
+        float eventY = event.getY(actualActionIndex);
 
         // Handle view scaling
         if (isTouchScreen) {
             float[] normalizedCoords = getNormalizedCoordinates(streamContainer, eventX, eventY);
-            eventX = (int)normalizedCoords[0];
-            eventY = (int)normalizedCoords[1];
+            eventX = normalizedCoords[0];
+            eventY = normalizedCoords[1];
         }
 
         switch (eventAction)
@@ -3259,12 +3260,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 }
                 if (actionIndex == 0 && pointerCount > 1 && !context.isCancelled()) {
                     // The original secondary touch now becomes primary
-                    int pointer1X = (int)event.getX(1);
-                    int pointer1Y = (int)event.getY(1);
+                    float pointer1X = event.getX(1);
+                    float pointer1Y = event.getY(1);
                     if (isTouchScreen) {
                         float[] normalizedCoords = getNormalizedCoordinates(streamContainer, pointer1X, pointer1Y);
-                        pointer1X = (int)normalizedCoords[0];
-                        pointer1Y = (int)normalizedCoords[1];
+                        pointer1X = normalizedCoords[0];
+                        pointer1Y = normalizedCoords[1];
                     }
                     context.touchDownEvent(
                             pointer1X,
@@ -4151,16 +4152,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void applyMouseMode(int mode) {
+        if (prefConfig != null) {
+            prefConfig.mouseMode = mode;
+        }
         switch (mode) {
             case 0: // Multi-touch
                 prefConfig.enableMultiTouchScreen = true;
                 prefConfig.touchscreenTrackpad = false;
                 break;
             case 1: // Normal mouse
-            case 5: // Normal mouse with swapped buttons
-                prefConfig.enableMultiTouchScreen = false;
-                prefConfig.touchscreenTrackpad = false;
-                break;
             case 2: // Trackpad (natural)
             case 3: // Trackpad (gaming)
                 prefConfig.enableMultiTouchScreen = false;
@@ -4168,9 +4168,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 break;
             case 4: // Touch mouse disabled
                 break;
+            case 5: // Normal mouse with swapped buttons
+                prefConfig.enableMultiTouchScreen = false;
+                prefConfig.touchscreenTrackpad = false;
+                break;
+            case 6: // 右搖桿向量觸控板
+                prefConfig.enableMultiTouchScreen = false;
+                prefConfig.touchscreenTrackpad = true;
+                break;
             default:
                 break;
         }
+
+        // 取得螢幕密度，用於標準化滑動距離
+        float density = getResources().getDisplayMetrics().density;
 
         //Initialize touch contexts
         for (int i = 0; i < touchContextMap.length; i++) {
@@ -4182,6 +4193,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 touchContextMap[i] = new AbsoluteTouchContext(conn, i, streamContainer, mode == 5);
             } else if (mode == 3) {
                 touchContextMap[i] = new RelativeTouchContext(conn, i, REFERENCE_HORIZ_RES, REFERENCE_VERT_RES, streamContainer, prefConfig);
+            } else if (mode == 6) {
+                // 模式 6：初始化右搖桿向量觸控板
+                touchContextMap[i] = new RightStickTouchContext(
+                        controllerHandler,
+                        i,
+                        prefConfig.rightStickVectorSensitivityX, // 傳入專屬靈敏度設定
+                        prefConfig.rightStickVectorSensitivityY,
+                        prefConfig.rightStickVectorAntiDeadzone,
+                        density // 傳入螢幕密度
+                );
             } else {
                 touchContextMap[i] = new TrackpadContext(conn, i);
             }
@@ -4344,6 +4365,35 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
         return null;
+    }
+
+    // 讓 GameMenu 可以詢問當前實際生效的模式 (記憶體狀態)
+    public boolean isRightStickMode() {
+        // 檢查 prefConfig 是否存在且 mouseMode 是否為 6 (右搖桿模式)
+        return prefConfig != null && prefConfig.mouseMode == 6;
+    }
+
+    // 只更新相關數值，不覆蓋整個設定物件
+    public void updateRightStickConfig() {
+        if (this.prefConfig == null) return;
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        // 1. 直接讀取拉桿的數值
+        int sensX = prefs.getInt("seekbar_right_stick_vector_sensitivity_x", 10);
+        int sensY = prefs.getInt("seekbar_right_stick_vector_sensitivity_y", 10);
+        int antiDeadzone = prefs.getInt("seekbar_right_stick_vector_anti_deadzone", 20);
+
+        // 2. 原地更新現有的 prefConfig 物件
+        // 這樣做不會影響到 mouseMode 或其他正在運行中的暫時性狀態
+        this.prefConfig.rightStickVectorSensitivityX = sensX / 10.0f;
+        this.prefConfig.rightStickVectorSensitivityY = sensY / 10.0f;
+        this.prefConfig.rightStickVectorAntiDeadzone = antiDeadzone / 100.0f;
+
+        // 3. 重新套用模式以刷新計算邏輯
+        if (isRightStickMode()) {
+            applyMouseMode(6);
+        }
     }
 
 }

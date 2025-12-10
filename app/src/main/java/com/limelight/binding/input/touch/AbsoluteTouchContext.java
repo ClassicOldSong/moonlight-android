@@ -8,18 +8,19 @@ import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.input.MouseButtonPacket;
 
 public class AbsoluteTouchContext implements TouchContext {
-    private int lastTouchDownX = 0;
-    private int lastTouchDownY = 0;
+    // [修改] 座標變數改為 float 以保持精度
+    private float lastTouchDownX = 0;
+    private float lastTouchDownY = 0;
     private long lastTouchDownTime = 0;
-    private int lastTouchUpX = 0;
-    private int lastTouchUpY = 0;
+    private float lastTouchUpX = 0;
+    private float lastTouchUpY = 0;
     private long lastTouchUpTime = 0;
-    private int lastTouchLocationX = 0;
-    private int lastTouchLocationY = 0;
+    private float lastTouchLocationX = 0;
+    private float lastTouchLocationY = 0;
     private boolean cancelled;
     private boolean confirmedLongPress;
     private boolean confirmedTap;
-    
+
     private final byte buttonPrimary;
     private final byte buttonSecondary;
 
@@ -92,8 +93,9 @@ public class AbsoluteTouchContext implements TouchContext {
         return actionIndex;
     }
 
+    // [修改] 參數改為 float
     @Override
-    public boolean touchDownEvent(int eventX, int eventY, long eventTime, boolean isNewFinger)
+    public boolean touchDownEvent(float eventX, float eventY, long eventTime, boolean isNewFinger)
     {
         if (!isNewFinger) {
             // We don't handle finger transitions for absolute mode
@@ -114,11 +116,13 @@ public class AbsoluteTouchContext implements TouchContext {
         return true;
     }
 
-    private boolean distanceExceeds(int deltaX, int deltaY, double limit) {
+    // [修改] 參數改為 float
+    private boolean distanceExceeds(float deltaX, float deltaY, double limit) {
         return Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2)) > limit;
     }
 
-    private void updatePosition(int eventX, int eventY) {
+    // [修改] 參數改為 float
+    private void updatePosition(float eventX, float eventY) {
         // We may get values slightly outside our view region on ACTION_HOVER_ENTER and ACTION_HOVER_EXIT.
         // Normalize these to the view size. We can't just drop them because we won't always get an event
         // right at the boundary of the view, so dropping them would result in our cursor never really
@@ -126,11 +130,13 @@ public class AbsoluteTouchContext implements TouchContext {
         eventX = Math.min(Math.max(eventX, 0), targetView.getWidth());
         eventY = Math.min(Math.max(eventY, 0), targetView.getHeight());
 
+        // [修改] 最後轉型為 short 傳送給 connection
         conn.sendMousePosition((short)eventX, (short)eventY, (short)targetView.getWidth(), (short)targetView.getHeight());
     }
 
+    // [修改] 參數改為 float
     @Override
-    public void touchUpEvent(int eventX, int eventY, long eventTime)
+    public void touchUpEvent(float eventX, float eventY, long eventTime)
     {
         if (cancelled) {
             return;
@@ -201,8 +207,9 @@ public class AbsoluteTouchContext implements TouchContext {
         conn.sendMouseButtonDown(buttonPrimary);
     }
 
+    // [修改] 參數改為 float
     @Override
-    public boolean touchMoveEvent(int eventX, int eventY, long eventTime)
+    public boolean touchMoveEvent(float eventX, float eventY, long eventTime)
     {
         if (cancelled) {
             return true;
