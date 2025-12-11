@@ -996,7 +996,7 @@ public class StreamSettings extends AppCompatActivity {
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle(R.string.mouse_mode_right_stick_vector);
 
-            // 1. 載入 XML Layout
+            // 載入 XML Layout
             LayoutInflater inflater = LayoutInflater.from(context);
             View view = inflater.inflate(R.layout.dialog_right_stick_config, null);
             builder.setView(view);
@@ -1004,30 +1004,41 @@ public class StreamSettings extends AppCompatActivity {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
             SharedPreferences.Editor editor = prefs.edit();
 
-            // 2. 初始化三個拉桿 (X靈敏度, Y靈敏度, 死區補償)
-            setupSeekBarLogic(view, prefs,
-                    R.id.seekbar_sens_x, R.id.text_sens_x,
-                    "seekbar_right_stick_vector_sensitivity_x", 30, 10, 50, 10.0f, "");
+            // --- 定義設定參數陣列 ---
+            int[] seekBarIds = {
+                    R.id.seekbar_sens_x,
+                    R.id.seekbar_sens_y,
+                    R.id.seekbar_deadzone
+            };
+            int[] textIds = {
+                    R.id.text_sens_x,
+                    R.id.text_sens_y,
+                    R.id.text_deadzone
+            };
+            String[] keys = {
+                    "seekbar_right_stick_vector_sensitivity_x",
+                    "seekbar_right_stick_vector_sensitivity_y",
+                    "seekbar_right_stick_vector_anti_deadzone"
+            };
+            int[] defs = {30, 30, 30};
+            int[] mins = {10, 10, 0};
+            int[] maxs = {50, 50, 50};
+            float[] divisors = {10.0f, 10.0f, 1.0f};
+            String[] suffixes = {"", "", "%"};
 
-            setupSeekBarLogic(view, prefs,
-                    R.id.seekbar_sens_y, R.id.text_sens_y,
-                    "seekbar_right_stick_vector_sensitivity_y", 30, 10, 50, 10.0f, "");
+            // --- 迴圈初始化 ---
+            for (int i = 0; i < keys.length; i++) {
+                setupSeekBarLogic(view, prefs,
+                        seekBarIds[i], textIds[i],
+                        keys[i], defs[i], mins[i], maxs[i], divisors[i], suffixes[i]);
+            }
 
-            setupSeekBarLogic(view, prefs,
-                    R.id.seekbar_deadzone, R.id.text_deadzone,
-                    "seekbar_right_stick_vector_anti_deadzone", 30, 0, 50, 1.0f, "%");
-
-            // 3. 確定按鈕：儲存所有設定
+            // --- 儲存邏輯 ---
             builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                SeekBar sbX = view.findViewById(R.id.seekbar_sens_x);
-                SeekBar sbY = view.findViewById(R.id.seekbar_sens_y);
-                SeekBar sbDead = view.findViewById(R.id.seekbar_deadzone);
-
-                // 注意：寫入時要加回 min 值 (因為 SeekBar 預設從 0 開始)
-                editor.putInt("seekbar_right_stick_vector_sensitivity_x", sbX.getProgress() + 10);
-                editor.putInt("seekbar_right_stick_vector_sensitivity_y", sbY.getProgress() + 10);
-                editor.putInt("seekbar_right_stick_vector_anti_deadzone", sbDead.getProgress() + 0);
-
+                for (int i = 0; i < keys.length; i++) {
+                    SeekBar sb = view.findViewById(seekBarIds[i]);
+                    editor.putInt(keys[i], sb.getProgress() + mins[i]);
+                }
                 editor.apply();
             });
 
