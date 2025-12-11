@@ -4380,9 +4380,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         // 1. 直接讀取拉桿的數值
-        int sensX = prefs.getInt("seekbar_right_stick_vector_sensitivity_x", 10);
-        int sensY = prefs.getInt("seekbar_right_stick_vector_sensitivity_y", 10);
-        int antiDeadzone = prefs.getInt("seekbar_right_stick_vector_anti_deadzone", 20);
+        int sensX = prefs.getInt("seekbar_right_stick_vector_sensitivity_x", 30);
+        int sensY = prefs.getInt("seekbar_right_stick_vector_sensitivity_y", 30);
+        int antiDeadzone = prefs.getInt("seekbar_right_stick_vector_anti_deadzone", 30);
 
         // 2. 原地更新現有的 prefConfig 物件
         // 這樣做不會影響到 mouseMode 或其他正在運行中的暫時性狀態
