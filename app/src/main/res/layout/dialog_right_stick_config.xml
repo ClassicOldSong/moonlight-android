@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/title_right_stick_vector_sensitivity_x"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/text_sens_x"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:text="3.0"
+            android:textSize="16sp" />
+
+        <SeekBar
+            android:id="@+id/seekbar_sens_x"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/title_right_stick_vector_sensitivity_y"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/text_sens_y"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:text="3.0"
+            android:textSize="16sp" />
+
+        <SeekBar
+            android:id="@+id/seekbar_sens_y"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/title_right_stick_vector_anti_deadzone"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/text_deadzone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:text="30%"
+            android:textSize="16sp" />
+
+        <SeekBar
+            android:id="@+id/seekbar_deadzone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+</ScrollView>

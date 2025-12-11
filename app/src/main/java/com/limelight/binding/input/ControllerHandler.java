@@ -118,6 +118,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private final Activity activityContext;
     private final double stickDeadzone;
     private final InputDeviceContext defaultContext = new InputDeviceContext();
+    // 右搖桿向量觸控板專用 Context
+    private final GenericControllerContext touchAimContext = new GenericControllerContext();
     private final GameGestures gestures;
     private final InputManager inputManager;
     private final Vibrator deviceVibrator;
@@ -201,6 +203,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         // consume these. Instead, let's ignore them since that's probably the
         // most likely case.
         defaultContext.ignoreBack = true;
+        // 初始化右搖桿向量觸控板專用 Context，設為 Player 1 (ID 0)
+        touchAimContext.controllerNumber = (short) 0;
+        touchAimContext.assignedControllerNumber = true;
+        touchAimContext.external = false;
 
         // Get the initially attached set of gamepads. As each gamepad receives
         // its initial InputEvent, we will move these from this set onto the
@@ -210,6 +216,17 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
         // Register ourselves for input device notifications
         inputManager.registerInputDeviceListener(this, null);
+    }
+
+    // 供 RightStickTouchContext 呼叫的介面方法
+    public void reportTouchAimState(short rightStickX, short rightStickY, boolean r3Active) {
+        touchAimContext.rightStickX = rightStickX;
+        touchAimContext.rightStickY = rightStickY;
+        // 設定 R3 按鍵旗標
+        touchAimContext.inputMap = r3Active ? ControllerPacket.RS_CLK_FLAG : 0;
+
+        // 觸發訊號發送流程
+        sendControllerInputPacket(touchAimContext);
     }
 
     private static InputDevice.MotionRange getMotionRangeForJoystickAxis(InputDevice dev, int axis) {
@@ -1264,6 +1281,16 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             leftStickY |= maxByMagnitude(leftStickY, defaultContext.leftStickY);
             rightStickX |= maxByMagnitude(rightStickX, defaultContext.rightStickX);
             rightStickY |= maxByMagnitude(rightStickY, defaultContext.rightStickY);
+        }
+
+        // 將右搖桿向量觸控板的訊號「疊加」到最終輸出
+        if (touchAimContext.controllerNumber == controllerNumber) {
+            // 使用 maxByMagnitude 取絕對值較大者，確保虛擬搖桿與觸控瞄準誰有動就聽誰的
+            rightStickX = maxByMagnitude(rightStickX, touchAimContext.rightStickX);
+            rightStickY = maxByMagnitude(rightStickY, touchAimContext.rightStickY);
+
+            // 合併按鍵 (R3)
+            inputMap |= touchAimContext.inputMap;
         }
 
         if (originalContext.mouseEmulationActive) {

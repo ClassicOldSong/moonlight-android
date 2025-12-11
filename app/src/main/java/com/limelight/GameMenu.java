@@ -6,12 +6,16 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.view.ContextThemeWrapper;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.widget.ArrayAdapter;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.limelight.binding.input.GameInputDevice;
@@ -242,12 +246,112 @@ public class GameMenu implements Game.GameMenuCallbacks {
         showMenuDialog(getString(R.string.game_menu_send_keys), options.toArray(new MenuOption[options.size()]));
     }
 
+    // [New] 使用 XML Layout 的整合設定對話框
+    private void showRightStickConfigDialog() {
+        int themeResId = game.getApplicationInfo().theme;
+        Context themedContext = new ContextThemeWrapper(dialogScreenContext, themeResId);
+        AlertDialog.Builder builder = new AlertDialog.Builder(themedContext);
+
+        builder.setTitle(getString(R.string.mouse_mode_right_stick_vector));
+
+        // 載入 XML Layout
+        LayoutInflater inflater = LayoutInflater.from(themedContext);
+        View view = inflater.inflate(R.layout.dialog_right_stick_config, null);
+        builder.setView(view);
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(game);
+        SharedPreferences.Editor editor = prefs.edit();
+
+        // --- 定義設定參數陣列 ---
+        int[] seekBarIds = {
+                R.id.seekbar_sens_x,
+                R.id.seekbar_sens_y,
+                R.id.seekbar_deadzone
+        };
+        int[] textIds = {
+                R.id.text_sens_x,
+                R.id.text_sens_y,
+                R.id.text_deadzone
+        };
+        String[] keys = {
+                "seekbar_right_stick_vector_sensitivity_x",
+                "seekbar_right_stick_vector_sensitivity_y",
+                "seekbar_right_stick_vector_anti_deadzone"
+        };
+        // 預設值
+        int[] defs = {30, 30, 30};
+        int[] mins = {10, 10, 0};
+        int[] maxs = {50, 50, 50};
+        float[] divisors = {10.0f, 10.0f, 1.0f};
+        String[] suffixes = {"", "", "%"};
+
+        // --- 迴圈初始化 ---
+        for (int i = 0; i < keys.length; i++) {
+            setupSeekBarLogic(view, prefs,
+                    seekBarIds[i], textIds[i],
+                    keys[i], defs[i], mins[i], maxs[i], divisors[i], suffixes[i]);
+        }
+
+        // --- 儲存邏輯 ---
+        builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+            for (int i = 0; i < keys.length; i++) {
+                SeekBar sb = view.findViewById(seekBarIds[i]);
+                // 加回 min 值
+                editor.putInt(keys[i], sb.getProgress() + mins[i]);
+            }
+            editor.apply();
+            game.updateRightStickConfig();
+        });
+
+        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.show();
+    }
+
+    // [New Helper] 輔助方法：設定單個 SeekBar 與 TextView 的連動
+    private void setupSeekBarLogic(View parent, SharedPreferences prefs, int seekBarId, int textId,
+                                   String key, int def, int min, int max, float divisor, String suffix) {
+        SeekBar seekBar = parent.findViewById(seekBarId);
+        TextView textView = parent.findViewById(textId);
+
+        int range = max - min;
+        seekBar.setMax(range);
+
+        int currentVal = prefs.getInt(key, def);
+        seekBar.setProgress(currentVal - min);
+
+        Runnable updateText = () -> {
+            int val = seekBar.getProgress() + min;
+            if (divisor == 1.0f) {
+                textView.setText(val + suffix);
+            } else {
+                textView.setText(String.format("%.1f%s", val / divisor, suffix));
+            }
+        };
+
+        // 初始化文字
+        updateText.run();
+
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                updateText.run();
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+    }
+
     private void showAdvancedMenu(GameInputDevice device) {
         List<MenuOption> options = new ArrayList<>();
         if (game.allowChangeMouseMode) {
             options.add(new MenuOption(getString(R.string.game_menu_select_mouse_mode), true, () -> game.selectMouseMode(dialogScreenContext)));
         }
-        
+
+        // 如果是右搖桿模式，顯示設定選項
+        if (game.isRightStickMode()) {
+            options.add(new MenuOption(getString(R.string.mouse_mode_right_stick_vector), true, this::showRightStickConfigDialog));
+        }
+
         options.add(new MenuOption(getString(R.string.game_menu_toggle_hud), true, game::toggleHUD));
         options.add(new MenuOption(getString(R.string.game_menu_toggle_floating_button), true, game::toggleFloatingButtonVisibility));
         options.add(new MenuOption(getString(R.string.game_menu_toggle_keyboard_model), true, game::toggleKeyboardController));

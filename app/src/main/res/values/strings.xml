@@ -729,4 +729,10 @@
 
     <string name="title_checkbox_full_screen">Enable Full Screen</string>
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>
+
+    <string name="mouse_mode_right_stick_vector">Right Stick Vector Trackpad</string>
+    <string name="summary_right_stick_vector_configure">Configure sensitivity and deadzone compensation</string>
+    <string name="title_right_stick_vector_sensitivity_x">Right Stick Vector Sensitivity X</string>
+    <string name="title_right_stick_vector_sensitivity_y">Right Stick Vector Sensitivity Y</string>
+    <string name="title_right_stick_vector_anti_deadzone">Right Stick Deadzone Compensation</string>
 </resources>

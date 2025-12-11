@@ -248,6 +248,7 @@ public class PreferenceConfiguration {
     public ScaleMode videoScaleMode;
     public String language;
     public int renderMode;
+    public int mouseMode;
     public boolean smallIconMode, multiController, usbDriver, flipFaceButtons;
     public boolean onscreenController;
     public boolean hideOSCWhenHasGamepad;
@@ -391,6 +392,13 @@ public class PreferenceConfiguration {
     private static final String BALANCE_SHIFT = "balance_shift";
     private static final String NUMBER_PAN_OFFSET_X = "number_pan_offset_x";
     private static final String NUMBER_PAN_OFFSET_Y = "number_pan_offset_y";
+    private static final String SEEKBAR_RIGHT_STICK_VECTOR_SENSITIVITY_X = "seekbar_right_stick_vector_sensitivity_x";
+    private static final String SEEKBAR_RIGHT_STICK_VECTOR_SENSITIVITY_Y = "seekbar_right_stick_vector_sensitivity_y";
+    private static final int DEFAULT_RIGHT_STICK_VECTOR_SENSITIVITY = 10;
+    private static final String SEEKBAR_RIGHT_STICK_VECTOR_ANTI_DEADZONE = "seekbar_right_stick_vector_anti_deadzone";
+    public float rightStickVectorSensitivityX;
+    public float rightStickVectorSensitivityY;
+    public float rightStickVectorAntiDeadzone;
 
     public static boolean isNativeResolution(int width, int height) {
         // It's not a native resolution if it matches an existing resolution option
@@ -894,16 +902,13 @@ private static int getFramePacingValue(Context context) {
         // Read mouse mode and set touch settings accordingly
         String mouseMode = prefs.getString("mouse_mode_list", "0");
         int mouseModeInt = Integer.parseInt(mouseMode);
+        config.mouseMode = mouseModeInt;
         switch (mouseModeInt) {
             case 0: // Multi-touch
                 config.enableMultiTouchScreen = true;
                 config.touchscreenTrackpad = false;
                 break;
             case 1: // Normal mouse
-            case 5: // Normal mouse with swapped buttons
-                config.enableMultiTouchScreen = false;
-                config.touchscreenTrackpad = false;
-                break;
             case 2: // Trackpad (natural)
             case 3: // Trackpad (gaming)
                 config.enableMultiTouchScreen = false;
@@ -913,7 +918,24 @@ private static int getFramePacingValue(Context context) {
                 config.enableMultiTouchScreen = false;
                 config.touchscreenTrackpad = false;
                 break;
+            case 5: // Normal mouse with swapped buttons
+                config.enableMultiTouchScreen = false;
+                config.touchscreenTrackpad = false;
+                break;
+            case 6: // 右搖桿向量觸控板
+                config.enableMultiTouchScreen = false;
+                config.touchscreenTrackpad = true;
+                break;
         }
+        // 讀取右搖桿向量觸控板設定
+        int sensX = prefs.getInt(SEEKBAR_RIGHT_STICK_VECTOR_SENSITIVITY_X, DEFAULT_RIGHT_STICK_VECTOR_SENSITIVITY);
+        int sensY = prefs.getInt(SEEKBAR_RIGHT_STICK_VECTOR_SENSITIVITY_Y, DEFAULT_RIGHT_STICK_VECTOR_SENSITIVITY);
+        config.rightStickVectorSensitivityX = sensX / 10.0f;
+        config.rightStickVectorSensitivityY = sensY / 10.0f;
+        // 讀取 Anti Deadzone
+        int antiDeadzonePercent = prefs.getInt(SEEKBAR_RIGHT_STICK_VECTOR_ANTI_DEADZONE, 20);
+        config.rightStickVectorAntiDeadzone = antiDeadzonePercent / 100.0f;
+
         config.onscreenController = prefs.getBoolean(ONSCREEN_CONTROLLER_PREF_STRING, DEFAULT_ONSCREEN_CONTROLLER);
         config.hideOSCWhenHasGamepad = prefs.getBoolean(CHECKBOX_HIDE_OSC_WHEN_HAS_GAMEPAD, DEFAULT_HIDE_OSC_WHEN_HAS_GAMEPAD);
         config.onlyL3R3 = prefs.getBoolean(ONLY_L3_R3_PREF_STRING, ONLY_L3_R3_DEFAULT);
