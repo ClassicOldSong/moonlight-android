@@ -373,7 +373,7 @@
             android:summary="@string/summary_touchscreen_mode"
             android:title="@string/title_touchscreen_mode"
             app:iconSpaceReserved="false" />
-        
+
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_remember_mouse_mode"
@@ -612,12 +612,24 @@
             android:summary="@string/summary_checkbox_disable_warnings"
             android:title="@string/title_checkbox_disable_warnings"
             app:iconSpaceReserved="false" />
-			
+
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_show_overlay_zoom_toggle_button"
             android:summary="@string/summary_show_overlay_zoom_toggle_button"
             android:title="@string/title_show_overlay_zoom_toggle_button"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_enable_floating_keyboard_button"
+            android:summary="@string/summary_show_floating_keyboard_button"
+            android:title="@string/title_show_floating_keyboard_button"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_enable_quick_bar"
+            android:summary="@string/summary_enable_quick_bar"
+            android:title="@string/title_enable_quick_bar"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"

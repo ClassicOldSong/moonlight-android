@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/quickBarContainer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="end|center_vertical"
+    android:layout_marginEnd="8dp"
+    android:orientation="vertical"
+    android:elevation="9999dp"
+    android:visibility="gone">
+
+    <!-- Expanded bar with action buttons -->
+    <LinearLayout
+        android:id="@+id/quickBarExpanded"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/quick_bar_background"
+        android:padding="4dp"
+        android:visibility="gone">
+
+        <!-- Keyboard toggle -->
+        <ImageButton
+            android:id="@+id/quickBarKeyboard"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_android_keyboard"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:contentDescription="@string/game_menu_toggle_keyboard" />
+
+        <!-- Zoom toggle -->
+        <ImageButton
+            android:id="@+id/quickBarZoom"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_zoom_toggle"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:contentDescription="@string/game_menu_enable_zoom_mode" />
+
+        <!-- HUD toggle -->
+        <ImageButton
+            android:id="@+id/quickBarHud"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_hud"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:contentDescription="@string/game_menu_toggle_hud" />
+
+        <!-- Controller toggle -->
+        <ImageButton
+            android:id="@+id/quickBarController"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_controller"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:contentDescription="@string/game_menu_toggle_virtual_model" />
+
+        <!-- Disconnect -->
+        <ImageButton
+            android:id="@+id/quickBarDisconnect"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_disconnect"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:contentDescription="@string/game_menu_disconnect" />
+
+    </LinearLayout>
+
+    <!-- Collapse/Expand toggle button -->
+    <ImageButton
+        android:id="@+id/quickBarToggle"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/floating_menu_button"
+        android:src="@drawable/ic_quick_bar"
+        android:scaleType="fitCenter"
+        android:padding="6dp"
+        android:contentDescription="@string/quick_bar_toggle" />
+
+</LinearLayout>

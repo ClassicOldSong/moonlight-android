@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center" />
-    
+
     <com.limelight.ui.StreamContainer
         android:id="@+id/streamContainer"
         android:layout_width="match_parent"
@@ -116,4 +116,22 @@
         android:visibility="gone"
         android:elevation="9999dp" />
 
+    <ImageButton
+        android:id="@+id/floatingKeyboardButton"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="72dp"
+        android:background="@drawable/floating_menu_button"
+        android:src="@drawable/ic_android_keyboard"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/game_menu_toggle_keyboard"
+        android:visibility="gone"
+        android:elevation="9999dp" />
+
+    <!-- Quick Bar -->
+    <include layout="@layout/quick_bar" />
+
 </merge>
+

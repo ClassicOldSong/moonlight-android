@@ -370,6 +370,7 @@
     <string name="game_menu_toggle_keyboard">Show soft keyboard</string>
     <string name="game_menu_toggle_hud">Toggle Performance Overlay</string>
     <string name="game_menu_toggle_floating_button">Toggle Floating Button</string>
+    <string name="game_menu_toggle_floating_keyboard_button">Toggle Floating Keyboard Button</string>
     <string name="game_menu_select_mouse_mode">Select Mouse mode</string>
     <string name="game_menu_select_steam_mode">Select Stream mode</string>
     <string name="game_menu_enable_zoom_mode">Enable Pan/Zoom</string>
@@ -456,6 +457,11 @@
     <string name="summary_checkbox_enable_perf_overlay_lite_dialog">Replace the back button logic, pop up the game quick menu.</string>
     <string name="title_show_overlay_zoom_toggle_button">Show overlay zoom toggle button</string>
     <string name="summary_show_overlay_zoom_toggle_button">Displays a draggable button at the top of the screen to toggle pan/zoom mode.</string>
+    <string name="title_show_floating_keyboard_button">Show floating keyboard button</string>
+    <string name="summary_show_floating_keyboard_button">Displays a draggable button to toggle the soft keyboard.</string>
+    <string name="title_enable_quick_bar">Enable Quick Bar</string>
+    <string name="summary_enable_quick_bar">Show an expandable quick access bar with common actions during streaming.</string>
+    <string name="quick_bar_toggle">Toggle Quick Bar</string>
     <string name="title_virtual_trackpad_settings">Virtual Trackpad Settings</string>
     <string name="title_quit_dialog">Back Menu</string>
     <string name="summary_quit_dialog">When enabled, clicking the physical back button on the streaming interface will show related options!\nSoft keyboard, performance information, touch mode switching, send special keys</string>
