@@ -146,6 +146,18 @@ public class KeyBoardDigitalButton extends keyBoardVirtualControllerElement {
         return this.sticky;
     }
 
+    public int getLayer() {
+        return this.layer;
+    }
+
+    public String getText() {
+        return this.text;
+    }
+
+    public int getIcon() {
+        return this.icon;
+    }
+
     @Override
     protected void onElementDraw(Canvas canvas) {
         // set transparent background
