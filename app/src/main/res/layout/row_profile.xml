@@ -5,13 +5,15 @@
     android:orientation="horizontal"
     android:padding="16dp"
     android:background="?android:attr/selectableItemBackground"
-    android:gravity="center_vertical">
+    android:gravity="center_vertical"
+    android:focusable="false">
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:focusable="false">
 
         <TextView
             android:id="@+id/profileName"
