@@ -128,8 +128,7 @@ public class AndroidAudioRenderer implements AudioRenderer {
             switch (i) {
                 case 0:
                 case 2:
-                    bufferSize = bytesPerFrame * 2;
-                    break;
+                   
 
                 case 1:
                 case 3:
@@ -188,7 +187,7 @@ public class AndroidAudioRenderer implements AudioRenderer {
     @Override
     public void playDecodedAudio(short[] audioData) {
         // Only queue up to 40 ms of pending audio data in addition to what AudioTrack is buffering for us.
-        if (MoonBridge.getPendingAudioDuration() < 40) {
+        if (MoonBridge.getPendingAudioDuration() < 100) {
             // This will block until the write is completed. That can cause a backlog
             // of pending audio data, so we do the above check to be able to bound
             // latency at 40 ms in that situation.
@@ -231,3 +230,4 @@ public class AndroidAudioRenderer implements AudioRenderer {
         track.release();
     }
 }
+
