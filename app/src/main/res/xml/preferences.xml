@@ -272,6 +272,12 @@
             android:title="@string/title_checkbox_usb_bind_all"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_bluetooth_driver"
+            android:title="@string/title_checkbox_bt_driver"
+            android:summary="@string/summary_checkbox_bt_driver"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
             android:defaultValue="true"
             android:key="checkbox_mouse_emulation"
             android:summary="@string/summary_checkbox_mouse_emulation"

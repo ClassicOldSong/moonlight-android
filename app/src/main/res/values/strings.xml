@@ -234,6 +234,8 @@
     <string name="summary_checkbox_xb1_driver">Enables a built-in USB driver for devices without native Xbox/Nintendo Pro controller support</string>
     <string name="title_checkbox_usb_bind_all">Override native Xbox gamepad support</string>
     <string name="summary_checkbox_usb_bind_all">Use Artemis\'s USB driver for all supported gamepads, even if native Xbox/Nintendo Pro controller support is present</string>
+    <string name="title_checkbox_bt_driver">Steam Controller Bluetooth gamepad driver</string>
+    <string name="summary_checkbox_bt_driver">Enables a built-in Bluetooth driver for the Steam Controller</string>
     <string name="title_checkbox_mouse_emulation">Mouse emulation via gamepad</string>
     <string name="summary_checkbox_mouse_emulation">Long-press the Start button to toggle between gamepad and mouse mode</string>
     <string name="title_checkbox_remember_mouse_mode">Remember mouse mode</string>
@@ -638,6 +640,7 @@
     <string name="notification_title">External Display Active</string>
     <string name="notification_text">Tap to open touchpad controller</string>
     <string name="permission_denied">Notification permission denied</string>
+    <string name="bluetooth_permission_denied">Permission denied. Steam Controllers will not work.</string>
     <string name="no_external_display">No external display detected</string>
     <string name="no_game_instance">No game instance available</string>
     <string name="get_clipboard_failed">Failed to get clipboard: </string>
