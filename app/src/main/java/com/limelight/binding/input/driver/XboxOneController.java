@@ -66,7 +66,7 @@ public class XboxOneController extends AbstractXboxController {
     private short leftTriggerMotor = 0;
     private short rightTriggerMotor = 0;
 
-    public XboxOneController(UsbDevice device, UsbDeviceConnection connection, int deviceId, UsbDriverListener listener) {
+    public XboxOneController(UsbDevice device, UsbDeviceConnection connection, int deviceId, ControllerDriverListener listener) {
         super(device, connection, deviceId, listener);
         capabilities |= MoonBridge.LI_CCAP_TRIGGER_RUMBLE;
     }

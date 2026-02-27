@@ -46,7 +46,7 @@ public class ProConController extends AbstractController {
         return (device.getVendorId() == 0x057e && device.getProductId() == 0x2009);
     }
 
-    public ProConController(UsbDevice device, UsbDeviceConnection connection, int deviceId, UsbDriverListener listener) {
+    public ProConController(UsbDevice device, UsbDeviceConnection connection, int deviceId, ControllerDriverListener listener) {
         super(deviceId, listener, device.getVendorId(), device.getProductId());
         this.device = device;
         this.connection = connection;

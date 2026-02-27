@@ -15,6 +15,7 @@ import com.limelight.binding.input.GameInputDevice;
 import com.limelight.binding.input.KeyboardTranslator;
 import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
+import com.limelight.binding.input.driver.BluetoothDriverService;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
 import com.limelight.binding.input.touch.RelativeTouchContext;
 import com.limelight.binding.input.driver.UsbDriverService;
@@ -237,7 +238,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private WifiManager.WifiLock lowLatencyWifiLock;
 
     private boolean connectedToUsbDriverService = false;
-    private ServiceConnection usbDriverServiceConnection = new ServiceConnection() {
+    private final ServiceConnection usbDriverServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             UsbDriverService.UsbDriverBinder binder = (UsbDriverService.UsbDriverBinder) iBinder;
@@ -253,6 +254,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     };
 
+    private boolean connectedToBluetoothDriverService = false;
+    private final ServiceConnection bluetoothDriverServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            BluetoothDriverService.BluetoothDriverBinder binder = (BluetoothDriverService.BluetoothDriverBinder) iBinder;
+            binder.setListener(controllerHandler);
+            binder.start();
+            connectedToBluetoothDriverService = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            connectedToBluetoothDriverService = false;
+        }
+    };
     public static final String EXTRA_HOST = "Host";
     public static final String EXTRA_PORT = "Port";
     public static final String EXTRA_HTTPS_PORT = "HttpsPort";
@@ -1735,6 +1751,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (connectedToUsbDriverService) {
             // Unbind from the discovery service
             unbindService(usbDriverServiceConnection);
+        }
+        if (connectedToBluetoothDriverService) {
+            // Unbind from the discovery service
+            unbindService(bluetoothDriverServiceConnection);
         }
 
         // Destroy the capture provider
@@ -3708,6 +3728,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // Start the USB driver
             bindService(new Intent(this, UsbDriverService.class),
                     usbDriverServiceConnection, Service.BIND_AUTO_CREATE);
+        }
+        if (prefConfig.bluetoothDriver) {
+                bindService(new Intent(this, BluetoothDriverService.class),
+                        bluetoothDriverServiceConnection, Service.BIND_AUTO_CREATE);
         }
 
         // Report this shortcut being used (off the main thread to prevent ANRs)

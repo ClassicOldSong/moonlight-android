@@ -37,7 +37,7 @@ import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.input.driver.AbstractController;
-import com.limelight.binding.input.driver.UsbDriverListener;
+import com.limelight.binding.input.driver.ControllerDriverListener;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.input.ControllerPacket;
@@ -56,7 +56,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class ControllerHandler implements InputManager.InputDeviceListener, UsbDriverListener {
+public class ControllerHandler implements InputManager.InputDeviceListener, ControllerDriverListener {
 
     private static final int MAXIMUM_BUMPER_UP_DELAY_MS = 100;
 

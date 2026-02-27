@@ -8,7 +8,7 @@ public abstract class AbstractController {
     private final int vendorId;
     private final int productId;
 
-    private UsbDriverListener listener;
+    private ControllerDriverListener listener;
 
     protected int buttonFlags, supportedButtonFlags;
     protected float leftTrigger, rightTrigger;
@@ -66,7 +66,7 @@ public abstract class AbstractController {
 
     public abstract void stop();
 
-    public AbstractController(int deviceId, UsbDriverListener listener, int vendorId, int productId) {
+    public AbstractController(int deviceId, ControllerDriverListener listener, int vendorId, int productId) {
         this.deviceId = deviceId;
         this.listener = listener;
         this.vendorId = vendorId;

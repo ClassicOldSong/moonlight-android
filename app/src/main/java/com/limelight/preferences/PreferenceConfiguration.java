@@ -61,6 +61,7 @@ public class PreferenceConfiguration {
     private static final String MULTI_CONTROLLER_PREF_STRING = "checkbox_multi_controller";
     static final String AUDIO_CONFIG_PREF_STRING = "list_audio_config";
     private static final String USB_DRIVER_PREF_SRING = "checkbox_usb_driver";
+    private static final String BLUETOOTH_DRIVER_PREF_SRING = "checkbox_bluetooth_driver";
     private static final String VIDEO_FORMAT_PREF_STRING = "video_format";
     private static final String ONSCREEN_CONTROLLER_PREF_STRING = "checkbox_show_onscreen_controls";
     private static final String CHECKBOX_HIDE_OSC_WHEN_HAS_GAMEPAD = "checkbox_hide_osc_when_has_gamepad";
@@ -155,6 +156,7 @@ public class PreferenceConfiguration {
     public static final String DEFAULT_LANGUAGE = "default";
     private static final boolean DEFAULT_MULTI_CONTROLLER = true;
     private static final boolean DEFAULT_USB_DRIVER = true;
+    private static final boolean DEFAULT_BLUETOOTH_DRIVER = false;
     private static final String DEFAULT_VIDEO_FORMAT = "auto";
 
     private static final boolean DEFAULT_ONSCREEN_CONTROLLER = false;
@@ -248,7 +250,7 @@ public class PreferenceConfiguration {
     public ScaleMode videoScaleMode;
     public String language;
     public int renderMode;
-    public boolean smallIconMode, multiController, usbDriver, flipFaceButtons;
+    public boolean smallIconMode, multiController, usbDriver, bluetoothDriver, flipFaceButtons;
     public boolean onscreenController;
     public boolean hideOSCWhenHasGamepad;
     public boolean enableBatteryReport;
@@ -885,6 +887,7 @@ private static int getFramePacingValue(Context context) {
         config.smallIconMode = prefs.getBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context));
         config.multiController = prefs.getBoolean(MULTI_CONTROLLER_PREF_STRING, DEFAULT_MULTI_CONTROLLER);
         config.usbDriver = prefs.getBoolean(USB_DRIVER_PREF_SRING, DEFAULT_USB_DRIVER);
+        config.bluetoothDriver = prefs.getBoolean(BLUETOOTH_DRIVER_PREF_SRING, DEFAULT_BLUETOOTH_DRIVER);
         config.fullScreen = prefs.getBoolean(FULL_SCREEN_PREF_STRING, DEFAULT_FULL_SCREEN);
 
         String renderMode = prefs.getString("render_mode_list", "0");
