@@ -8,6 +8,10 @@ import static com.limelight.utils.ExternalDisplayControlActivity.closeExternalDi
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
 import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
 
+import android.Manifest;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.binding.input.ControllerHandler;
@@ -269,6 +273,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             connectedToBluetoothDriverService = false;
         }
     };
+    private final ActivityResultLauncher<String> requestBluetoothPermissionLauncher =
+            this.registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    bindService(new Intent(this, BluetoothDriverService.class),
+                            bluetoothDriverServiceConnection, Service.BIND_AUTO_CREATE);
+                } else {
+                    Toast.makeText(this, getString(R.string.bluetooth_permission_denied), Toast.LENGTH_LONG).show();
+                }
+            });
+
     public static final String EXTRA_HOST = "Host";
     public static final String EXTRA_PORT = "Port";
     public static final String EXTRA_HTTPS_PORT = "HttpsPort";
@@ -3730,8 +3744,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     usbDriverServiceConnection, Service.BIND_AUTO_CREATE);
         }
         if (prefConfig.bluetoothDriver) {
+            if (hasBluetoothPermission()) {
                 bindService(new Intent(this, BluetoothDriverService.class),
                         bluetoothDriverServiceConnection, Service.BIND_AUTO_CREATE);
+            } else {
+                requestBluetoothPermissionLauncher.launch(getBluetoothPermission());
+            }
         }
 
         // Report this shortcut being used (off the main thread to prevent ANRs)
@@ -3743,6 +3761,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (appName != null) {
             // This may be null if launched from the "Resume Session" PC context menu item
             shortcutHelper.reportGameLaunched(computer, app);
+        }
+    }
+
+    private boolean hasBluetoothPermission() {
+        return ContextCompat.checkSelfPermission(getApplicationContext(), getBluetoothPermission())
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private String getBluetoothPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return Manifest.permission.BLUETOOTH_CONNECT;
+        } else {
+            return Manifest.permission.BLUETOOTH;
         }
     }
 
