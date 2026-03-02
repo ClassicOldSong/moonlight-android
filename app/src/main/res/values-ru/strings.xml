@@ -153,6 +153,8 @@
     <string name="summary_checkbox_usb_bind_all">Заставляет USB драйвер Artemis взять на себя работу со всеми поддерживаемыми Xbox геймпадами</string>
     <string name="title_checkbox_mouse_emulation">Эмуляция мыши на геймпаде</string>
     <string name="summary_checkbox_mouse_emulation">Долгое нажатие кнопки Start переключит геймпад в режим мыши</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Чувствительность эмуляции мыши</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Скорость курсора при управлении мышью с помощью джойстика</string>
     <string name="summary_show_guide_button">Отобразить кнопку Guide на экране</string>
     <string name="title_reset_osc">Сбросить схему расположения экранных кнопок</string>
     <string name="summary_reset_osc">Возвращает все экранные элементы управления к их расположениям по умолчанию</string>

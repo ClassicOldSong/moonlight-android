@@ -89,6 +89,8 @@
     <string name="summary_checkbox_usb_bind_all">Use o driver USB do Moonlight para todos os gamepads suportados, mesmo se houver suporte nativo ao controle Xbox</string>
     <string name="title_checkbox_mouse_emulation">Emulação de rato pelo gamepad</string>
     <string name="summary_checkbox_mouse_emulation">Segure o botão Start para mudar o gamepad ao modo de rato</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Sensibilidade de emulação do rato</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Velocidade do cursor ao controlar o rato com um stick analógico</string>
     <string name="summary_checkbox_flip_face_buttons">Inverte os botões A/B e X/Y dos gamepads e controles de ecrã</string>
     <string name="title_checkbox_absolute_mouse_mode">Modo de rato para área de trabalho remota</string>
     <string name="summary_checkbox_absolute_mouse_mode">Isso pode alterar a aceleração do rato para se comportar mais naturalmente para uso em desktop remoto, mas é incompatível com muitos jogos.</string>

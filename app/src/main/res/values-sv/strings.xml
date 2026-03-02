@@ -127,6 +127,8 @@
     <string name="title_checkbox_usb_bind_all">Behärska det ursprungliga stödet för Xbox-spelplatta</string>
     <string name="title_checkbox_mouse_emulation">Erterliknande av mus genom spelplatta</string>
     <string name="summary_checkbox_mouse_emulation">Om du trycker länge på startknappen skiftar du spelplatta till musläge</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Känslighet för musemulering</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Markörens hastighet när musen styrs med en analog spak</string>
     <string name="title_checkbox_mouse_nav_buttons">Sätt på musknapparna bakåt och framåt</string>
     <string name="summary_checkbox_flip_face_buttons">Skiftar ansiktsknapparna A/B och X/Y för spelplattor och kontroller på skärmen</string>
     <string name="title_checkbox_flip_face_buttons">Skifta ansiktsknappar</string>

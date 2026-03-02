@@ -144,6 +144,8 @@
     <string name="title_checkbox_xb1_driver">Xbox 360/One USB oyun kumandası sürücüsü</string>
     <string name="title_checkbox_usb_bind_all">Xbox doğal oyun kumanda desteğini geçersiz kıl</string>
     <string name="summary_checkbox_mouse_emulation">Başlat düğmesine uzun süre basmak oyun kumandasını fare moduna geçirir</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Fare taklidi hassasiyeti</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Analog çubukla fareyi kontrol ederken imleç hızı</string>
     <string name="summary_checkbox_mouse_nav_buttons">Bu seçeneği etkinleştirmek bazı hatalı cihazlarda sağ tıklamayı bozabilir</string>
     <string name="title_checkbox_flip_face_buttons">Yüzey düğmelerini çevir</string>
     <string name="title_checkbox_absolute_mouse_mode">Uzak masaüstü fare modu</string>

@@ -78,6 +78,8 @@
     <string name="summary_checkbox_mouse_emulation">Dlouhým podržením tlačítka Start přepnete herní ovladač do režimu myši</string>
     <string name="summary_checkbox_usb_bind_all">Použít USB ovladač Moonlightu pro všechny podporované gamepady, i když existuje nativní podpora pro Xbox ovladač</string>
     <string name="title_checkbox_mouse_emulation">Emulace myši pomocí herního ovladače</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Citlivost emulace myši</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Rychlost kurzoru při ovládání myši analogovou páčkou</string>
     <string name="title_checkbox_flip_face_buttons">Přehodit tlačítka A/B, X/Y</string>
     <string name="title_checkbox_absolute_mouse_mode">Režim myši pro vzdálenou plochu</string>
     <string name="summary_checkbox_absolute_mouse_mode">Tímto zapnete přirozenější zrychlování myši pro použití ve vzdálené ploše, ale možnost je nekompatibilní se spoustou her.</string>
