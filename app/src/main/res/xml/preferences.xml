@@ -286,6 +286,17 @@
             android:summary="@string/summary_analog_scrolling"
             android:title="@string/title_analog_scrolling"
             app:iconSpaceReserved="false" />
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="100"
+            android:dependency="checkbox_mouse_emulation"
+            android:key="seekbar_mouse_emulation_sensitivity"
+            android:max="400"
+            android:summary="@string/summary_seekbar_mouse_emulation_sensitivity"
+            android:text="%"
+            android:title="@string/title_seekbar_mouse_emulation_sensitivity"
+            app:iconSpaceReserved="false"
+            seekbar:min="25"
+            seekbar:step="25" />
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_flip_face_buttons"
