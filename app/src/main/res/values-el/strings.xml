@@ -191,6 +191,8 @@
     <string name="title_checkbox_vibrate_fallback">Μιμηθείτε την υποστήριξη rumble με δόνηση</string>
     <string name="title_seekbar_deadzone">Ρύθμιση της νεκρής ζώνης του αναλογικού μοχλού</string>
     <string name="summary_checkbox_mouse_emulation">Με παρατεταμένο πάτημα του κουμπιού Έναρξη θα αλλάξει το gamepad σε λειτουργία ποντικιού</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Ευαισθησία εξομοίωσης ποντικιού</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Ταχύτητα κέρσορα κατά τον έλεγχο του ποντικιού με joystick</string>
     <string name="category_on_screen_controls_settings">Ρυθμίσεις στοιχείων ελέγχου στην οθόνη</string>
     <string name="summary_reset_osc">Επαναφέρει όλα τα στοιχεία ελέγχου στην οθόνη στο προεπιλεγμένο μέγεθος και τη θέση τους</string>
     <string name="title_unlock_fps">Ξεκλειδώστε όλους τους πιθανούς ρυθμούς καρέ</string>

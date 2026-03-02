@@ -111,6 +111,8 @@
     <string name="summary_checkbox_usb_bind_all">Forza i driver USB di Moonlight di assumere il controllo su tutti i controller Xbox supportati</string>
     <string name="title_checkbox_mouse_emulation">Emulazione del mouse tramite controller</string>
     <string name="summary_checkbox_mouse_emulation">Tenendo premuto il pulsante Start, il controller passerà alla modalità mouse</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Sensibilità emulazione mouse</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Velocità del cursore quando si controlla il mouse con lo stick analogico</string>
     <string name="category_on_screen_controls_settings">Impostazioni dei controlli a schermo</string>
     <string name="title_checkbox_show_onscreen_controls">Mostra controlli a schermo</string>
     <string name="summary_checkbox_show_onscreen_controls">Mostra l\'overlay virtuale del controller su schermo</string>

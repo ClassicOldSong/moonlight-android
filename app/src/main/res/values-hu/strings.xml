@@ -49,6 +49,8 @@
     <string name="title_checkbox_mouse_nav_buttons">Engedélyezze az előre és hátra gombokat</string>
     <string name="summary_checkbox_mouse_emulation">A Start gomb hosszan tartó megnyomásával egér üzemmódba kapcsol a játéktábla</string>
     <string name="title_checkbox_mouse_emulation">Egér emuláció a játékvezérlőn keresztül</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Egér emuláció érzékenysége</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Kurzorsebesség joystickkel történő egérvezérléskor</string>
     <string name="summary_checkbox_usb_bind_all">Használja a Moonlight USB-illesztőprogramját az összes támogatott játékvezérlőhöz, még akkor is, ha natív Xbox vezérlő támogatás van jelen</string>
     <string name="title_checkbox_usb_bind_all">Az natív Xbox játéktámogatás felülbírálása</string>
     <string name="summary_checkbox_xb1_driver">Beépített USB-illesztőprogramot engedélyez natív Xbox vezérlő támogatás nélküli eszközökhöz</string>
