@@ -2353,13 +2353,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, Cont
         };
     }
 
-    public void handleSetMotionEventState(final short controllerNumber, final byte motionType, short reportRateHz) {
+    public void handleSetMotionEventState(final short controllerNumber, final byte motionType, final short reportRateHz) {
         if (stopped) {
             return;
         }
-
-        // Report rate is restricted to <= 200 Hz without the HIGH_SAMPLING_RATE_SENSORS permission
-        reportRateHz = (short) Math.min(200, reportRateHz);
 
         for (int i = 0; i < inputDeviceContexts.size() + usbDeviceContexts.size(); i++) {
             InputDeviceContext deviceContext;
@@ -2370,54 +2367,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, Cont
             }
 
             if (deviceContext.controllerNumber == controllerNumber) {
-                // Store the desired report rate even if we don't have sensors. In some cases,
-                // input devices can be reconfigured at runtime which results in a change where
-                // sensors disappear and reappear. By storing the desired report rate, we can
-                // reapply the desired motion sensor configuration after they reappear.
-                switch (motionType) {
-                    case MoonBridge.LI_MOTION_TYPE_ACCEL:
-                        deviceContext.accelReportRateHz = reportRateHz;
-                        break;
-                    case MoonBridge.LI_MOTION_TYPE_GYRO:
-                        deviceContext.gyroReportRateHz = reportRateHz;
-                        break;
-                }
-
-                backgroundThreadHandler.removeCallbacks(deviceContext.enableSensorRunnable);
-
-                SensorManager sm = deviceContext.sensorManager;
-                if (sm == null) {
-                    continue;
-                }
-
-                switch (motionType) {
-                    case MoonBridge.LI_MOTION_TYPE_ACCEL:
-                        if (deviceContext.accelListener != null) {
-                            sm.unregisterListener(deviceContext.accelListener);
-                            deviceContext.accelListener = null;
-                        }
-
-                        // Enable the accelerometer if requested
-                        Sensor accelSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-                        if (reportRateHz != 0 && accelSensor != null) {
-                            deviceContext.accelListener = createSensorListener(controllerNumber, motionType, sm == deviceSensorManager);
-                            sm.registerListener(deviceContext.accelListener, accelSensor, 1000000 / reportRateHz);
-                        }
-                        break;
-                    case MoonBridge.LI_MOTION_TYPE_GYRO:
-                        if (deviceContext.gyroListener != null) {
-                            sm.unregisterListener(deviceContext.gyroListener);
-                            deviceContext.gyroListener = null;
-                        }
-
-                        // Enable the gyroscope if requested
-                        Sensor gyroSensor = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-                        if (reportRateHz != 0 && gyroSensor != null) {
-                            deviceContext.gyroListener = createSensorListener(controllerNumber, motionType, sm == deviceSensorManager);
-                            sm.registerListener(deviceContext.gyroListener, gyroSensor, 1000000 / reportRateHz);
-                        }
-                        break;
-                }
+                deviceContext.setMotionEventState(motionType, reportRateHz);
                 break;
             }
         }
@@ -2429,30 +2379,17 @@ public class ControllerHandler implements InputManager.InputDeviceListener, Cont
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            for (int i = 0; i < inputDeviceContexts.size(); i++) {
-                InputDeviceContext deviceContext = inputDeviceContexts.valueAt(i);
+            for (int i = 0; i < inputDeviceContexts.size() + usbDeviceContexts.size(); i++) {
+                InputDeviceContext deviceContext;
+                if (i < inputDeviceContexts.size()) {
+                    deviceContext = inputDeviceContexts.valueAt(i);
+                } else {
+                    deviceContext = usbDeviceContexts.valueAt(i - inputDeviceContexts.size());
+                }
 
                 // Ignore input devices without an RGB LED
                 if (deviceContext.controllerNumber == controllerNumber && deviceContext.hasRgbLed) {
-                    // Create a new light session if one doesn't already exist
-                    if (deviceContext.lightsSession == null) {
-                        deviceContext.lightsSession = deviceContext.inputDevice.getLightsManager().openSession();
-                    }
-
-                    // Convert the RGB components into the integer value that LightState uses
-                    int argbValue = 0xFF000000 | ((r << 16) & 0xFF0000) | ((g << 8) & 0xFF00) | (b & 0xFF);
-                    LightState lightState = new LightState.Builder().setColor(argbValue).build();
-
-                    // Set the RGB value for each RGB-controllable LED on the device
-                    LightsRequest.Builder lightsRequestBuilder = new LightsRequest.Builder();
-                    for (Light light : deviceContext.inputDevice.getLightsManager().getLights()) {
-                        if (light.hasRgbControl()) {
-                            lightsRequestBuilder.addLight(light, lightState);
-                        }
-                    }
-
-                    // Apply the LED changes
-                    deviceContext.lightsSession.requestLights(lightsRequestBuilder.build());
+                    deviceContext.setControllerLED(r, g, b);
                 }
             }
         }
@@ -3008,6 +2945,16 @@ public class ControllerHandler implements InputManager.InputDeviceListener, Cont
     }
 
     @Override
+    public void reportBatteryState(int controllerId, byte batteryState, byte batteryPercentage) {
+        GenericControllerContext context = usbDeviceContexts.get(controllerId);
+        if (context == null) {
+            return;
+        }
+
+        conn.sendControllerBatteryEvent((byte)context.controllerNumber, batteryState, batteryPercentage);
+    }
+
+    @Override
     public void deviceRemoved(AbstractController controller) {
         UsbDeviceContext context = usbDeviceContexts.get(controller.getControllerId());
         if (context != null) {
@@ -3404,6 +3351,86 @@ public class ControllerHandler implements InputManager.InputDeviceListener, Cont
             backgroundThreadHandler.post(batteryStateUpdateRunnable);
         }
 
+        public void setMotionEventState(final byte motionType, short reportRateHz) {
+            // Report rate is restricted to <= 200 Hz without the HIGH_SAMPLING_RATE_SENSORS permission
+            reportRateHz = (short) Math.min(200, reportRateHz);
+
+            // Store the desired report rate even if we don't have sensors. In some cases,
+            // input devices can be reconfigured at runtime which results in a change where
+            // sensors disappear and reappear. By storing the desired report rate, we can
+            // reapply the desired motion sensor configuration after they reappear.
+            switch (motionType) {
+                case MoonBridge.LI_MOTION_TYPE_ACCEL:
+                    accelReportRateHz = reportRateHz;
+                    break;
+                case MoonBridge.LI_MOTION_TYPE_GYRO:
+                    gyroReportRateHz = reportRateHz;
+                    break;
+            }
+
+            backgroundThreadHandler.removeCallbacks(enableSensorRunnable);
+
+            SensorManager sm = sensorManager;
+            if (sm == null) {
+                return;
+            }
+
+            switch (motionType) {
+                case MoonBridge.LI_MOTION_TYPE_ACCEL:
+                    if (accelListener != null) {
+                        sm.unregisterListener(accelListener);
+                        accelListener = null;
+                    }
+
+                    // Enable the accelerometer if requested
+                    Sensor accelSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                    if (reportRateHz != 0 && accelSensor != null) {
+                        accelListener = createSensorListener(controllerNumber, motionType, sm == deviceSensorManager);
+                        sm.registerListener(accelListener, accelSensor, 1000000 / reportRateHz);
+                    }
+                    break;
+                case MoonBridge.LI_MOTION_TYPE_GYRO:
+                    if (gyroListener != null) {
+                        sm.unregisterListener(gyroListener);
+                        gyroListener = null;
+                    }
+
+                    // Enable the gyroscope if requested
+                    Sensor gyroSensor = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+                    if (reportRateHz != 0 && gyroSensor != null) {
+                        gyroListener = createSensorListener(controllerNumber, motionType, sm == deviceSensorManager);
+                        sm.registerListener(gyroListener, gyroSensor, 1000000 / reportRateHz);
+                    }
+                    break;
+            }
+        }
+
+        public void setControllerLED(byte r, byte g, byte b) {
+            if (!hasRgbLed || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                return;
+            }
+
+            // Create a new light session if one doesn't already exist
+            if (lightsSession == null) {
+                lightsSession = inputDevice.getLightsManager().openSession();
+            }
+
+            // Convert the RGB components into the integer value that LightState uses
+            int argbValue = 0xFF000000 | ((r << 16) & 0xFF0000) | ((g << 8) & 0xFF00) | (b & 0xFF);
+            LightState lightState = new LightState.Builder().setColor(argbValue).build();
+
+            // Set the RGB value for each RGB-controllable LED on the device
+            LightsRequest.Builder lightsRequestBuilder = new LightsRequest.Builder();
+            for (Light light : inputDevice.getLightsManager().getLights()) {
+                if (light.hasRgbControl()) {
+                    lightsRequestBuilder.addLight(light, lightState);
+                }
+            }
+
+            // Apply the LED changes
+            lightsSession.requestLights(lightsRequestBuilder.build());
+        }
+
         public void disableSensors() {
             // Stop any pending enablement
             backgroundThreadHandler.removeCallbacks(enableSensorRunnable);
@@ -3465,8 +3492,28 @@ public class ControllerHandler implements InputManager.InputDeviceListener, Cont
                 });
             }
 
+            hasRgbLed = (capabilities & MoonBridge.LI_CCAP_RGB_LED) != 0;
+
             conn.sendControllerArrivalEvent((byte)controllerNumber, getActiveControllerMask(),
                     type, device.getSupportedButtonFlags(), capabilities);
+        }
+
+        @Override
+        public void setMotionEventState(byte motionType, short reportRateHz) {
+            if (((device.getCapabilities() & MoonBridge.LI_CCAP_GYRO) | (device.getCapabilities() & MoonBridge.LI_CCAP_ACCEL)) == 0) {
+                super.setMotionEventState(motionType, reportRateHz);
+            } else {
+                device.setMotionEventState(motionType, reportRateHz);
+            }
+        }
+
+        @Override
+        public void setControllerLED(byte r, byte g, byte b) {
+            if ((device.getCapabilities() & MoonBridge.LI_CCAP_RGB_LED) == 0) {
+                super.setControllerLED(r, g, b);
+            } else {
+                device.setControllerLED(r, g, b);
+            }
         }
     }
 }

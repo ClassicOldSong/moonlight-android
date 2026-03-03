@@ -62,6 +62,10 @@ public abstract class AbstractController {
         listener.reportControllerMotion(deviceId, MoonBridge.LI_MOTION_TYPE_ACCEL, accelX, accelY, accelZ);
     }
 
+    protected void reportBatteryState(byte batteryState, byte batteryPercentage) {
+        listener.reportBatteryState(deviceId, batteryState, batteryPercentage);
+    }
+
     public abstract boolean start();
 
     public abstract void stop();
@@ -71,6 +75,18 @@ public abstract class AbstractController {
         this.listener = listener;
         this.vendorId = vendorId;
         this.productId = productId;
+    }
+
+    public void setMotionEventState(byte motionType, short reportRateHz) {
+        if (((getCapabilities() & MoonBridge.LI_CCAP_GYRO) | (getCapabilities() & MoonBridge.LI_CCAP_ACCEL)) != 0) {
+            throw new IllegalStateException("Controllers with motion capabilities must override this method");
+        }
+    }
+
+    public void setControllerLED(byte r, byte g, byte b) {
+        if ((getCapabilities() & MoonBridge.LI_CCAP_RGB_LED) != 0) {
+            throw new IllegalStateException("Controllers with RGB LED capability must override this method");
+        }
     }
 
     public abstract void rumble(short lowFreqMotor, short highFreqMotor);

@@ -7,6 +7,8 @@ public interface ControllerDriverListener {
                                float leftTrigger, float rightTrigger);
     void reportControllerMotion(int controllerId, byte motionType, float motionX, float motionY, float motionZ);
 
+    void reportBatteryState(int controllerId, byte batteryState, byte batteryPercentage);
+
     void deviceRemoved(AbstractController controller);
     void deviceAdded(AbstractController controller);
 }
