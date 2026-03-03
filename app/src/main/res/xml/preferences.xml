@@ -295,8 +295,8 @@
             android:text="%"
             android:title="@string/title_seekbar_mouse_emulation_sensitivity"
             app:iconSpaceReserved="false"
-            seekbar:min="25"
-            seekbar:step="25" />
+            seekbar:min="20"
+            seekbar:step="10" />
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_flip_face_buttons"
