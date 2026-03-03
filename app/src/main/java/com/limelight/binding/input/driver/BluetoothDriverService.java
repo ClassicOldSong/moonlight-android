@@ -15,6 +15,7 @@ import android.os.*;
 import android.util.Log;
 import androidx.annotation.RequiresPermission;
 import com.limelight.LimeLog;
+import com.limelight.preferences.PreferenceConfiguration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +30,7 @@ public class BluetoothDriverService extends Service {
     private Handler mHandler;
     private BluetoothManager mBluetoothManager;
     private List<BluetoothDevice> mLastBluetoothDevices;
+    private PreferenceConfiguration prefConfig;
     private final BroadcastReceiver mBluetoothBroadcast = new BluetoothEventReceiver();
     private final BluetoothDriverBinder binder = new BluetoothDriverBinder();
 
@@ -139,8 +141,10 @@ public class BluetoothDriverService extends Service {
 
                 SteamController device = mBluetoothDevices.get(bluetoothDevice);
                 device.reconnect();
+                return;
             }
-            SteamController device = new SteamController(listener, this, UsbDriverService.getNextDeviceId(), bluetoothDevice);
+            SteamController device = new SteamController(listener, this, UsbDriverService.getNextDeviceId(),
+                    bluetoothDevice, prefConfig.steamControllerEmulation);
             mBluetoothDevices.put(bluetoothDevice, device);
             device.start();
         }
@@ -204,6 +208,10 @@ public class BluetoothDriverService extends Service {
                     listener.deviceAdded(controller);
                 }
             }
+        }
+
+        public void setPreferenceConfiguration(PreferenceConfiguration prefConfig) {
+            BluetoothDriverService.this.prefConfig = prefConfig;
         }
     }
 

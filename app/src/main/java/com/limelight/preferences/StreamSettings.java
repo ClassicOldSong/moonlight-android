@@ -389,6 +389,7 @@ public class StreamSettings extends AppCompatActivity {
                 PreferenceCategory category =
                         (PreferenceCategory) findPreference("category_gamepad_settings");
                 category.removePreference(findPreference("checkbox_bluetooth_driver"));
+                category.removePreference(findPreference("steamcontroller_emulation"));
             }
 
             // Remove PiP mode on devices pre-Oreo, where the feature is not available (some low RAM devices),

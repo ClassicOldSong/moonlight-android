@@ -277,6 +277,15 @@
             android:title="@string/title_checkbox_bt_driver"
             android:summary="@string/summary_checkbox_bt_driver"
             app:iconSpaceReserved="false" />
+        <ListPreference
+            android:defaultValue="xbox"
+            android:dependency="checkbox_bluetooth_driver"
+            android:entries="@array/steamcontroller_emulation_names"
+            android:entryValues="@array/steamcontroller_emulation_values"
+            android:key="list_steamcontroller_emulation"
+            android:summary="@string/summary_steamcontroller_mode_list"
+            android:title="@string/title_steamcontroller_mode_list"
+            app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="true"
             android:key="checkbox_mouse_emulation"

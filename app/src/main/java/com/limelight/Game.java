@@ -264,6 +264,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             BluetoothDriverService.BluetoothDriverBinder binder = (BluetoothDriverService.BluetoothDriverBinder) iBinder;
             binder.setListener(controllerHandler);
+            binder.setPreferenceConfiguration(prefConfig);
             binder.start();
             connectedToBluetoothDriverService = true;
         }

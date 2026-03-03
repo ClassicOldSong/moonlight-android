@@ -236,6 +236,8 @@
     <string name="summary_checkbox_usb_bind_all">Use Artemis\'s USB driver for all supported gamepads, even if native Xbox/Nintendo Pro controller support is present</string>
     <string name="title_checkbox_bt_driver">Steam Controller Bluetooth gamepad driver</string>
     <string name="summary_checkbox_bt_driver">Enables a built-in Bluetooth driver for the Steam Controller</string>
+    <string name="title_steamcontroller_mode_list">Steam Controller emulation mode</string>
+    <string name="summary_steamcontroller_mode_list">Set the controller emulated by the Steam Controller:\nXbox shows buttons as A, B, X and Y\nDualSense enables gyroscope and LED support, but shows buttons as \u2715, \u25EF, \u25A1 and \u25B3</string>
     <string name="title_checkbox_mouse_emulation">Mouse emulation via gamepad</string>
     <string name="summary_checkbox_mouse_emulation">Long-press the Start button to toggle between gamepad and mouse mode</string>
     <string name="title_checkbox_remember_mouse_mode">Remember mouse mode</string>
@@ -331,6 +333,7 @@
 
     <!-- Toasts -->
     <string name="toast_controller_type_changed">Gamepad type may be changed due to motion sensor emulation</string>
+    <string name="toast_steam_controller_unsupported">Steam Controller 2 is not supported yet</string>
 
     <!-- Array strings -->
     <string name="resolution_360p">360p</string>
@@ -353,6 +356,9 @@
     <string name="videoformat_av1always">Prefer AV1 (Experimental)</string>
     <string name="videoformat_hevcalways">Prefer HEVC</string>
     <string name="videoformat_h264always">Prefer H.264</string>
+
+    <string name="steamcontroller_emulation_xbox">Xbox One S</string>
+    <string name="steamcontroller_emulation_ps5">DualSense (PlayStation 5)</string>
 
     <string name="title_frame_pacing">Video frame pacing</string>
     <string name="summary_frame_pacing">Specify how to balance video latency and smoothness</string>
