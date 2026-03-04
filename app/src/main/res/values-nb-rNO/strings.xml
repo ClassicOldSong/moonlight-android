@@ -128,8 +128,6 @@
     <string name="scut_pc_not_found">PC ikke funnet</string>
     <string name="scut_deleted_pc">PC slettet</string>
     <string name="summary_checkbox_mouse_emulation">Å lang-trykke «Start»-knappen veksler spillkontroller til musemodus</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Museemulering-følsomhet</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Markørhastighet ved styring av musen med en joystick</string>
     <string name="title_checkbox_usb_bind_all">Overstyr systemspesifikk kontrollerstøtte</string>
     <string name="summary_checkbox_xb1_driver">Skrur på en innebygd USB-driver for enheter uten systemspesifikk Xbox-kontrollerstøtte</string>
     <string name="summary_checkbox_vibrate_fallback">Vibrerer din kontroller for å emulere vibrasjon, hvis din kontroller støtter det</string>

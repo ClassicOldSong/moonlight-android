@@ -236,8 +236,6 @@
 	<string name="summary_checkbox_usb_bind_all">即使裝置具備原生 Xbox/Nintendo Pro 支援，也對所有支援的手把使用 Artemis 的 USB 驅動程式</string>
 	<string name="title_checkbox_mouse_emulation">以手把模擬滑鼠</string>
 	<string name="summary_checkbox_mouse_emulation">長按 Start 鍵可在手把模式與滑鼠模式間切換</string>
-	<string name="title_seekbar_mouse_emulation_sensitivity">滑鼠模擬靈敏度</string>
-	<string name="summary_seekbar_mouse_emulation_sensitivity">使用類比搖桿控制滑鼠時的游標速度</string>
 	<string name="title_checkbox_remember_mouse_mode">記住滑鼠模式</string>
 	<string name="summary_checkbox_remember_mouse_mode">記住串流期間所選的滑鼠模式。停用時，串流期間更改的滑鼠模式將是暫時的。</string>
 	<string name="title_checkbox_flip_face_buttons">交換面板按鍵</string>

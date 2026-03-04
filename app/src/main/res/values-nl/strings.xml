@@ -159,8 +159,6 @@
     <string name="summary_osc_opacity">Maak de on-screen besturingselementen minder of meer transparant</string>
     <string name="title_checkbox_mouse_emulation">Muis simulatie via gamepad</string>
     <string name="summary_checkbox_mouse_emulation">De startknop lang indrukken zal de muis-modus activeren op uw gamepad</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Gevoeligheid muis simulatie</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Cursorsnelheid bij het besturen van de muis met een joystick</string>
     <string name="title_checkbox_mouse_nav_buttons">Vorige en volgende muisknoppen activeren</string>
     <string name="summary_checkbox_flip_face_buttons">Schakelt de face-knoppen A/B en X/Y om voor gamepads en voor on-screen besturing</string>
     <string name="title_checkbox_vibrate_osc">Trillen inschakelen</string>
