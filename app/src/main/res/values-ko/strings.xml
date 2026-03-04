@@ -216,8 +216,6 @@
     <string name="summary_checkbox_usb_bind_all">Xbox 컨트롤러를 기본으로 지원하는 경우에도 지원되는 모든 컨트롤러에 Moonlight의 USB 드라이버를 사용합니다</string>
     <string name="title_checkbox_usb_bind_all">기본 Xbox 컨트롤러 지원 무시</string>
     <string name="title_checkbox_mouse_emulation">컨트롤러를 마우스처럼 사용하기</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">마우스 모드 감도</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">아날로그 스틱으로 마우스를 제어할 때의 커서 속도</string>
     <string name="perf_overlay_streamdetails">비디오 스트림 : %1$s %2$.2f FPS</string>
     <string name="unable_to_pin_shortcut">현재 런처에서는 바로가기 생성이 불가능합니다.</string>
     <string name="resolution_prefix_native_fullscreen">네이티브 (전체화면)</string>

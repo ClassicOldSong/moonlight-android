@@ -152,8 +152,6 @@
     <string name="summary_checkbox_usb_bind_all">Erzwingt die Verwendung von Moonlights USB Treiber für alle Xbox kompatiblen Controller</string>
     <string name="title_checkbox_mouse_emulation">Maus Emulation via Controller</string>
     <string name="summary_checkbox_mouse_emulation">Langes gedrückt halten der Start-Taste wechselt in den Maus Modus</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Maus Emulation Empfindlichkeit</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Zeigergeschwindigkeit bei der Maussteuerung mit dem Analogstick</string>
     <string name="title_checkbox_mouse_nav_buttons">Vor- und Zurück-Tasten aktivieren</string>
     <string name="summary_checkbox_mouse_nav_buttons">Aktivierung dieser Option kann auf fehleranfälligen Geräten Rechts-Clicks verunmöglichen</string>
     <string name="title_checkbox_flip_face_buttons">Tasten umkehren</string>

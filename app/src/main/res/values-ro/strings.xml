@@ -135,8 +135,6 @@
     <string name="summary_checkbox_usb_bind_all">Forțează driverul USB Moonlight să preia toate controllerele Xbox suportate</string>
     <string name="title_checkbox_mouse_emulation">Simulează mouse cu controllerul</string>
     <string name="summary_checkbox_mouse_emulation">Apăsarea lungă pe butonul Start schimba modul de operare a controllerului în modul mouse.</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Sensibilitate simulare mouse</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Viteza cursorului la controlul mouse-ului cu un joystick</string>
     <string name="title_checkbox_mouse_nav_buttons">Activează butoanele de înainte și înapoi ale mousului</string>
     <string name="summary_checkbox_mouse_nav_buttons">Această opțiune poate afecta click dreapta pentru unele dispozitive problematice.</string>
     <string name="category_on_screen_controls_settings">Setări ale controalelor pe ecran</string>

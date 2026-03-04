@@ -125,8 +125,6 @@
     <string name="summary_checkbox_usb_bind_all">Використовувати USB драйвер Moonlight для усіх підтриманих контролерів, навіть якщо існує рідна підтримка</string>
     <string name="title_checkbox_mouse_emulation">Емуляція миші через контролер</string>
     <string name="summary_checkbox_mouse_emulation">Довге натиснення ґудзика Start, перемкне контролер в режим миші</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Чутливість емуляції миші</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Швидкість курсора при керуванні мишею за допомогою аналогового стіку</string>
     <string name="title_reset_osc">Скинути власне розташування ґудзиків на екрані</string>
     <string name="summary_reset_osc">Повертає всі екранні елементи керування до їх розташуванням за замовчуванням</string>
     <string name="dialog_title_reset_osc">Скинути розташування</string>

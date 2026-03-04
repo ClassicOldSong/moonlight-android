@@ -188,8 +188,6 @@
     <string name="summary_checkbox_usb_bind_all">Use o driver USB do Moonlight para todos os gamepads suportados, mesmo se houver suporte nativo ao controle Xbox</string>
     <string name="title_checkbox_mouse_emulation">Emulação de mouse via gamepad</string>
     <string name="summary_checkbox_mouse_emulation">Segure o botão Start para mudar o gamepad para o modo de mouse</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Sensibilidade de emulação do mouse</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Velocidade do cursor ao controlar o mouse com um stick analógico</string>
     <string name="summary_checkbox_mouse_nav_buttons">Ativar esta opção pode bugar o clique com o botão direito em alguns dispositivos com bugs</string>
     <string name="summary_checkbox_flip_face_buttons">Inverte os botões A/B e X/Y dos gamepads e controles de tela</string>
     <string name="category_on_screen_controls_settings">Configurações de Controles de Tela</string>

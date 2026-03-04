@@ -63,8 +63,6 @@
     <string name="title_checkbox_xb1_driver">Sterownik USB gamepada Xbox 360/One</string>
     <string name="title_checkbox_usb_bind_all">Zastąpienie natywnej obsługi gamepada Xbox</string>
     <string name="title_checkbox_mouse_emulation">Emulacja myszy za pomocą gamepada</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Czułość emulacji myszy</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Prędkość kursora podczas sterowania myszą za pomocą drążka analogowego</string>
     <string name="title_checkbox_flip_face_buttons">Zamiana przycisków akcji A/B/X/Y</string>
     <string name="summary_checkbox_xb1_driver">Włącza wbudowany sterownik USB dla urządzeń bez natywnej obsługi kontrolera Xbox</string>
     <string name="summary_checkbox_usb_bind_all">Użyj sterownika USB Moonlight dla wszystkich obsługiwanych gamepadów, nawet jeśli natywna obsługa kontrolera Xbox jest obecna</string>

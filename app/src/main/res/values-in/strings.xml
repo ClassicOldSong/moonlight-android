@@ -204,8 +204,6 @@
     <string name="summary_seekbar_deadzone">Catatan: Beberapa game dapat menerapkan zona mati yang lebih besar daripada yang dikonfigurasi untuk digunakan oleh Moonlight.</string>
     <string name="title_checkbox_mouse_emulation">Emulasi mouse melalui gamepad</string>
     <string name="summary_checkbox_mouse_emulation">Menekan lama tombol Mulai akan mengalihkan gamepad ke mode mouse</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Sensitivitas emulasi mouse</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Kecepatan kursor saat mengontrol mouse dengan joystick</string>
     <string name="title_reset_osc">Hapus tata letak kontrol di layar yang disimpan</string>
     <string name="summary_checkbox_mouse_nav_buttons">Mengaktifkan opsi ini dapat merusak klik kanan pada beberapa perangkat bermasalah</string>
     <string name="title_checkbox_enable_pip">Aktifkan mode pengamat Gambar-dalam-Gambar</string>

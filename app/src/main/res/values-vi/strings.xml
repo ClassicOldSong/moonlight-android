@@ -216,8 +216,6 @@
     <string name="summary_checkbox_usb_bind_all">Sử dụng trình điều khiển USB của Artemis cho tất cả các gamepad được hỗ trợ, ngay cả khi hỗ trợ gamepad Xbox/Nintendo Pro gốc có mặt</string>
     <string name="title_checkbox_mouse_emulation">Mô phỏng chuột qua gamepad</string>
     <string name="summary_checkbox_mouse_emulation">Nhấn giữ nút Start sẽ chuyển gamepad sang chế độ chuột</string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">Độ nhạy mô phỏng chuột</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">Tốc độ con trỏ khi điều khiển chuột bằng cần analog</string>
     <string name="title_checkbox_flip_face_buttons">Đảo nút mặt</string>
     <string name="summary_checkbox_flip_face_buttons">Chuyển đổi các nút mặt A/B và X/Y cho gamepad và các điều khiển trên màn hình</string>
     <string name="title_checkbox_gamepad_touchpad_as_mouse">Luôn điều khiển chuột bằng bàn di chuột</string>

@@ -184,8 +184,6 @@
     <string name="summary_checkbox_usb_bind_all"> 强制 Artemis 的USB驱动接管所有受支持的Xbox/Nintendo Pro手柄 </string>
     <string name="title_checkbox_mouse_emulation"> 通过手柄模拟鼠标 </string>
     <string name="summary_checkbox_mouse_emulation"> 长按开始键将手柄切换为鼠标模式 </string>
-    <string name="title_seekbar_mouse_emulation_sensitivity">鼠标模拟灵敏度</string>
-    <string name="summary_seekbar_mouse_emulation_sensitivity">使用摇杆控制鼠标时的光标速度</string>
     <string name="title_checkbox_remember_mouse_mode">记住鼠标模式</string>
     <string name="summary_checkbox_remember_mouse_mode">记住在串流中选择的鼠标模式。禁用时，串流中改变的鼠标模式将是临时的。</string>
     <string name="title_checkbox_mouse_nav_buttons"> 启用前进后退鼠标键 </string>
