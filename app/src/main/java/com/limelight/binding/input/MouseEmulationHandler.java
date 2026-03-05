@@ -17,9 +17,9 @@ import java.util.List;
 
 public class MouseEmulationHandler {
 
-    private static final int MOUSE_EMULATION_REPORT_TICK_PERIOD_MS = 50;
+    private static final int MOUSE_EMULATION_TICK_RATE_HZ = 120; // Fluid & responsive cursor emulation, matches modern screens refresh rate
     private static final float RAW_STICK_AXIS_MAX = 32766.0f; // Limit is Short.MAX_VALUE - 1
-    private static final float MOUSE_EMULATION_BASE_SPEED_PX_PER_TICK = 4.0f;
+    private static final float MOUSE_MOVE_BASE_SPEED_PX_PER_S = 1200.0f; // Base cursor speed with max analog stick deflection
 
     public interface StickValueProvider {
         short getLeftStickX();
@@ -36,6 +36,7 @@ public class MouseEmulationHandler {
 
     private boolean active;
     private int lastInputMap;
+    private long lastTickTimeNs;
 
     public MouseEmulationHandler(NvConnection conn, PreferenceConfiguration prefConfig,
                                   Handler handler, Context activityContext,
@@ -54,6 +55,10 @@ public class MouseEmulationHandler {
                 return;
             }
 
+            long now = System.nanoTime();
+            float deltaTimeSec = (now - lastTickTimeNs) / 1_000_000_000.0f;
+            lastTickTimeNs = now;
+
             short leftStickX = stickProvider.getLeftStickX();
             short leftStickY = stickProvider.getLeftStickY();
             short rightStickX = stickProvider.getRightStickX();
@@ -61,21 +66,21 @@ public class MouseEmulationHandler {
 
             switch (prefConfig.analogStickForScrolling) {
             case RIGHT:
-                sendEmulatedMouseMove(leftStickX, leftStickY);
-                sendEmulatedMouseScroll(rightStickX, rightStickY);
+                sendEmulatedMouseMove(leftStickX, leftStickY, deltaTimeSec);
+                sendEmulatedMouseScroll(rightStickX, rightStickY, deltaTimeSec);
             break;
             case LEFT:
-                sendEmulatedMouseMove(rightStickX, rightStickY);
-                sendEmulatedMouseScroll(leftStickX, leftStickY);
+                sendEmulatedMouseMove(rightStickX, rightStickY, deltaTimeSec);
+                sendEmulatedMouseScroll(leftStickX, leftStickY, deltaTimeSec);
             break;
             case NONE:
             default:
-                sendEmulatedMouseMove(leftStickX, leftStickY);
-                sendEmulatedMouseMove(rightStickX, rightStickY);
+                sendEmulatedMouseMove(leftStickX, leftStickY, deltaTimeSec);
+                sendEmulatedMouseMove(rightStickX, rightStickY, deltaTimeSec);
             break;
             }
 
-            handler.postDelayed(this, MOUSE_EMULATION_REPORT_TICK_PERIOD_MS);
+            handler.postDelayed(this, 1000 / MOUSE_EMULATION_TICK_RATE_HZ);
         }
     };
 
@@ -89,7 +94,8 @@ public class MouseEmulationHandler {
         Toast.makeText(activityContext, "Mouse emulation is: " + (active ? "ON" : "OFF"),
                 Toast.LENGTH_SHORT).show();
         if (active) {
-            handler.postDelayed(tickRunnable, MOUSE_EMULATION_REPORT_TICK_PERIOD_MS);
+            lastTickTimeNs = System.nanoTime();
+            handler.postDelayed(tickRunnable, 1000 / MOUSE_EMULATION_TICK_RATE_HZ);
         }
     }
 
@@ -106,27 +112,29 @@ public class MouseEmulationHandler {
         return options;
     }
 
-    private Vector2d convertRawStickAxisToPixelMovement(short stickX, short stickY) {
+    private Vector2d convertRawStickAxisToSpeedPxPerSec(short stickX, short stickY) {
         Vector2d vector = new Vector2d();
         vector.initialize(stickX, stickY);
-        vector.scalarMultiply(MOUSE_EMULATION_BASE_SPEED_PX_PER_TICK / RAW_STICK_AXIS_MAX);
+        vector.scalarMultiply(1.0f / RAW_STICK_AXIS_MAX); // scale to [0; 1[
         if (vector.getMagnitude() > 0) {
             // Cubic acceleration: ramp up speed as stick moves further from center
-            vector.scalarMultiply(Math.pow(vector.getMagnitude(), 2));
+            vector.scalarMultiply(MOUSE_MOVE_BASE_SPEED_PX_PER_S * Math.pow(vector.getMagnitude(), 2));
         }
-        return vector;
+        return vector; // px/s
     }
 
-    private void sendEmulatedMouseMove(short x, short y) {
-        Vector2d vector = convertRawStickAxisToPixelMovement(x, y);
-        vector.scalarMultiply(prefConfig.mouseEmulationSensitivity / 100.0f);  // user sensitivity
+    private void sendEmulatedMouseMove(short x, short y, float deltaTimeSec) {
+        Vector2d vector = convertRawStickAxisToSpeedPxPerSec(x, y);
+        vector.scalarMultiply(deltaTimeSec);  // px/s * s = px
+        vector.scalarMultiply(prefConfig.mouseEmulationSensitivity / 100.0f); // user sensitivity
         if (vector.getMagnitude() >= 1) {
             conn.sendMouseMove((short) vector.getX(), (short) -vector.getY());
         }
     }
 
-    private void sendEmulatedMouseScroll(short x, short y) {
-        Vector2d vector = convertRawStickAxisToPixelMovement(x, y);
+    private void sendEmulatedMouseScroll(short x, short y, float deltaTimeSec) {
+        Vector2d vector = convertRawStickAxisToSpeedPxPerSec(x, y);
+        vector.scalarMultiply(deltaTimeSec);  // px/s * s = px
         if (vector.getMagnitude() >= 1) {
             conn.sendMouseHighResScroll((short) vector.getY());
             conn.sendMouseHighResHScroll((short) vector.getX());
