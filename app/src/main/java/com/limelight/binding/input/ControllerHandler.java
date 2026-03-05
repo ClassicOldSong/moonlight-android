@@ -1275,41 +1275,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             boolean aDown = (inputMap & ControllerPacket.A_FLAG) != 0;
             boolean bDown = (inputMap & ControllerPacket.B_FLAG) != 0;
 
-            boolean xDown = (inputMap & ControllerPacket.X_FLAG) != 0;
-            boolean yDown = (inputMap & ControllerPacket.Y_FLAG) != 0;
-
             originalContext.mouseEmulationLastInputMap = inputMap;
 
-            // Set the flag for the fixed pixel mouse movement while X_FLAG button is pressed
-            if((changedMask & ControllerPacket.X_FLAG) != 0)
-            {
-                // Set true when pressed
-                if( xDown ) {
-                    originalContext.mouseEmulationXDown = true;
-                }
-                // Set false when released
-                else
-                {
-                    originalContext.mouseEmulationXDown = false;
-                }
-            }
-
-            if((changedMask & ControllerPacket.Y_FLAG) != 0)
-            {
-                if( yDown )
-                {
-                    // Double the pixel multiplier every button press
-                    originalContext.mouseEmulationPixelMultiplier *= 2;
-                    if( originalContext.mouseEmulationPixelMultiplier > 255 )
-                    {
-                        // Reset the multiplier back to 1 if it gets too big
-                        originalContext.mouseEmulationPixelMultiplier = 1;
-                    }
-                }
-                else {
-                    // Do nothing as this is when the button is released; Holding the button will not continuously increase the pixel multiplier
-                }
-            }
             if ((changedMask & ControllerPacket.A_FLAG) != 0) {
                 if (aDown) {
                     conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
@@ -1967,21 +1934,11 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         return vector;
     }
 
-    private void sendEmulatedMouseMove(short x, short y, boolean mouseEmulationXDown, int mouseEmulationPixelMultiplier) {
+    private void sendEmulatedMouseMove(short x, short y) {
         Vector2d vector = convertRawStickAxisToPixelMovement(x, y);
         vector.scalarMultiply(prefConfig.mouseEmulationSensitivity / 100.0f);  // user sensitivity
         if (vector.getMagnitude() >= 1) {
-
-            // Used a fixed amount of mouse movement while the X button is pressed
-            if(mouseEmulationXDown == true )
-            {
-                // convert the vector number to -1 if negative and +1 if positive and then send the mouse movement in pixels
-                conn.sendMouseMove((short)(Integer.signum((int)vector.getX()) * mouseEmulationPixelMultiplier) , (short)(Integer.signum((int)-vector.getY()) * mouseEmulationPixelMultiplier) );
-            }
-            else {
-                // If X button is not pressed, base the movement on how much the stick is moved from the center
-                conn.sendMouseMove((short) vector.getX(), (short) -vector.getY());
-            }
+            conn.sendMouseMove((short) vector.getX(), (short) -vector.getY());
         }
     }
 
@@ -3055,8 +3012,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public short leftStickY = 0x0000;
 
         private boolean mouseEmulationActive;
-        public boolean mouseEmulationXDown = false;
-        public int mouseEmulationPixelMultiplier = 1;
 
         private int mouseEmulationLastInputMap;
 
@@ -3071,16 +3026,16 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 if (prefConfig.analogStickForScrolling == PreferenceConfiguration.AnalogStickForScrolling.RIGHT) {
 
                     // Changed absolute value
-                    sendEmulatedMouseMove(leftStickX, leftStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
+                    sendEmulatedMouseMove(leftStickX, leftStickY);
                     sendEmulatedMouseScroll(rightStickX, rightStickY);
                 }
                 else if (prefConfig.analogStickForScrolling == PreferenceConfiguration.AnalogStickForScrolling.LEFT) {
-                    sendEmulatedMouseMove(rightStickX, rightStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
+                    sendEmulatedMouseMove(rightStickX, rightStickY);
                     sendEmulatedMouseScroll(leftStickX, leftStickY);
                 }
                 else {
-                    sendEmulatedMouseMove(leftStickX, leftStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
-                    sendEmulatedMouseMove(rightStickX, rightStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
+                    sendEmulatedMouseMove(leftStickX, leftStickY);
+                    sendEmulatedMouseMove(rightStickX, rightStickY);
                 }
 
                 // Requeue the callback
