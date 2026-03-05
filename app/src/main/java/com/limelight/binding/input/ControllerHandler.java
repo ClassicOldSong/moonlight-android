@@ -73,9 +73,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private static final short MAX_GAMEPADS = 16; // Limited by bits in activeGamepadMask
 
     private static final int BATTERY_RECHECK_INTERVAL_MS = 120 * 1000;
-    private static final int MOUSE_EMULATION_REPORT_PERIOD_MS = 50;
-    private static final float STICK_AXIS_MAX = 32766.0f;
-    private static final float MOUSE_EMULATION_BASE_SPEED = 4.0f;
+    private static final int MOUSE_EMULATION_REPORT_TICK_PERIOD_MS = 50;
+    private static final float RAW_STICK_AXIS_MAX = 32766.0f; // Limit is Short.MAX_VALUE - 1
+    private static final float MOUSE_EMULATION_BASE_SPEED_PX_PER_TICK = 4.0f;
 
     private static final Map<Integer, Integer> ANDROID_TO_LI_BUTTON_MAP = Map.ofEntries(
             Map.entry(KeyEvent.KEYCODE_BUTTON_A, ControllerPacket.A_FLAG),
@@ -1926,7 +1926,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private Vector2d convertRawStickAxisToPixelMovement(short stickX, short stickY) {
         Vector2d vector = new Vector2d();
         vector.initialize(stickX, stickY);
-        vector.scalarMultiply(MOUSE_EMULATION_BASE_SPEED / STICK_AXIS_MAX);
+        vector.scalarMultiply(MOUSE_EMULATION_BASE_SPEED_PX_PER_TICK / RAW_STICK_AXIS_MAX);
         if (vector.getMagnitude() > 0) {
             // Cubic acceleration: ramp up speed as stick moves further from center
             vector.scalarMultiply(Math.pow(vector.getMagnitude(), 2));
@@ -3039,7 +3039,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 }
 
                 // Requeue the callback
-                mainThreadHandler.postDelayed(this, MOUSE_EMULATION_REPORT_PERIOD_MS);
+                mainThreadHandler.postDelayed(this, MOUSE_EMULATION_REPORT_TICK_PERIOD_MS);
             }
         };
 
@@ -3059,7 +3059,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             Toast.makeText(activityContext, "Mouse emulation is: " + (mouseEmulationActive ? "ON" : "OFF"), Toast.LENGTH_SHORT).show();
 
             if (mouseEmulationActive) {
-                mainThreadHandler.postDelayed(mouseEmulationRunnable, MOUSE_EMULATION_REPORT_PERIOD_MS);
+                mainThreadHandler.postDelayed(mouseEmulationRunnable, MOUSE_EMULATION_REPORT_TICK_PERIOD_MS);
             }
         }
 
