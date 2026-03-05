@@ -73,6 +73,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private static final short MAX_GAMEPADS = 16; // Limited by bits in activeGamepadMask
 
     private static final int BATTERY_RECHECK_INTERVAL_MS = 120 * 1000;
+    private static final int MOUSE_EMULATION_REPORT_PERIOD_MS = 50;
 
     private static final Map<Integer, Integer> ANDROID_TO_LI_BUTTON_MAP = Map.ofEntries(
             Map.entry(KeyEvent.KEYCODE_BUTTON_A, ControllerPacket.A_FLAG),
@@ -3052,12 +3053,11 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public short leftStickX = 0x0000;
         public short leftStickY = 0x0000;
 
-        public boolean mouseEmulationActive;
+        private boolean mouseEmulationActive;
         public boolean mouseEmulationXDown = false;
         public int mouseEmulationPixelMultiplier = 1;
 
-        public int mouseEmulationLastInputMap;
-        public final int mouseEmulationReportPeriod = 50;
+        private int mouseEmulationLastInputMap;
 
         public final Runnable mouseEmulationRunnable = new Runnable() {
             @Override
@@ -3083,7 +3083,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 }
 
                 // Requeue the callback
-                mainThreadHandler.postDelayed(this, mouseEmulationReportPeriod);
+                mainThreadHandler.postDelayed(this, MOUSE_EMULATION_REPORT_PERIOD_MS);
             }
         };
 
@@ -3103,7 +3103,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             Toast.makeText(activityContext, "Mouse emulation is: " + (mouseEmulationActive ? "ON" : "OFF"), Toast.LENGTH_SHORT).show();
 
             if (mouseEmulationActive) {
-                mainThreadHandler.postDelayed(mouseEmulationRunnable, mouseEmulationReportPeriod);
+                mainThreadHandler.postDelayed(mouseEmulationRunnable, MOUSE_EMULATION_REPORT_PERIOD_MS);
             }
         }
 
