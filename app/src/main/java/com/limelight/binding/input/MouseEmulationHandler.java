@@ -232,6 +232,7 @@ public class MouseEmulationHandler {
             }
         }
 
+        // Send an empty controller input to prevent unmapped buttons from being forwarded to the host
         conn.sendControllerInput(controllerNumber, activeControllerMask,
                 (short) 0, (byte) 0, (byte) 0, (short) 0, (short) 0, (short) 0, (short) 0);
     }
