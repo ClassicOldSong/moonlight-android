@@ -122,12 +122,13 @@ public class MouseEmulationHandler {
 
     private void convertRawStickAxisToSpeedPxPerSec(short stickX, short stickY, Vector2d out) {
         out.initialize(stickX, stickY);
-        out.scalarMultiply(1.0f / RAW_STICK_AXIS_MAX); // scale to [0; 1[
-        if (out.getMagnitude() > 0) {
-            // Cubic acceleration: ramp up speed as stick moves further from center
-            out.scalarMultiply(MOUSE_MOVE_BASE_SPEED_PX_PER_S * Math.pow(out.getMagnitude(), 2));
+        double normalizedMag = out.getMagnitude() / RAW_STICK_AXIS_MAX;
+        if (normalizedMag > 0) {
+            // Cubic response curve: speed = MAX_SPEED * (deflection / max)^3 in px/s
+            // Fine precision at low deflections, fast movement at full tilt
+            double targetSpeed = MOUSE_MOVE_BASE_SPEED_PX_PER_S * normalizedMag * normalizedMag * normalizedMag;
+            out.scalarMultiply(targetSpeed / out.getMagnitude());
         }
-        // out is now in px/s
     }
 
     private void sendEmulatedMouseMove(short x, short y, float deltaTimeSec) {
