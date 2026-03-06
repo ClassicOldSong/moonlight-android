@@ -37,6 +37,8 @@ public class MouseEmulationHandler {
     private boolean active;
     private int lastInputMap;
     private long lastTickTimeNs;
+    private float mouseMoveAccumX, mouseMoveAccumY;
+    private float scrollAccumX, scrollAccumY;
 
     public MouseEmulationHandler(NvConnection conn, PreferenceConfiguration prefConfig,
                                   Handler handler, Context activityContext,
@@ -97,11 +99,15 @@ public class MouseEmulationHandler {
             lastTickTimeNs = System.nanoTime();
             handler.postDelayed(tickRunnable, 1000 / MOUSE_EMULATION_TICK_RATE_HZ);
         }
+        else {
+            mouseMoveAccumX = mouseMoveAccumY = scrollAccumX = scrollAccumY = 0;
+        }
     }
 
     public void destroy() {
         active = false;
         handler.removeCallbacks(tickRunnable);
+        mouseMoveAccumX = mouseMoveAccumY = scrollAccumX = scrollAccumY = 0;
     }
 
     public List<GameMenu.MenuOption> getMenuOptions() {
@@ -127,17 +133,41 @@ public class MouseEmulationHandler {
         Vector2d vector = convertRawStickAxisToSpeedPxPerSec(x, y);
         vector.scalarMultiply(deltaTimeSec);  // px/s * s = px
         vector.scalarMultiply(prefConfig.mouseEmulationSensitivity / 100.0f); // user sensitivity
-        if (vector.getMagnitude() >= 1) {
-            conn.sendMouseMove((short) vector.getX(), (short) -vector.getY());
+
+        // Accumulate fractional pixels across ticks: sub-pixel deltas that would
+        // be lost by the short cast are carried over and compound until they reach 1 px
+        mouseMoveAccumX += vector.getX();
+        mouseMoveAccumY += vector.getY();
+        short dx = (short) mouseMoveAccumX;
+        short dy = (short) mouseMoveAccumY;
+
+        if (dx != 0 || dy != 0) {
+            conn.sendMouseMove(dx, (short) -dy);
+
+            mouseMoveAccumX -= dx;
+            mouseMoveAccumY -= dy;
         }
     }
 
     private void sendEmulatedMouseScroll(short x, short y, float deltaTimeSec) {
         Vector2d vector = convertRawStickAxisToSpeedPxPerSec(x, y);
         vector.scalarMultiply(deltaTimeSec);  // px/s * s = px
-        if (vector.getMagnitude() >= 1) {
-            conn.sendMouseHighResScroll((short) vector.getY());
-            conn.sendMouseHighResHScroll((short) vector.getX());
+
+        // Same fractional accumulation as mouse move, applied per scroll axis independently
+        scrollAccumX += vector.getX();
+        scrollAccumY += vector.getY();
+        short sx = (short) scrollAccumX;
+        short sy = (short) scrollAccumY;
+
+        if (sy != 0) {
+            conn.sendMouseHighResScroll(sy);
+
+            scrollAccumY -= sy;
+        }
+        if (sx != 0) {
+            conn.sendMouseHighResHScroll(sx);
+
+            scrollAccumX -= sx;
         }
     }
 
