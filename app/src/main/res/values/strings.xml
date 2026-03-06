@@ -235,7 +235,7 @@
     <string name="title_checkbox_usb_bind_all">Override native Xbox gamepad support</string>
     <string name="summary_checkbox_usb_bind_all">Use Artemis\'s USB driver for all supported gamepads, even if native Xbox/Nintendo Pro controller support is present</string>
     <string name="title_checkbox_mouse_emulation">Mouse emulation via gamepad</string>
-    <string name="summary_checkbox_mouse_emulation">Long-press the Start button to toggle between gamepad and mouse mode</string>
+    <string name="summary_checkbox_mouse_emulation">Long-press Start to toggle. Replaces the gamepad entirely: A/B = mouse buttons, D-pad = scroll, analog sticks = cursor</string>
     <string name="title_seekbar_mouse_emulation_sensitivity">Mouse emulation sensitivity</string>
     <string name="summary_seekbar_mouse_emulation_sensitivity">Cursor speed when controlling the mouse with an analog stick</string>
     <string name="title_checkbox_remember_mouse_mode">Remember mouse mode</string>

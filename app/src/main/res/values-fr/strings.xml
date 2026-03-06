@@ -209,7 +209,7 @@
     <string name="title_checkbox_usb_bind_all">Remplacer le support natif des manettes Xbox</string>
     <string name="summary_checkbox_usb_bind_all">Utilise le pilote USB d\'Artemis pour toutes les manettes prises en charge, même si le support natif des manettes Xbox/Nintendo Pro est présent</string>
     <string name="title_checkbox_mouse_emulation">Émulation de la souris via la manette</string>
-    <string name="summary_checkbox_mouse_emulation">Appuyez longuement sur le bouton Start pour basculer la manette en mode souris</string>
+    <string name="summary_checkbox_mouse_emulation">Appui long sur Start pour activer/désactiver. Remplace entièrement la manette : A/B = boutons souris, croix directionnelle = défilement, sticks = curseur</string>
     <string name="title_seekbar_mouse_emulation_sensitivity">Sensibilité de l\'émulation souris</string>
     <string name="summary_seekbar_mouse_emulation_sensitivity">Vitesse du curseur lors du contrôle de la souris avec un stick analogique</string>
     <string name="title_checkbox_flip_face_buttons">Inverser les boutons de façade</string>
