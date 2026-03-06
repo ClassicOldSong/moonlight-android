@@ -92,6 +92,16 @@ public class MouseEmulationHandler {
         return active;
     }
 
+    private void releaseHeldMouseButtons() {
+        if ((lastInputMap & ControllerPacket.A_FLAG) != 0) {
+            conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+        }
+        if ((lastInputMap & ControllerPacket.B_FLAG) != 0) {
+            conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
+        }
+        lastInputMap = 0;
+    }
+
     public void toggle() {
         handler.removeCallbacks(tickRunnable);
         active = !active;
@@ -102,6 +112,7 @@ public class MouseEmulationHandler {
             handler.postDelayed(tickRunnable, 1000 / MOUSE_EMULATION_TICK_RATE_HZ);
         }
         else {
+            releaseHeldMouseButtons();
             mouseMoveAccumX = mouseMoveAccumY = scrollAccumX = scrollAccumY = 0;
         }
     }
@@ -109,6 +120,7 @@ public class MouseEmulationHandler {
     public void destroy() {
         active = false;
         handler.removeCallbacks(tickRunnable);
+        releaseHeldMouseButtons();
         mouseMoveAccumX = mouseMoveAccumY = scrollAccumX = scrollAccumY = 0;
     }
 
