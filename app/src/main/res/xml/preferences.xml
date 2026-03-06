@@ -390,7 +390,6 @@
             android:key="checkbox_remember_mouse_mode"
             android:summary="@string/summary_checkbox_remember_mouse_mode"
             android:title="@string/title_checkbox_remember_mouse_mode"
-            android:dependency="checkbox_mouse_emulation"
             app:iconSpaceReserved="false" />
 
         <CheckBoxPreference
