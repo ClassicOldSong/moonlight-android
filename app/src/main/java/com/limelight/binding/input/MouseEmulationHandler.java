@@ -39,6 +39,8 @@ public class MouseEmulationHandler {
     private long lastTickTimeNs;
     private float mouseMoveAccumX, mouseMoveAccumY;
     private float scrollAccumX, scrollAccumY;
+    private final Vector2d moveVector = new Vector2d();
+    private final Vector2d scrollVector = new Vector2d();
 
     public MouseEmulationHandler(NvConnection conn, PreferenceConfiguration prefConfig,
                                   Handler handler, Context activityContext,
@@ -118,26 +120,25 @@ public class MouseEmulationHandler {
         return options;
     }
 
-    private Vector2d convertRawStickAxisToSpeedPxPerSec(short stickX, short stickY) {
-        Vector2d vector = new Vector2d();
-        vector.initialize(stickX, stickY);
-        vector.scalarMultiply(1.0f / RAW_STICK_AXIS_MAX); // scale to [0; 1[
-        if (vector.getMagnitude() > 0) {
+    private void convertRawStickAxisToSpeedPxPerSec(short stickX, short stickY, Vector2d out) {
+        out.initialize(stickX, stickY);
+        out.scalarMultiply(1.0f / RAW_STICK_AXIS_MAX); // scale to [0; 1[
+        if (out.getMagnitude() > 0) {
             // Cubic acceleration: ramp up speed as stick moves further from center
-            vector.scalarMultiply(MOUSE_MOVE_BASE_SPEED_PX_PER_S * Math.pow(vector.getMagnitude(), 2));
+            out.scalarMultiply(MOUSE_MOVE_BASE_SPEED_PX_PER_S * Math.pow(out.getMagnitude(), 2));
         }
-        return vector; // px/s
+        // out is now in px/s
     }
 
     private void sendEmulatedMouseMove(short x, short y, float deltaTimeSec) {
-        Vector2d vector = convertRawStickAxisToSpeedPxPerSec(x, y);
-        vector.scalarMultiply(deltaTimeSec);  // px/s * s = px
-        vector.scalarMultiply(prefConfig.mouseEmulationSensitivity / 100.0f); // user sensitivity
+        convertRawStickAxisToSpeedPxPerSec(x, y, moveVector);
+        moveVector.scalarMultiply(deltaTimeSec);  // px/s * s = px
+        moveVector.scalarMultiply(prefConfig.mouseEmulationSensitivity / 100.0f); // user sensitivity
 
         // Accumulate fractional pixels across ticks: sub-pixel deltas that would
         // be lost by the short cast are carried over and compound until they reach 1 px
-        mouseMoveAccumX += vector.getX();
-        mouseMoveAccumY += vector.getY();
+        mouseMoveAccumX += moveVector.getX();
+        mouseMoveAccumY += moveVector.getY();
         short dx = (short) mouseMoveAccumX;
         short dy = (short) mouseMoveAccumY;
 
@@ -150,12 +151,12 @@ public class MouseEmulationHandler {
     }
 
     private void sendEmulatedMouseScroll(short x, short y, float deltaTimeSec) {
-        Vector2d vector = convertRawStickAxisToSpeedPxPerSec(x, y);
-        vector.scalarMultiply(deltaTimeSec);  // px/s * s = px
+        convertRawStickAxisToSpeedPxPerSec(x, y, scrollVector);
+        scrollVector.scalarMultiply(deltaTimeSec);  // px/s * s = px
 
         // Same fractional accumulation as mouse move, applied per scroll axis independently
-        scrollAccumX += vector.getX();
-        scrollAccumY += vector.getY();
+        scrollAccumX += scrollVector.getX();
+        scrollAccumY += scrollVector.getY();
         short sx = (short) scrollAccumX;
         short sy = (short) scrollAccumY;
 

@@ -14,7 +14,7 @@ public class Vector2d {
     public void initialize(float x, float y) {
         this.x = x;
         this.y = y;
-        this.magnitude = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
+        this.magnitude = Math.sqrt(x * x + y * y);
     }
     
     public double getMagnitude() {
@@ -26,7 +26,9 @@ public class Vector2d {
     }
     
     public void scalarMultiply(double factor) {
-        initialize((float)(x * factor), (float)(y * factor));
+        x = (float)(x * factor);
+        y = (float)(y * factor);
+        magnitude *= Math.abs(factor);
     }
     
     public void setX(float x) {
