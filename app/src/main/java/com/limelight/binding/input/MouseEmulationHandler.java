@@ -19,7 +19,7 @@ public class MouseEmulationHandler {
 
     private static final int MOUSE_EMULATION_TICK_RATE_HZ = 120; // Fluid & responsive cursor emulation, matches modern screens refresh rate
     private static final float RAW_STICK_AXIS_MAX = 32766.0f; // Limit is Short.MAX_VALUE - 1
-    private static final float MOUSE_MOVE_BASE_SPEED_PX_PER_S = 1200.0f; // Base cursor speed with max analog stick deflection
+    private static final float MOUSE_MOVE_BASE_SPEED_PX_PER_S = 1200.0f; // Base cursor speed at full stick deflection, in px/s
 
     public interface StickValueProvider {
         short getLeftStickX();
@@ -137,7 +137,7 @@ public class MouseEmulationHandler {
         double normalizedMag = out.getMagnitude() / RAW_STICK_AXIS_MAX;
         if (normalizedMag > 0) {
             // Cubic response curve: speed = MAX_SPEED * (deflection / max)^3 in px/s
-            // Fine precision at low deflections, fast movement at full tilt
+            // Fine precision at low deflections, full speed at full tilt
             double targetSpeed = MOUSE_MOVE_BASE_SPEED_PX_PER_S * normalizedMag * normalizedMag * normalizedMag;
             out.scalarMultiply(targetSpeed / out.getMagnitude());
         }
