@@ -99,6 +99,26 @@ public class MouseEmulationHandler {
         if ((lastInputMap & ControllerPacket.B_FLAG) != 0) {
             conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
         }
+        if ((lastInputMap & ControllerPacket.Y_FLAG) != 0) {
+            conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+        }
+
+        switch (prefConfig.analogStickForScrolling) {
+            case RIGHT:
+                if ((lastInputMap & ControllerPacket.RS_CLK_FLAG) != 0) {
+                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+                }
+                break;
+            case LEFT:
+                if ((lastInputMap & ControllerPacket.LS_CLK_FLAG) != 0) {
+                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+                }
+                break;
+            case NONE:
+            default:
+                break;
+        }
+
         lastInputMap = 0;
     }
 
@@ -196,6 +216,9 @@ public class MouseEmulationHandler {
         int changedMask = inputMap ^ lastInputMap;
         boolean aDown = (inputMap & ControllerPacket.A_FLAG) != 0;
         boolean bDown = (inputMap & ControllerPacket.B_FLAG) != 0;
+        boolean yDown = (inputMap & ControllerPacket.Y_FLAG) != 0;
+        boolean rsClickDown = (inputMap & ControllerPacket.RS_CLK_FLAG) != 0;
+        boolean lsClickDown = (inputMap & ControllerPacket.LS_CLK_FLAG) != 0;
         lastInputMap = inputMap;
 
         if ((changedMask & ControllerPacket.A_FLAG) != 0) {
@@ -214,6 +237,41 @@ public class MouseEmulationHandler {
                 conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
             }
         }
+        if ((changedMask & ControllerPacket.Y_FLAG) != 0) {
+            if (yDown) {
+                conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+            }
+            else {
+                conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+            }
+        }
+
+        switch (prefConfig.analogStickForScrolling) {
+            case RIGHT:
+                if ((changedMask & ControllerPacket.RS_CLK_FLAG) != 0) {
+                    if (rsClickDown) {
+                        conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+                    }
+                    else {
+                        conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+                    }
+                }
+                break;
+            case LEFT:
+                if ((changedMask & ControllerPacket.LS_CLK_FLAG) != 0) {
+                    if (lsClickDown) {
+                        conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+                    }
+                    else {
+                        conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+                    }
+                }
+                break;
+            case NONE:
+            default:
+                break;
+        }
+
         if ((changedMask & ControllerPacket.UP_FLAG) != 0) {
             if ((inputMap & ControllerPacket.UP_FLAG) != 0) {
                 conn.sendMouseScroll((byte) 1);
