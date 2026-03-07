@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.anyByte;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +36,7 @@ import static org.mockito.Mockito.when;
 public class MouseEmulationHandlerTest {
 
     private NvConnection conn;
+    private PreferenceConfiguration prefConfig;
     private MouseEmulationHandler handler;
 
     @BeforeClass
@@ -52,7 +54,7 @@ public class MouseEmulationHandlerTest {
         when(stickProvider.getRightStickX()).thenReturn((short) 0);
         when(stickProvider.getRightStickY()).thenReturn((short) 0);
 
-        PreferenceConfiguration prefConfig = PreferenceConfiguration.readPreferences(ctx);
+        prefConfig = PreferenceConfiguration.readPreferences(ctx);
         prefConfig.mouseEmulationSensitivity = 100;
         prefConfig.analogStickForScrolling = PreferenceConfiguration.AnalogStickForScrolling.NONE;
 
@@ -144,5 +146,99 @@ public class MouseEmulationHandlerTest {
 
         verify(conn).sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
         verify(conn).sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
+    }
+
+    // -------------------------------------------------------------------------
+    // Middle click button mapping
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void buttonEdgeDetection_yFlag_sendsMmbDownAndUp() {
+        handler.toggle();
+
+        handler.handleButtonInput(ControllerPacket.Y_FLAG, (short) 0, (short) 1);
+        verify(conn).sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+
+        handler.handleButtonInput(0, (short) 0, (short) 1);
+        verify(conn).sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+    }
+
+    @Test
+    public void buttonEdgeDetection_rsClkFlag_sendsMmbDownAndUp() {
+        prefConfig.analogStickForScrolling = PreferenceConfiguration.AnalogStickForScrolling.RIGHT;
+        handler.toggle();
+
+        handler.handleButtonInput(ControllerPacket.RS_CLK_FLAG, (short) 0, (short) 1);
+        verify(conn).sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+
+        handler.handleButtonInput(0, (short) 0, (short) 1);
+        verify(conn).sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+    }
+
+    @Test
+    public void buttonEdgeDetection_lsClkFlag_sendsMmbDownAndUp() {
+        prefConfig.analogStickForScrolling = PreferenceConfiguration.AnalogStickForScrolling.LEFT;
+        handler.toggle();
+
+        handler.handleButtonInput(ControllerPacket.LS_CLK_FLAG, (short) 0, (short) 1);
+        verify(conn).sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+
+        handler.handleButtonInput(0, (short) 0, (short) 1);
+        verify(conn).sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+    }
+
+    @Test
+    public void buttonEdgeDetection_stickClkFlags_sendNoMmb_whenScrollingNone() {
+        handler.toggle();
+
+        handler.handleButtonInput(ControllerPacket.RS_CLK_FLAG | ControllerPacket.LS_CLK_FLAG, (short) 0, (short) 1);
+
+        verify(conn, never()).sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+        verify(conn, never()).sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+    }
+
+    @Test
+    public void buttonEdgeDetection_rsClkFlag_sendNoMmb_whenScrollingLeft() {
+        prefConfig.analogStickForScrolling = PreferenceConfiguration.AnalogStickForScrolling.LEFT;
+        handler.toggle();
+
+        handler.handleButtonInput(ControllerPacket.RS_CLK_FLAG, (short) 0, (short) 1);
+
+        verify(conn, never()).sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+        verify(conn, never()).sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+    }
+
+    @Test
+    public void buttonEdgeDetection_lsClkFlag_sendNoMmb_whenScrollingRight() {
+        prefConfig.analogStickForScrolling = PreferenceConfiguration.AnalogStickForScrolling.RIGHT;
+        handler.toggle();
+
+        handler.handleButtonInput(ControllerPacket.LS_CLK_FLAG, (short) 0, (short) 1);
+
+        verify(conn, never()).sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+        verify(conn, never()).sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+    }
+
+    @Test
+    public void toggleOff_releasesHeldYButton() {
+        handler.toggle(); // activate
+        handler.handleButtonInput(ControllerPacket.Y_FLAG, (short) 0, (short) 1);
+        verify(conn).sendMouseButtonDown(MouseButtonPacket.BUTTON_MIDDLE);
+
+        handler.toggle(); // deactivate
+        verify(conn).sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
+    }
+
+    @Test
+    public void destroy_releasesHeldMiddleClickButtons() {
+        prefConfig.analogStickForScrolling = PreferenceConfiguration.AnalogStickForScrolling.RIGHT;
+        handler.toggle();
+
+        handler.handleButtonInput(ControllerPacket.Y_FLAG | ControllerPacket.RS_CLK_FLAG, (short) 0, (short) 1);
+
+        handler.destroy();
+
+        // Y_FLAG and RS_CLK_FLAG each independently release BUTTON_MIDDLE
+        verify(conn, times(2)).sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
     }
 }
