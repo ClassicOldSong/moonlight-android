@@ -134,7 +134,10 @@ public class MouseEmulationHandler {
 
     private void convertRawStickAxisToSpeedPxPerSec(short stickX, short stickY, Vector2d out) {
         out.initialize(stickX, stickY);
-        double normalizedMag = out.getMagnitude() / RAW_STICK_AXIS_MAX;
+        // Clamp to 1.0: some controller firmwares calibrate axes independently, so full diagonal
+        // deflection can report (32766, 32766), giving a raw magnitude of 46340 and making the cursor
+        // go faster in diagonal than horizontally or vertically
+        double normalizedMag = Math.min(1.0, out.getMagnitude() / RAW_STICK_AXIS_MAX);
         if (normalizedMag > 0) {
             // Cubic response curve: speed = MAX_SPEED * (deflection / max)^3 in px/s
             // Fine precision at low deflections, full speed at full tilt
