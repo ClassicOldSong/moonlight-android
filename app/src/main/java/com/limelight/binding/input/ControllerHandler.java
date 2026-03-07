@@ -2914,27 +2914,27 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     class GenericControllerContext implements GameInputDevice, MouseEmulationHandler.StickValueProvider {
-        public int id;
-        public boolean external;
+        int id;
+        boolean external;
 
-        public int vendorId;
-        public int productId;
+        int vendorId;
+        int productId;
 
-        public float leftStickDeadzoneRadius;
-        public float rightStickDeadzoneRadius;
-        public float triggerDeadzone;
+        float leftStickDeadzoneRadius;
+        float rightStickDeadzoneRadius;
+        float triggerDeadzone;
 
-        public boolean assignedControllerNumber;
-        public boolean reservedControllerNumber;
-        public short controllerNumber;
+        boolean assignedControllerNumber;
+        boolean reservedControllerNumber;
+        short controllerNumber;
 
-        public int inputMap = 0;
-        public byte leftTrigger = 0x00;
-        public byte rightTrigger = 0x00;
-        public short rightStickX = 0x0000;
-        public short rightStickY = 0x0000;
-        public short leftStickX = 0x0000;
-        public short leftStickY = 0x0000;
+        int inputMap = 0;
+        byte leftTrigger = 0x00;
+        byte rightTrigger = 0x00;
+        short rightStickX = 0x0000;
+        short rightStickY = 0x0000;
+        short leftStickX = 0x0000;
+        short leftStickY = 0x0000;
 
         final MouseEmulationHandler mouseEmulation = new MouseEmulationHandler(
                 conn, prefConfig, mainThreadHandler, activityContext, this);
