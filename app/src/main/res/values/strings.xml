@@ -385,6 +385,8 @@
 
     <string name="game_menu_toggle_mouse_on">Enable Controller Mouse Emulation</string>
     <string name="game_menu_toggle_mouse_off">Disable Controller Mouse Emulation</string>
+    <string name="mouse_emulation_on">Mouse emulation is: ON</string>
+    <string name="mouse_emulation_off">Mouse emulation is: OFF</string>
     <string name="game_menu_disconnect">Disconnect</string>
     <string name="game_menu_cancel">Cancel</string>
     <string name="game_menu_task_manager">Open Task Manager</string>

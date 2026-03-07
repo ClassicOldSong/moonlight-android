@@ -346,6 +346,8 @@
     <string name="game_menu_switch_touch_sensitivity_model">Changer la sensibilité tactile</string>
     <string name="game_menu_toggle_mouse_on">Activer l\'émulation de la souris par la manette</string>
     <string name="game_menu_toggle_mouse_off">Désactiver l\'émulation de la souris par la manette</string>
+    <string name="mouse_emulation_on">Émulation de la souris : ON</string>
+    <string name="mouse_emulation_off">Émulation de la souris : OFF</string>
     <string name="game_menu_disconnect">Déconnecter</string>
     <string name="game_menu_cancel">Annuler</string>
     <string name="game_menu_task_manager">Ouvrir le gestionnaire des tâches</string>

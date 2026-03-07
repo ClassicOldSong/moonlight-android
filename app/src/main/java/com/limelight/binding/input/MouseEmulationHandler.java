@@ -125,7 +125,8 @@ public class MouseEmulationHandler {
     public void toggle() {
         handler.removeCallbacks(tickRunnable);
         active = !active;
-        Toast.makeText(activityContext, "Mouse emulation is: " + (active ? "ON" : "OFF"),
+        Toast.makeText(activityContext, activityContext.getString(active ?
+                R.string.mouse_emulation_on : R.string.mouse_emulation_off),
                 Toast.LENGTH_SHORT).show();
         if (active) {
             lastTickTimeNs = System.nanoTime();
