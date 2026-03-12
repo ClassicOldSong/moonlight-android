@@ -2078,6 +2078,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 return false;
             }
 
+            if (event.getKeyCode() == KeyEvent.KEYCODE_HOME) {
+                disconnect();
+            }
+
             // We'll send it as a raw key event if we have a key mapping, otherwise we'll send it
             // as UTF-8 text (if it's a printable character).
             short translated = keyboardTranslator.translate(event.getKeyCode(), event.getScanCode(), deviceId);
