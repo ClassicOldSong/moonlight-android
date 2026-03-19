@@ -2,6 +2,7 @@ package com.limelight.preferences;
 
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -50,6 +51,7 @@ import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.PcView;
 import com.limelight.R;
+import com.limelight.binding.audio.MicrophoneCaptureManager;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardControllerConfigurationLoader;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.utils.Dialog;
@@ -162,10 +164,19 @@ public class StreamSettings extends AppCompatActivity {
     }
 
     public static class SettingsFragment extends PreferenceFragmentCompat {
+        private static final int READ_REQUEST_CODE = 1001;
+        private static final int READ_REQUEST_SPECIAL_CODE = 1002;
+        private static final int RECORD_AUDIO_PERMISSION_REQUEST_CODE = 1003;
+
         private int nativeResolutionStartIndex = Integer.MAX_VALUE;
         private boolean nativeFramerateShown = false;
 
         private PreferenceConfiguration prevPrefConfig;
+        private MicrophoneCaptureManager microphoneCaptureManager;
+        private CheckBoxPreference microphoneEnablePreference;
+        private ListPreference microphoneDevicePreference;
+        private MicrophonePreviewPreference microphonePreviewPreference;
+        private boolean pendingMicrophoneEnableAfterPermission;
 
         public SettingsFragment(PreferenceConfiguration prefCfg) {
             prevPrefConfig = prefCfg;
@@ -394,6 +405,8 @@ public class StreamSettings extends AppCompatActivity {
                         (PreferenceCategory) findPreference("category_ui_settings");
                 category.removePreference(findPreference("checkbox_enable_pip"));
             }
+
+            initializeMicrophonePreferences(screen);
 
             // Fire TV apps are not allowed to use WebViews or browsers, so hide the Help category
             /*if (getActivity().getPackageManager().hasSystemFeature("amazon.hardware.fire_tv")) {
@@ -958,6 +971,163 @@ public class StreamSettings extends AppCompatActivity {
             }
         }
 
+        private void initializeMicrophonePreferences(PreferenceScreen screen) {
+            microphoneEnablePreference = findPreference(PreferenceConfiguration.ENABLE_MICROPHONE_PREF_STRING);
+            microphoneDevicePreference = findPreference(PreferenceConfiguration.MICROPHONE_DEVICE_PREF_STRING);
+            microphonePreviewPreference = findPreference("microphone_preview");
+
+            if (microphoneEnablePreference != null) {
+                microphoneEnablePreference.setOnPreferenceChangeListener((preference, newValue) -> {
+                    boolean enableMicrophone = (Boolean) newValue;
+
+                    if (enableMicrophone &&
+                            !MicrophoneCaptureManager.hasRecordAudioPermission(requireContext())) {
+                        pendingMicrophoneEnableAfterPermission = true;
+                        requestPermissions(
+                                new String[] { Manifest.permission.RECORD_AUDIO },
+                                RECORD_AUDIO_PERMISSION_REQUEST_CODE);
+                        return false;
+                    }
+
+                    pendingMicrophoneEnableAfterPermission = false;
+                    getPrefs().edit()
+                            .putBoolean(PreferenceConfiguration.ENABLE_MICROPHONE_PREF_STRING, enableMicrophone)
+                            .apply();
+                    microphoneEnablePreference.setChecked(enableMicrophone);
+
+                    if (isResumed()) {
+                        refreshMicrophonePreview();
+                    }
+                    return false;
+                });
+            }
+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                getPrefs().edit()
+                        .putString(PreferenceConfiguration.MICROPHONE_DEVICE_PREF_STRING, "0")
+                        .apply();
+                screen.removePreferenceRecursively(PreferenceConfiguration.MICROPHONE_DEVICE_PREF_STRING);
+                microphoneDevicePreference = null;
+            }
+            else {
+                populateMicrophoneDevicePreference();
+
+                if (microphoneDevicePreference != null) {
+                    microphoneDevicePreference.setOnPreferenceChangeListener((preference, newValue) -> {
+                        String selectedDeviceId = (String) newValue;
+                        getPrefs().edit()
+                                .putString(PreferenceConfiguration.MICROPHONE_DEVICE_PREF_STRING, selectedDeviceId)
+                                .apply();
+                        microphoneDevicePreference.setValue(selectedDeviceId);
+
+                        if (isResumed()) {
+                            refreshMicrophonePreview();
+                        }
+                        return false;
+                    });
+                }
+            }
+
+            if (microphonePreviewPreference != null) {
+                int statusResId = MicrophoneCaptureManager.hasRecordAudioPermission(requireContext()) ?
+                        R.string.microphone_preview_inactive :
+                        R.string.microphone_preview_permission_required;
+                microphonePreviewPreference.updatePreviewState(getString(statusResId), 0.0, false);
+            }
+        }
+
+        private void populateMicrophoneDevicePreference() {
+            if (microphoneDevicePreference == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                return;
+            }
+
+            java.util.List<MicrophoneCaptureManager.InputDeviceEntry> deviceEntries =
+                    MicrophoneCaptureManager.getAvailableInputDevices(requireContext());
+            CharSequence[] labels = new CharSequence[deviceEntries.size() + 1];
+            CharSequence[] values = new CharSequence[deviceEntries.size() + 1];
+
+            labels[0] = getString(R.string.microphone_device_default);
+            values[0] = "0";
+
+            String selectedValue = getPrefs().getString(
+                    PreferenceConfiguration.MICROPHONE_DEVICE_PREF_STRING, "0");
+            boolean hasSelectedDevice = "0".equals(selectedValue);
+
+            for (int i = 0; i < deviceEntries.size(); i++) {
+                MicrophoneCaptureManager.InputDeviceEntry deviceEntry = deviceEntries.get(i);
+                labels[i + 1] = deviceEntry.label;
+                values[i + 1] = Integer.toString(deviceEntry.id);
+                if (values[i + 1].equals(selectedValue)) {
+                    hasSelectedDevice = true;
+                }
+            }
+
+            if (!hasSelectedDevice) {
+                selectedValue = "0";
+                getPrefs().edit()
+                        .putString(PreferenceConfiguration.MICROPHONE_DEVICE_PREF_STRING, selectedValue)
+                        .apply();
+                if (microphonePreviewPreference != null) {
+                    microphonePreviewPreference.updatePreviewState(
+                            getString(R.string.microphone_preview_selected_missing), 0.0, false);
+                }
+            }
+
+            microphoneDevicePreference.setEntries(labels);
+            microphoneDevicePreference.setEntryValues(values);
+            microphoneDevicePreference.setValue(selectedValue);
+        }
+
+        private int getSelectedMicrophoneDeviceId() {
+            String selectedValue = getPrefs().getString(
+                    PreferenceConfiguration.MICROPHONE_DEVICE_PREF_STRING, "0");
+            try {
+                return Integer.parseInt(selectedValue);
+            }
+            catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+
+        private MicrophoneCaptureManager getMicrophoneCaptureManager() {
+            if (microphoneCaptureManager == null) {
+                microphoneCaptureManager = new MicrophoneCaptureManager(requireContext());
+            }
+            return microphoneCaptureManager;
+        }
+
+        private void refreshMicrophonePreview() {
+            if (!isAdded() || microphonePreviewPreference == null) {
+                return;
+            }
+
+            stopMicrophonePreview();
+
+            if (!MicrophoneCaptureManager.hasRecordAudioPermission(requireContext())) {
+                microphonePreviewPreference.updatePreviewState(
+                        getString(R.string.microphone_preview_permission_required), 0.0, false);
+                return;
+            }
+
+            if (!getMicrophoneCaptureManager().startPreview(
+                    getSelectedMicrophoneDeviceId(),
+                    (level, signalDetected, status) -> {
+                        if (microphonePreviewPreference != null) {
+                            microphonePreviewPreference.updatePreviewState(
+                                    status, level, signalDetected);
+                        }
+                    })) {
+                microphonePreviewPreference.updatePreviewState(
+                        getString(R.string.microphone_preview_open_failed), 0.0, false);
+            }
+        }
+
+        private void stopMicrophonePreview() {
+            if (microphoneCaptureManager != null) {
+                microphoneCaptureManager.stop();
+            }
+        }
+
         private void removeEntryFromListAndSetValue(String resolutionPrefString, String entryToRemove, String nextDefault) {
             removeValue(resolutionPrefString, entryToRemove, new Runnable() {
                 @Override
@@ -992,8 +1162,24 @@ public class StreamSettings extends AppCompatActivity {
             }, 500);
         }
 
-        int READ_REQUEST_CODE = 1001;
-        int READ_REQUEST_SPECIAL_CODE = 1002;
+        @Override
+        public void onResume() {
+            super.onResume();
+            refreshMicrophonePreview();
+        }
+
+        @Override
+        public void onPause() {
+            stopMicrophonePreview();
+            super.onPause();
+        }
+
+        @Override
+        public void onDestroy() {
+            stopMicrophonePreview();
+            microphoneCaptureManager = null;
+            super.onDestroy();
+        }
 
         @Override
         public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -1041,6 +1227,45 @@ public class StreamSettings extends AppCompatActivity {
                     e.printStackTrace();
                     Toast.makeText(getActivity(), getString(R.string.pref_error_occurred) + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
+            }
+        }
+
+        @Override
+        public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+            if (requestCode != RECORD_AUDIO_PERMISSION_REQUEST_CODE) {
+                return;
+            }
+
+            boolean granted = grantResults.length > 0 &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED;
+
+            if (granted) {
+                if (pendingMicrophoneEnableAfterPermission && microphoneEnablePreference != null) {
+                    getPrefs().edit()
+                            .putBoolean(PreferenceConfiguration.ENABLE_MICROPHONE_PREF_STRING, true)
+                            .apply();
+                    microphoneEnablePreference.setChecked(true);
+                }
+                pendingMicrophoneEnableAfterPermission = false;
+                if (isResumed()) {
+                    refreshMicrophonePreview();
+                }
+                return;
+            }
+
+            pendingMicrophoneEnableAfterPermission = false;
+            if (microphoneEnablePreference != null) {
+                microphoneEnablePreference.setChecked(false);
+            }
+            getPrefs().edit()
+                    .putBoolean(PreferenceConfiguration.ENABLE_MICROPHONE_PREF_STRING, false)
+                    .apply();
+            Toast.makeText(requireContext(), R.string.microphone_permission_denied, Toast.LENGTH_SHORT).show();
+            if (microphonePreviewPreference != null) {
+                microphonePreviewPreference.updatePreviewState(
+                        getString(R.string.microphone_preview_permission_required), 0.0, false);
             }
         }
 

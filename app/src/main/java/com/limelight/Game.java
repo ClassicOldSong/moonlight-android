@@ -10,6 +10,7 @@ import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
 
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
+import com.limelight.binding.audio.MicrophoneCaptureManager;
 import com.limelight.binding.input.ControllerHandler;
 import com.limelight.binding.input.GameInputDevice;
 import com.limelight.binding.input.KeyboardTranslator;
@@ -232,6 +233,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     private MediaCodecDecoderRenderer decoderRenderer;
     private boolean reportedCrash;
+    private MicrophoneCaptureManager microphoneCaptureManager;
 
     private WifiManager.WifiLock highPerfWifiLock;
     private WifiManager.WifiLock lowLatencyWifiLock;
@@ -796,6 +798,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .setAttachedGamepadMask(gamepadMask)
                 .setClientRefreshRateX100((int)(displayRefreshRate * 100))
                 .setAudioConfiguration(prefConfig.audioConfiguration)
+                .setEnableMicrophone(prefConfig.enableMicrophone)
                 .setColorSpace(decoderRenderer.getPreferredColorSpace())
                 .setColorRange(decoderRenderer.getPreferredColorRange())
                 .setPersistGamepadsAfterDisconnect(!prefConfig.multiController)
@@ -1700,6 +1703,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     protected void onDestroy() {
+        stopMicrophoneCapture();
         super.onDestroy();
 
         instance = null;
@@ -3437,6 +3441,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void stopConnection() {
+        stopMicrophoneCapture();
+
         if (connecting || connected) {
             connecting = connected = false;
             updatePipAutoEnter();
@@ -3465,6 +3471,42 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     }
                 }
             }.start();
+        }
+    }
+
+    private void stopMicrophoneCapture() {
+        if (microphoneCaptureManager != null) {
+            microphoneCaptureManager.stop();
+        }
+    }
+
+    private void startMicrophoneCapture() {
+        if (!prefConfig.enableMicrophone) {
+            return;
+        }
+
+        if (!MicrophoneCaptureManager.hasRecordAudioPermission(this)) {
+            LimeLog.info("Skipping microphone capture because RECORD_AUDIO permission is missing");
+            displayTransientMessage(getString(R.string.microphone_stream_permission_revoked));
+            return;
+        }
+
+        if (!MoonBridge.isMicrophoneStreamActive()) {
+            LimeLog.info("Host did not negotiate microphone streaming");
+            displayTransientMessage(getString(R.string.microphone_host_not_negotiated));
+            return;
+        }
+
+        if (microphoneCaptureManager == null) {
+            microphoneCaptureManager = new MicrophoneCaptureManager(this);
+        }
+
+        LimeLog.info("Starting microphone streaming on device id " + prefConfig.microphoneDeviceId +
+                " (encrypted=" + MoonBridge.isMicrophoneEncryptionEnabled() + ")");
+
+        if (!microphoneCaptureManager.startStreaming(prefConfig.microphoneDeviceId, null)) {
+            LimeLog.warning("Unable to start local microphone capture for the current stream");
+            displayTransientMessage(getString(R.string.microphone_stream_start_failed));
         }
     }
 
@@ -3697,6 +3739,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 setupOverlayToggleButton();
 
                 hideSystemUi(1000);
+                startMicrophoneCapture();
 
                 if (prefConfig.preventPacketLoss) {
                     timerHandler.postDelayed(backgroundPing, 1000);

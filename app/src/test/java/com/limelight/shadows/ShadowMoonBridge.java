@@ -1,10 +1,20 @@
 package com.limelight.shadows;
 
+import com.limelight.nvstream.NvConnectionListener;
+import com.limelight.nvstream.av.audio.AudioRenderer;
+import com.limelight.nvstream.av.video.VideoDecoderRenderer;
+
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 
 @Implements(value = com.limelight.nvstream.jni.MoonBridge.class, isInAndroidSdk = false)
 public class ShadowMoonBridge {
+    public static boolean lastStartConnectionEnableMicrophone;
+    public static boolean microphoneStreamActive;
+    public static boolean microphoneEncryptionEnabled;
+    public static int setupMicrophoneEncoderResult;
+    public static int lastQueuedMicrophoneSampleCount;
+    public static boolean microphoneStreamingStarted;
 
     // Static initializer override to prevent System.loadLibrary
     @Implementation
@@ -34,5 +44,82 @@ public class ShadowMoonBridge {
     public static int getPendingAudioDuration() { return 0; }
 
     // stubbed methods used by code but not relevant to unit tests
+    public static void reset() {
+        lastStartConnectionEnableMicrophone = false;
+        microphoneStreamActive = false;
+        microphoneEncryptionEnabled = false;
+        setupMicrophoneEncoderResult = 0;
+        lastQueuedMicrophoneSampleCount = 0;
+        microphoneStreamingStarted = false;
+    }
+
+    @Implementation
+    protected static void init() {
+    }
+
+    @Implementation
+    protected static void setupBridge(VideoDecoderRenderer videoRenderer,
+                                      AudioRenderer audioRenderer,
+                                      NvConnectionListener connectionListener) {
+    }
+
     public static void cleanupBridge() {}
+
+    @Implementation
+    protected static int startConnection(String address, String appVersion, String gfeVersion,
+                                         String rtspSessionUrl, int serverCodecModeSupport,
+                                         int width, int height, int fps,
+                                         int bitrate, int packetSize, int streamingRemotely,
+                                         int audioConfiguration, int supportedVideoFormats,
+                                         int clientRefreshRateX100,
+                                         byte[] riAesKey, byte[] riAesIv,
+                                         int videoCapabilities,
+                                         int colorSpace, int colorRange,
+                                         boolean enableMicrophone) {
+        lastStartConnectionEnableMicrophone = enableMicrophone;
+        return 0;
+    }
+
+    @Implementation
+    protected static void stopConnection() {
+    }
+
+    @Implementation
+    protected static void interruptConnection() {
+    }
+
+    @Implementation
+    protected static boolean isMicrophoneStreamActive() {
+        return microphoneStreamActive;
+    }
+
+    @Implementation
+    protected static boolean isMicrophoneEncryptionEnabled() {
+        return microphoneEncryptionEnabled;
+    }
+
+    @Implementation
+    protected static int setupMicrophoneEncoder(int sampleRate, int channelCount, int bitrate) {
+        return setupMicrophoneEncoderResult;
+    }
+
+    @Implementation
+    protected static void startMicrophoneStreaming() {
+        microphoneStreamingStarted = true;
+    }
+
+    @Implementation
+    protected static void stopMicrophoneStreaming() {
+        microphoneStreamingStarted = false;
+    }
+
+    @Implementation
+    protected static void cleanupMicrophoneEncoder() {
+    }
+
+    @Implementation
+    protected static int queueMicrophonePcm(short[] pcmData, int sampleCount) {
+        lastQueuedMicrophoneSampleCount = sampleCount;
+        return sampleCount;
+    }
 }

@@ -218,6 +218,26 @@
     <string name="summary_audio_config_list">Enable 5.1 or 7.1 surround sound for home-theater systems</string>
     <string name="title_checkbox_enable_audiofx">Enable system equalizer support</string>
     <string name="summary_checkbox_enable_audiofx">Allows audio effects to function while streaming, but may increase audio latency</string>
+    <string name="title_checkbox_enable_microphone">Enable microphone streaming</string>
+    <string name="summary_checkbox_enable_microphone">Streams your microphone audio to the host PC when the host supports microphone passthrough.</string>
+    <string name="title_microphone_device_list">Microphone input device</string>
+    <string name="summary_microphone_device_list">Choose which local microphone Artemis captures. Leave this on the default option to follow your system input device.</string>
+    <string name="microphone_device_default">Default system microphone</string>
+    <string name="title_microphone_preview">Microphone input preview</string>
+    <string name="microphone_preview_inactive">Microphone preview inactive</string>
+    <string name="microphone_preview_permission_required">Microphone permission is required</string>
+    <string name="microphone_preview_signal_detected">Input detected on the selected microphone.</string>
+    <string name="microphone_preview_signal_missing">No microphone input detected yet.</string>
+    <string name="microphone_preview_selected_missing">Selected microphone unavailable, previewing the system default input</string>
+    <string name="microphone_preview_default_active">Previewing the default microphone input</string>
+    <string name="microphone_preview_selected_active">Previewing the selected microphone input</string>
+    <string name="microphone_preview_open_failed">Microphone preview unavailable: could not open the selected input</string>
+    <string name="microphone_encoder_setup_failed">Unable to prepare the microphone encoder</string>
+    <string name="microphone_capture_start_failed">Unable to start microphone capture</string>
+    <string name="microphone_permission_denied">Microphone permission denied</string>
+    <string name="microphone_host_not_negotiated">Host did not negotiate microphone streaming; leaving client microphone disabled</string>
+    <string name="microphone_stream_permission_revoked">Microphone capture skipped because RECORD_AUDIO permission is not granted</string>
+    <string name="microphone_stream_start_failed">Unable to start local microphone capture; continuing without microphone input</string>
 
     <string name="category_gamepad_settings">Gamepad Settings</string>
     <string name="title_checkbox_multi_controller">Automatic gamepad presence detection</string>
@@ -726,6 +746,18 @@
     <string name="title_low_latency_frame_balance">LFR (Experimental)</string>
     <string name="summary_low_latency_frame_balance">Minimizes delay by dropping queued frames.</string>
     <string name="category_perf_monitor_settings">Performance Monitor</string>
+    <string name="category_perf_charts">Performance Charts</string>
+    <string name="desc_chart_latency">Network latency chart</string>
+    <string name="desc_chart_decode">Decode time chart</string>
+    <string name="desc_chart_fps">FPS chart</string>
+    <string name="title_enable_perf_charts">Enable performance charts</string>
+    <string name="summary_enable_perf_charts">Show performance charts in the in-game overlay.</string>
+    <string name="title_perf_chart_latency">Chart: Network latency</string>
+    <string name="summary_perf_chart_latency">Show average network latency in milliseconds.</string>
+    <string name="title_perf_chart_decode">Chart: Decode time</string>
+    <string name="summary_perf_chart_decode">Show frame decode time in milliseconds.</string>
+    <string name="title_perf_chart_fps">Chart: FPS</string>
+    <string name="summary_perf_chart_fps">Show incoming and rendered frames per second.</string>
 
     <string name="title_checkbox_full_screen">Enable Full Screen</string>
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>
