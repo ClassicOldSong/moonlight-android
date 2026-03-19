@@ -31,6 +31,7 @@ public class StreamConfiguration {
     private int colorSpace;
     private boolean persistGamepadsAfterDisconnect;
     private boolean enableUltraLowLatency;
+    private boolean enableMicrophone;
 
     public static class Builder {
         private StreamConfiguration config = new StreamConfiguration();
@@ -146,6 +147,11 @@ public class StreamConfiguration {
             return this;
         }
 
+        public StreamConfiguration.Builder setEnableMicrophone(boolean enable) {
+            config.enableMicrophone = enable;
+            return this;
+        }
+
         public StreamConfiguration build() {
             return config;
         }
@@ -257,5 +263,9 @@ public class StreamConfiguration {
 
     public boolean getEnableUltraLowLatency() {
         return enableUltraLowLatency;
+    }
+
+    public boolean getEnableMicrophone() {
+        return enableMicrophone;
     }
 }

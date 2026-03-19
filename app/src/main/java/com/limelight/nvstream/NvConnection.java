@@ -454,31 +454,40 @@ public class NvConnection {
 
                 // Moonlight-core is not thread-safe with respect to connection start and stop, so
                 // we must not invoke that functionality in parallel.
-                synchronized (MoonBridge.class) {
-                    MoonBridge.setupBridge(videoDecoderRenderer, audioRenderer, connectionListener);
-                    int ret = MoonBridge.startConnection(context.serverAddress.address,
-                            context.serverAppVersion, context.serverGfeVersion, context.rtspSessionUrl,
-                            context.serverCodecModeSupport,
-                            context.negotiatedWidth, context.negotiatedHeight,
-                            context.streamConfig.getRefreshRate(), context.streamConfig.getBitrate(),
-                            context.negotiatedPacketSize, context.negotiatedRemoteStreaming,
-                            context.streamConfig.getAudioConfiguration().toInt(),
-                            context.streamConfig.getSupportedVideoFormats(),
-                            context.streamConfig.getClientRefreshRateX100(),
-                            context.riKey.getEncoded(), ib.array(),
-                            context.videoCapabilities,
-                            context.streamConfig.getColorSpace(),
-                            context.streamConfig.getColorRange());
-                    if (ret != 0) {
-                        // LiStartConnection() failed, so the caller is not expected
-                        // to stop the connection themselves. We need to release their
-                        // semaphore count for them.
-                        connectionAllowed.release();
-                        return;
-                    }
+                int ret = startBridgeConnection(context, ib.array(),
+                        audioRenderer, videoDecoderRenderer, connectionListener);
+                if (ret != 0) {
+                    // LiStartConnection() failed, so the caller is not expected
+                    // to stop the connection themselves. We need to release their
+                    // semaphore count for them.
+                    connectionAllowed.release();
+                    return;
                 }
             }
         }).start();
+    }
+
+    static int startBridgeConnection(ConnectionContext context, byte[] riAesIv,
+                                     AudioRenderer audioRenderer,
+                                     VideoDecoderRenderer videoDecoderRenderer,
+                                     NvConnectionListener connectionListener) {
+        synchronized (MoonBridge.class) {
+            MoonBridge.setupBridge(videoDecoderRenderer, audioRenderer, connectionListener);
+            return MoonBridge.startConnection(context.serverAddress.address,
+                    context.serverAppVersion, context.serverGfeVersion, context.rtspSessionUrl,
+                    context.serverCodecModeSupport,
+                    context.negotiatedWidth, context.negotiatedHeight,
+                    context.streamConfig.getRefreshRate(), context.streamConfig.getBitrate(),
+                    context.negotiatedPacketSize, context.negotiatedRemoteStreaming,
+                    context.streamConfig.getAudioConfiguration().toInt(),
+                    context.streamConfig.getSupportedVideoFormats(),
+                    context.streamConfig.getClientRefreshRateX100(),
+                    context.riKey.getEncoded(), riAesIv,
+                    context.videoCapabilities,
+                    context.streamConfig.getColorSpace(),
+                    context.streamConfig.getColorRange(),
+                    context.streamConfig.getEnableMicrophone());
+        }
     }
 
     public void sendExecServerCmd(final int cmdId) {

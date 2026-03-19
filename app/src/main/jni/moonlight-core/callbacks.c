@@ -1,10 +1,13 @@
 #include <jni.h>
 
 #include <pthread.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <Limelight.h>
 
+#include <opus.h>
 #include <opus_multistream.h>
 #include <android/log.h>
 
@@ -40,6 +43,185 @@ static jmethodID BridgeClSetMotionEventStateMethod;
 static jmethodID BridgeClSetControllerLEDMethod;
 static jbyteArray DecodedFrameBuffer;
 static jshortArray DecodedAudioBuffer;
+
+#define MIC_SAMPLE_RATE 48000
+#define MIC_CHANNEL_COUNT 1
+#define MIC_FRAME_SIZE 960
+#define MIC_DEFAULT_BITRATE 24000
+#define MIC_MAX_ENCODED_PACKET 1024
+#define MIC_MAX_BUFFERED_SAMPLES (MIC_FRAME_SIZE * 12)
+
+static OpusEncoder* MicEncoder;
+static pthread_t MicEncoderThread;
+static pthread_mutex_t MicEncoderMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t MicEncoderCond = PTHREAD_COND_INITIALIZER;
+static opus_int16* MicSampleBuffer;
+static size_t MicSampleBufferCount;
+static size_t MicSampleBufferCapacity;
+static bool MicEncoderThreadRunning;
+static bool MicEncoderStopRequested;
+static bool MicStreamingActive;
+static bool MicFirstPacketLogged;
+
+static void MicLog(const char* format, ...) {
+    va_list va;
+    va_start(va, format);
+    __android_log_vprint(ANDROID_LOG_INFO, "moonlight-mic", format, va);
+    va_end(va);
+}
+
+static void clearMicBufferedSamplesLocked(void) {
+    MicSampleBufferCount = 0;
+}
+
+static int ensureMicSampleCapacityLocked(size_t minimumCapacity) {
+    opus_int16* resizedBuffer;
+    size_t newCapacity = MicSampleBufferCapacity == 0 ? MIC_FRAME_SIZE * 4 : MicSampleBufferCapacity;
+
+    while (newCapacity < minimumCapacity) {
+        newCapacity *= 2;
+    }
+
+    resizedBuffer = realloc(MicSampleBuffer, newCapacity * sizeof(opus_int16));
+    if (resizedBuffer == NULL) {
+        return -1;
+    }
+
+    MicSampleBuffer = resizedBuffer;
+    MicSampleBufferCapacity = newCapacity;
+    return 0;
+}
+
+static int compareTimespec(const struct timespec* lhs, const struct timespec* rhs) {
+    if (lhs->tv_sec == rhs->tv_sec) {
+        if (lhs->tv_nsec == rhs->tv_nsec) {
+            return 0;
+        }
+        return lhs->tv_nsec < rhs->tv_nsec ? -1 : 1;
+    }
+
+    return lhs->tv_sec < rhs->tv_sec ? -1 : 1;
+}
+
+static int64_t diffTimespecNs(const struct timespec* lhs, const struct timespec* rhs) {
+    return ((int64_t)lhs->tv_sec - rhs->tv_sec) * 1000000000LL +
+            ((int64_t)lhs->tv_nsec - rhs->tv_nsec);
+}
+
+static void addTimespecNs(struct timespec* value, int64_t deltaNs) {
+    value->tv_sec += (time_t)(deltaNs / 1000000000LL);
+    value->tv_nsec += (long)(deltaNs % 1000000000LL);
+
+    if (value->tv_nsec >= 1000000000L) {
+        value->tv_sec++;
+        value->tv_nsec -= 1000000000L;
+    }
+}
+
+static void* MicEncoderWorker(void* context) {
+    opus_int16 frame[MIC_FRAME_SIZE];
+    unsigned char encodedPacket[MIC_MAX_ENCODED_PACKET];
+    const int64_t frameDurationNs = (1000000000LL * MIC_FRAME_SIZE) / MIC_SAMPLE_RATE;
+    struct timespec nextSendDeadline = {0};
+    bool pacingActive = false;
+
+    while (true) {
+        struct timespec now;
+        int encodedBytes;
+        int sendResult;
+
+        pthread_mutex_lock(&MicEncoderMutex);
+        while (!MicEncoderStopRequested &&
+                (!MicStreamingActive || MicSampleBufferCount < MIC_FRAME_SIZE)) {
+            pthread_cond_wait(&MicEncoderCond, &MicEncoderMutex);
+        }
+
+        if (MicEncoderStopRequested) {
+            pthread_mutex_unlock(&MicEncoderMutex);
+            break;
+        }
+
+        if (MicEncoder == NULL) {
+            pthread_mutex_unlock(&MicEncoderMutex);
+            pacingActive = false;
+            continue;
+        }
+
+        memcpy(frame, MicSampleBuffer, sizeof(frame));
+        MicSampleBufferCount -= MIC_FRAME_SIZE;
+        if (MicSampleBufferCount > 0) {
+            memmove(MicSampleBuffer,
+                    MicSampleBuffer + MIC_FRAME_SIZE,
+                    MicSampleBufferCount * sizeof(opus_int16));
+        }
+        pthread_mutex_unlock(&MicEncoderMutex);
+
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        if (!pacingActive) {
+            nextSendDeadline = now;
+            pacingActive = true;
+        }
+        else if (diffTimespecNs(&now, &nextSendDeadline) > (frameDurationNs * 2)) {
+            nextSendDeadline = now;
+        }
+
+        if (compareTimespec(&nextSendDeadline, &now) > 0) {
+            clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &nextSendDeadline, NULL);
+        }
+        addTimespecNs(&nextSendDeadline, frameDurationNs);
+
+        encodedBytes = opus_encode(MicEncoder,
+                                   frame,
+                                   MIC_FRAME_SIZE,
+                                   encodedPacket,
+                                   (opus_int32)sizeof(encodedPacket));
+        if (encodedBytes <= 0) {
+            continue;
+        }
+
+        sendResult = LiSendMicrophoneOpusDataEx(encodedPacket, encodedBytes, MIC_FRAME_SIZE);
+        if (sendResult >= 0 && !MicFirstPacketLogged) {
+            MicFirstPacketLogged = true;
+            MicLog("Sent first client microphone packet (%d bytes Opus)", encodedBytes);
+        }
+        else if (sendResult < 0) {
+            MicLog("LiSendMicrophoneOpusDataEx() failed for microphone capture");
+        }
+    }
+
+    return NULL;
+}
+
+static void TeardownMicrophoneEncoder(void) {
+    bool shouldJoin;
+    pthread_t threadToJoin;
+
+    pthread_mutex_lock(&MicEncoderMutex);
+    MicEncoderStopRequested = true;
+    MicStreamingActive = false;
+    pthread_cond_broadcast(&MicEncoderCond);
+    shouldJoin = MicEncoderThreadRunning;
+    threadToJoin = MicEncoderThread;
+    pthread_mutex_unlock(&MicEncoderMutex);
+
+    if (shouldJoin) {
+        pthread_join(threadToJoin, NULL);
+    }
+
+    pthread_mutex_lock(&MicEncoderMutex);
+    MicEncoderThreadRunning = false;
+    MicEncoderStopRequested = false;
+    clearMicBufferedSamplesLocked();
+    if (MicEncoder != NULL) {
+        opus_encoder_destroy(MicEncoder);
+        MicEncoder = NULL;
+    }
+    free(MicSampleBuffer);
+    MicSampleBuffer = NULL;
+    MicSampleBufferCapacity = 0;
+    MicFirstPacketLogged = false;
+    pthread_mutex_unlock(&MicEncoderMutex);
+}
 
 void DetachThread(void* context) {
     (*JVM)->DetachCurrentThread(JVM);
@@ -451,6 +633,152 @@ hasFastAes() {
     }
 }
 
+JNIEXPORT jboolean JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_isMicrophoneStreamActive(JNIEnv *env, jclass clazz) {
+    return LiIsMicrophoneStreamActive();
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_isMicrophoneEncryptionEnabled(JNIEnv *env, jclass clazz) {
+    return LiIsMicrophoneEncryptionEnabled();
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_setupMicrophoneEncoder(JNIEnv *env, jclass clazz,
+                                                                  jint sampleRate, jint channelCount,
+                                                                  jint bitrate) {
+    int err = OPUS_OK;
+
+    if (sampleRate != MIC_SAMPLE_RATE || channelCount != MIC_CHANNEL_COUNT) {
+        MicLog("Unsupported microphone encoder format: %d Hz, %d channels", sampleRate, channelCount);
+        return -1;
+    }
+
+    pthread_mutex_lock(&MicEncoderMutex);
+    if (MicEncoder != NULL) {
+        pthread_mutex_unlock(&MicEncoderMutex);
+        return 0;
+    }
+
+    MicEncoder = opus_encoder_create(sampleRate, channelCount, OPUS_APPLICATION_VOIP, &err);
+    if (MicEncoder == NULL || err != OPUS_OK) {
+        MicEncoder = NULL;
+        pthread_mutex_unlock(&MicEncoderMutex);
+        MicLog("opus_encoder_create() failed for microphone capture: %s", opus_strerror(err));
+        return -1;
+    }
+
+    opus_encoder_ctl(MicEncoder, OPUS_SET_BITRATE(bitrate > 0 ? bitrate : MIC_DEFAULT_BITRATE));
+    opus_encoder_ctl(MicEncoder, OPUS_SET_VBR(1));
+    opus_encoder_ctl(MicEncoder, OPUS_SET_COMPLEXITY(10));
+    opus_encoder_ctl(MicEncoder, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
+    opus_encoder_ctl(MicEncoder, OPUS_SET_LSB_DEPTH(16));
+    opus_encoder_ctl(MicEncoder, OPUS_SET_DTX(0));
+    opus_encoder_ctl(MicEncoder, OPUS_SET_INBAND_FEC(1));
+    opus_encoder_ctl(MicEncoder, OPUS_SET_PACKET_LOSS_PERC(5));
+    opus_encoder_ctl(MicEncoder, OPUS_SET_EXPERT_FRAME_DURATION(OPUS_FRAMESIZE_20_MS));
+
+    clearMicBufferedSamplesLocked();
+    MicStreamingActive = false;
+    MicEncoderStopRequested = false;
+    MicFirstPacketLogged = false;
+
+    if (!MicEncoderThreadRunning) {
+        if (pthread_create(&MicEncoderThread, NULL, MicEncoderWorker, NULL) != 0) {
+            opus_encoder_destroy(MicEncoder);
+            MicEncoder = NULL;
+            pthread_mutex_unlock(&MicEncoderMutex);
+            MicLog("Failed to create microphone encoder worker thread");
+            return -1;
+        }
+
+        MicEncoderThreadRunning = true;
+    }
+
+    pthread_mutex_unlock(&MicEncoderMutex);
+    return 0;
+}
+
+JNIEXPORT void JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_startMicrophoneStreaming(JNIEnv *env, jclass clazz) {
+    pthread_mutex_lock(&MicEncoderMutex);
+    clearMicBufferedSamplesLocked();
+    MicFirstPacketLogged = false;
+    MicStreamingActive = MicEncoder != NULL;
+    pthread_cond_broadcast(&MicEncoderCond);
+    pthread_mutex_unlock(&MicEncoderMutex);
+}
+
+JNIEXPORT void JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_stopMicrophoneStreaming(JNIEnv *env, jclass clazz) {
+    pthread_mutex_lock(&MicEncoderMutex);
+    MicStreamingActive = false;
+    clearMicBufferedSamplesLocked();
+    pthread_cond_broadcast(&MicEncoderCond);
+    pthread_mutex_unlock(&MicEncoderMutex);
+}
+
+JNIEXPORT void JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_cleanupMicrophoneEncoder(JNIEnv *env, jclass clazz) {
+    TeardownMicrophoneEncoder();
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_queueMicrophonePcm(JNIEnv *env, jclass clazz,
+                                                              jshortArray pcmData, jint sampleCount) {
+    jsize arrayLength;
+    jshort* samples;
+    size_t requestedSamples;
+
+    if (pcmData == NULL || sampleCount <= 0) {
+        return 0;
+    }
+
+    arrayLength = (*env)->GetArrayLength(env, pcmData);
+    if (arrayLength <= 0) {
+        return 0;
+    }
+
+    if (sampleCount > arrayLength) {
+        sampleCount = arrayLength;
+    }
+
+    samples = (*env)->GetShortArrayElements(env, pcmData, NULL);
+    if (samples == NULL) {
+        return -1;
+    }
+
+    requestedSamples = (size_t)sampleCount;
+
+    pthread_mutex_lock(&MicEncoderMutex);
+    if (MicEncoder == NULL) {
+        pthread_mutex_unlock(&MicEncoderMutex);
+        (*env)->ReleaseShortArrayElements(env, pcmData, samples, JNI_ABORT);
+        return -1;
+    }
+
+    if (ensureMicSampleCapacityLocked(MicSampleBufferCount + requestedSamples) != 0) {
+        pthread_mutex_unlock(&MicEncoderMutex);
+        (*env)->ReleaseShortArrayElements(env, pcmData, samples, JNI_ABORT);
+        return -1;
+    }
+
+    memcpy(MicSampleBuffer + MicSampleBufferCount, samples, requestedSamples * sizeof(opus_int16));
+    MicSampleBufferCount += requestedSamples;
+    if (MicSampleBufferCount > MIC_MAX_BUFFERED_SAMPLES) {
+        const size_t trimSamples = MicSampleBufferCount - MIC_MAX_BUFFERED_SAMPLES;
+        memmove(MicSampleBuffer,
+                MicSampleBuffer + trimSamples,
+                (MicSampleBufferCount - trimSamples) * sizeof(opus_int16));
+        MicSampleBufferCount = MIC_MAX_BUFFERED_SAMPLES;
+    }
+    pthread_cond_signal(&MicEncoderCond);
+    pthread_mutex_unlock(&MicEncoderMutex);
+
+    (*env)->ReleaseShortArrayElements(env, pcmData, samples, JNI_ABORT);
+    return sampleCount;
+}
+
 JNIEXPORT jint JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_startConnection(JNIEnv *env, jclass clazz,
                                                            jstring address, jstring appVersion, jstring gfeVersion,
@@ -461,7 +789,8 @@ Java_com_limelight_nvstream_jni_MoonBridge_startConnection(JNIEnv *env, jclass c
                                                            jint clientRefreshRateX100,
                                                            jbyteArray riAesKey, jbyteArray riAesIv,
                                                            jint videoCapabilities,
-                                                           jint colorSpace, jint colorRange) {
+                                                           jint colorSpace, jint colorRange,
+                                                           jboolean enableMicrophone) {
     SERVER_INFORMATION serverInfo = {
             .address = (*env)->GetStringUTFChars(env, address, 0),
             .serverInfoAppVersion = (*env)->GetStringUTFChars(env, appVersion, 0),
@@ -479,7 +808,8 @@ Java_com_limelight_nvstream_jni_MoonBridge_startConnection(JNIEnv *env, jclass c
             .audioConfiguration = audioConfiguration,
             .supportedVideoFormats = supportedVideoFormats,
             .clientRefreshRateX100 = clientRefreshRateX100,
-            .encryptionFlags = ENCFLG_AUDIO,
+            .enableMic = enableMicrophone,
+            .encryptionFlags = ENCFLG_AUDIO | (enableMicrophone ? ENCFLG_MICROPHONE : 0),
             .colorSpace = colorSpace,
             .colorRange = colorRange
     };
