@@ -19,8 +19,10 @@ import com.limelight.R;
 import com.limelight.nvstream.jni.MoonBridge;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class MicrophoneCaptureManager {
     public interface LevelListener {
@@ -42,7 +44,12 @@ public class MicrophoneCaptureManager {
     private static final int FRAME_SIZE = 960;
     private static final int DEFAULT_BITRATE = 24000;
     private static final int LEVEL_UPDATE_INTERVAL_MS = 50;
-    private static final int SIGNAL_THRESHOLD = 700;
+    private static final int SIGNAL_PEAK_THRESHOLD = 250;
+    private static final double SIGNAL_RMS_THRESHOLD = 90.0;
+    private static final double PREVIEW_RMS_FLOOR = 40.0;
+    private static final double PREVIEW_RMS_CEILING = 4000.0;
+    private static final double PREVIEW_PEAK_CEILING = 12000.0;
+    private static final double PREVIEW_DECAY_FACTOR = 0.84;
 
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -67,22 +74,25 @@ public class MicrophoneCaptureManager {
     }
 
     public static List<InputDeviceEntry> getAvailableInputDevices(Context context) {
-        List<InputDeviceEntry> entries = new ArrayList<>();
+        Map<String, InputDeviceEntry> uniqueEntries = new LinkedHashMap<>();
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return entries;
+            return new ArrayList<>();
         }
 
         AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         if (audioManager == null) {
-            return entries;
+            return new ArrayList<>();
         }
 
         for (AudioDeviceInfo deviceInfo : audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)) {
-            entries.add(new InputDeviceEntry(deviceInfo.getId(), describeDevice(deviceInfo)));
+            String label = describeDevice(deviceInfo);
+            if (!uniqueEntries.containsKey(label)) {
+                uniqueEntries.put(label, new InputDeviceEntry(deviceInfo.getId(), label));
+            }
         }
 
-        return entries;
+        return new ArrayList<>(uniqueEntries.values());
     }
 
     public boolean startPreview(int preferredDeviceId, LevelListener listener) {
@@ -217,6 +227,7 @@ public class MicrophoneCaptureManager {
     private void runCaptureLoop(int bufferSamples) {
         short[] readBuffer = new short[bufferSamples];
         int pendingPeak = 0;
+        double pendingRms = 0.0;
         long lastUpdateTime = SystemClock.elapsedRealtime();
 
         while (running && audioRecord != null) {
@@ -233,9 +244,12 @@ public class MicrophoneCaptureManager {
                 continue;
             }
 
-            int peak = calculatePeak(readBuffer, samplesRead);
-            if (peak > pendingPeak) {
-                pendingPeak = peak;
+            SignalStats signalStats = calculateSignalStats(readBuffer, samplesRead);
+            if (signalStats.peak > pendingPeak) {
+                pendingPeak = signalStats.peak;
+            }
+            if (signalStats.rms > pendingRms) {
+                pendingRms = signalStats.rms;
             }
 
             if (streamingToHost) {
@@ -247,10 +261,12 @@ public class MicrophoneCaptureManager {
 
             long now = SystemClock.elapsedRealtime();
             if (now - lastUpdateTime >= LEVEL_UPDATE_INTERVAL_MS) {
-                double instantaneousLevel = pendingPeak / 32767.0;
-                double nextLevel = Math.max(instantaneousLevel, currentLevel * 0.72);
-                boolean nextSignalDetected = pendingPeak >= SIGNAL_THRESHOLD;
+                double instantaneousLevel = calculatePreviewLevel(pendingPeak, pendingRms);
+                double nextLevel = Math.max(instantaneousLevel, currentLevel * PREVIEW_DECAY_FACTOR);
+                boolean nextSignalDetected = pendingPeak >= SIGNAL_PEAK_THRESHOLD ||
+                        pendingRms >= SIGNAL_RMS_THRESHOLD;
                 pendingPeak = 0;
+                pendingRms = 0.0;
                 lastUpdateTime = now;
                 currentLevel = nextLevel;
                 signalDetected = nextSignalDetected;
@@ -379,17 +395,30 @@ public class MicrophoneCaptureManager {
         return context.getString(resId);
     }
 
-    private static int calculatePeak(short[] samples, int sampleCount) {
+    private static SignalStats calculateSignalStats(short[] samples, int sampleCount) {
         int peak = 0;
+        double sumSquares = 0.0;
 
         for (int i = 0; i < sampleCount; i++) {
             int sample = Math.abs(samples[i]);
             if (sample > peak) {
                 peak = sample;
             }
+            sumSquares += (double) sample * sample;
         }
 
-        return peak;
+        SignalStats signalStats = new SignalStats();
+        signalStats.peak = peak;
+        signalStats.rms = sampleCount > 0 ? Math.sqrt(sumSquares / sampleCount) : 0.0;
+        return signalStats;
+    }
+
+    private static double calculatePreviewLevel(int peak, double rms) {
+        double rmsLevel = (Math.log10(Math.max(rms, PREVIEW_RMS_FLOOR)) -
+                Math.log10(PREVIEW_RMS_FLOOR)) /
+                (Math.log10(PREVIEW_RMS_CEILING) - Math.log10(PREVIEW_RMS_FLOOR));
+        double peakLevel = Math.min(1.0, peak / PREVIEW_PEAK_CEILING);
+        return Math.max(0.0, Math.min(1.0, Math.max(rmsLevel, peakLevel)));
     }
 
     private static String audioSourceToString(int audioSource) {
@@ -404,11 +433,6 @@ public class MicrophoneCaptureManager {
     }
 
     private static String describeDevice(AudioDeviceInfo deviceInfo) {
-        CharSequence productName = deviceInfo.getProductName();
-        if (productName != null && productName.length() > 0) {
-            return productName.toString();
-        }
-
         switch (deviceInfo.getType()) {
             case AudioDeviceInfo.TYPE_BUILTIN_MIC:
                 return "Built-in microphone";
@@ -422,8 +446,17 @@ public class MicrophoneCaptureManager {
             case AudioDeviceInfo.TYPE_USB_HEADSET:
                 return "USB microphone";
             default:
+                CharSequence productName = deviceInfo.getProductName();
+                if (productName != null && productName.length() > 0) {
+                    return productName.toString();
+                }
                 return "Input device " + deviceInfo.getId();
         }
+    }
+
+    private static final class SignalStats {
+        int peak;
+        double rms;
     }
 
     private static final class CaptureConfig {
