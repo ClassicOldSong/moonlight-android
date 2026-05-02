@@ -104,6 +104,7 @@ public class PreferenceConfiguration {
     private static final String CHECKBOX_FORCE_QWERTY = "checkbox_force_qwerty";
     private static final String CHECKBOX_BACK_AS_META = "checkbox_back_as_meta";
     private static final String CHECKBOX_IGNORE_SYNTH_EVENTS = "checkbox_ignore_synth_events";
+    private static final String CHECKBOX_SUPPRESS_KEYBOARD_A11Y_PROMPT = "checkbox_suppress_keyboard_a11y_prompt";
     private static final String CHECKBOX_BACK_AS_GUIDE = "checkbox_back_as_guide";
     private static final String CHECKBOX_SMART_CLIPBOARD_SYNC = "checkbox_smart_clipboard_sync";
     private static final String CHECKBOX_SMART_CLIPBOARD_SYNC_TOAST = "checkbox_smart_clipboard_sync_toast";
@@ -194,6 +195,7 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_FORCE_QWERTY = true;
     private static final boolean DEFAULT_SEND_META_ON_PHYSICAL_BACK = false;
     private static final boolean DEFAULT_IGNORE_SYNTH_EVENTS = false;
+    private static final boolean DEFAULT_SUPPRESS_KEYBOARD_A11Y_PROMPT = false;
     private static final boolean DEFAULT_ENABLE_FLOATING_BUTTON = false;
     private static final boolean DEFAULT_BACK_AS_GUIDE = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC = false;
@@ -255,6 +257,7 @@ public class PreferenceConfiguration {
     public boolean forceQwerty;
     public boolean backAsMeta;
     public boolean ignoreSynthEvents;
+    public boolean suppressKeyboardA11yPrompt;
     public boolean backAsGuide;
     public boolean smartClipboardSync;
     public boolean smartClipboardSyncToast;
@@ -1007,6 +1010,7 @@ private static int getFramePacingValue(Context context) {
         config.forceQwerty = prefs.getBoolean(CHECKBOX_FORCE_QWERTY, DEFAULT_FORCE_QWERTY);
         config.backAsMeta = prefs.getBoolean(CHECKBOX_BACK_AS_META, DEFAULT_SEND_META_ON_PHYSICAL_BACK);
         config.ignoreSynthEvents = prefs.getBoolean(CHECKBOX_IGNORE_SYNTH_EVENTS, DEFAULT_IGNORE_SYNTH_EVENTS);
+        config.suppressKeyboardA11yPrompt = prefs.getBoolean(CHECKBOX_SUPPRESS_KEYBOARD_A11Y_PROMPT, DEFAULT_SUPPRESS_KEYBOARD_A11Y_PROMPT);
         config.backAsGuide = prefs.getBoolean(CHECKBOX_BACK_AS_GUIDE, DEFAULT_BACK_AS_GUIDE);
         config.smartClipboardSync = prefs.getBoolean(CHECKBOX_SMART_CLIPBOARD_SYNC, DEFAULT_SMART_CLIPBOARD_SYNC);
         config.smartClipboardSyncToast = prefs.getBoolean(CHECKBOX_SMART_CLIPBOARD_SYNC_TOAST, DEFAULT_SMART_CLIPBOARD_SYNC_TOAST);

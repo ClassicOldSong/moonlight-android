@@ -53,10 +53,10 @@ public class KeyboardAccessibilityService extends AccessibilityService {
         LimeLog.info("Keyboard service is connected");
         AccessibilityServiceInfo info = new AccessibilityServiceInfo();
         info.packageNames = new String[] { BuildConfig.APPLICATION_ID };
-        info.eventTypes = AccessibilityEvent.TYPES_ALL_MASK;
+        info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
         info.notificationTimeout = 100;
         info.flags = AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
-        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_SPOKEN;
+        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC;
         setServiceInfo(info);
     }
 

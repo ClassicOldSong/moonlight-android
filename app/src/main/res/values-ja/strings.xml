@@ -184,4 +184,14 @@
 \nカスタム解像度を作成することに起因する問題について、私たちは責任を負いません。
 \n
 \nモニターが必要な表示設定をサポートしていない場合もあります。その場合は、仮想モニターを設定してみてください。最後に、デバイスまたはホストPCが特定の解像度またはリフレッシュレートでのストリーミングをサポートしていない場合、残念ながら運が悪かったということになります。</string>
+
+    <string name="keyboard_a11y_prompt_title">システムショートカットをPCに転送しますか？</string>
+    <string name="keyboard_a11y_prompt_message">Android は Alt+Tab、Alt+Esc、Win キーなどのショートカットがホストに届く前に横取りします。これらを転送するには、ユーザー補助設定で「Artemis Physical keyboard」を有効にしてください。\n\nトグルがオンのまま維持されない場合は、アプリ情報ページを開いて制限付き設定を許可し、ユーザー補助に戻ってください。</string>
+    <string name="keyboard_a11y_prompt_open_settings">ユーザー補助設定</string>
+    <string name="keyboard_a11y_prompt_app_details">アプリ情報</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">今後表示しない</string>
+    <string name="title_keyboard_a11y_settings">システムキーボードショートカットを転送</string>
+    <string name="summary_keyboard_a11y_settings">ユーザー補助設定を開いて Artemis キーボードサービスを有効化します。Alt+Tab、Alt+Esc、Win キーなどのシステムショートカットをホストPCに転送するために必要です。</string>
+    <string name="title_suppress_keyboard_a11y_prompt">キーボードサービスの有効化を確認しない</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">ユーザー補助サービスが無効な状態で物理キーボード使用中にストリーミングするときに表示される確認を非表示にします。</string>
 </resources>

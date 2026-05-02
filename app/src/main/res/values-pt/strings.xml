@@ -255,4 +255,14 @@
     <string name="summary_analog_scrolling">Selecciona um stick analógico para fazer scroll quando a emulação de rato está ativada</string>
     <string name="title_enable_commit_text">Ativar entrada de texto commit (gesto/voz)</string>
     <string name="summary_enable_commit_text">Reencaminha texto com vários caracteres proveniente de teclados virtuais (digitação por gestos, previsões, ditado por voz). Pode causar problemas em jogos que dependem de entradas tecla-a-tecla.</string>
+
+    <string name="keyboard_a11y_prompt_title">Encaminhar atalhos do sistema para o PC?</string>
+    <string name="keyboard_a11y_prompt_message">O Android interceta atalhos como Alt+Tab, Alt+Esc e a tecla Win antes de chegarem ao anfitrião. Para os encaminhar, ative \"Artemis Physical keyboard\" nas definições de Acessibilidade.\n\nSe o interruptor não permanecer ativo, abra a página de informações da aplicação e permita as definições restritas e, em seguida, regresse a Acessibilidade.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Definições de acessibilidade</string>
+    <string name="keyboard_a11y_prompt_app_details">Informações da aplicação</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Não mostrar novamente</string>
+    <string name="title_keyboard_a11y_settings">Encaminhar atalhos de teclado do sistema</string>
+    <string name="summary_keyboard_a11y_settings">Abrir definições de Acessibilidade para ativar o serviço de teclado Artemis. Necessário para encaminhar Alt+Tab, Alt+Esc, tecla Win e outros atalhos do sistema para o PC anfitrião.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Não perguntar para ativar o serviço de teclado</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Ocultar a mensagem que aparece durante a transmissão com teclado físico enquanto o serviço de Acessibilidade está desativado.</string>
 </resources>

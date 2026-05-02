@@ -274,4 +274,14 @@
     <string name="summary_enable_perf_overlay">Akış sırasında gerçek zamanlı akış performansı bilgilerini görüntüleyin</string>
     <string name="title_enable_commit_text">Commit-text girişini etkinleştir (kaydırma/sesli)</string>
     <string name="summary_enable_commit_text">Yazılım klavyelerinden çok karakterli metni iletir (sürükleyerek yazma, tahminler, sesli dikte). Tuş bazlı girişe ihtiyaç duyan oyunlarda sorun yaratabilir.</string>
+
+    <string name="keyboard_a11y_prompt_title">Sistem kısayolları PC\'ye iletilsin mi?</string>
+    <string name="keyboard_a11y_prompt_message">Android, Alt+Tab, Alt+Esc ve Win tuşu gibi kısayolları ana bilgisayara ulaşmadan önce yakalar. Bunları iletmek için Erişilebilirlik ayarlarında \"Artemis Physical keyboard\" seçeneğini etkinleştirin.\n\nDüğme açık kalmıyorsa uygulama bilgisi sayfasını açın ve kısıtlanmış ayarlara izin verin, ardından Erişilebilirlik\'e geri dönün.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Erişilebilirlik ayarları</string>
+    <string name="keyboard_a11y_prompt_app_details">Uygulama bilgisi</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Tekrar gösterme</string>
+    <string name="title_keyboard_a11y_settings">Sistem klavye kısayollarını ilet</string>
+    <string name="summary_keyboard_a11y_settings">Artemis klavye hizmetini etkinleştirmek için Erişilebilirlik ayarlarını açın. Alt+Tab, Alt+Esc, Win tuşu ve diğer sistem kısayollarının ana PC\'ye iletilmesi için gereklidir.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Klavye hizmetini etkinleştirmek için sorma</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Erişilebilirlik hizmeti devre dışıyken fiziksel klavye ile yayın yaparken görünen istemi gizler.</string>
 </resources>

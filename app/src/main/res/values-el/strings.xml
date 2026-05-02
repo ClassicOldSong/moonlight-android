@@ -213,4 +213,14 @@
     <string name="pair_pairing_help">Εάν ο υπολογιστής οικοδεσπότης χρησιμοποιεί το Sunshine, πλοηγηθείτε στην διαδικτυακή διεπαφή χρήστη του Sunshine για να εισάγετε το PIN.</string>
     <string name="title_enable_commit_text">Ενεργοποίηση εισαγωγής commit-text (σάρωση/φωνή)</string>
     <string name="summary_enable_commit_text">Προωθεί κείμενο πολλών χαρακτήρων από τα εικονικά πληκτρολόγια (σάρωση, προτάσεις, φωνητική πληκτρολόγηση). Ίσως προκαλέσει προβλήματα σε παιχνίδια που βασίζονται σε πληκτρολόγηση πλήκτρο-πλήκτρο.</string>
+
+    <string name="keyboard_a11y_prompt_title">Προώθηση συντομεύσεων συστήματος στο PC;</string>
+    <string name="keyboard_a11y_prompt_message">Το Android παρεμποδίζει συντομεύσεις όπως Alt+Tab, Alt+Esc και το πλήκτρο Win πριν φτάσουν στον κεντρικό υπολογιστή. Για να τις προωθήσετε, ενεργοποιήστε το \"Artemis Physical keyboard\" στις ρυθμίσεις Προσβασιμότητας.\n\nΑν ο διακόπτης δεν παραμένει ενεργοποιημένος, ανοίξτε τη σελίδα πληροφοριών της εφαρμογής και επιτρέψτε τις περιορισμένες ρυθμίσεις, στη συνέχεια επιστρέψτε στην Προσβασιμότητα.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Ρυθμίσεις προσβασιμότητας</string>
+    <string name="keyboard_a11y_prompt_app_details">Πληροφορίες εφαρμογής</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Να μην εμφανιστεί ξανά</string>
+    <string name="title_keyboard_a11y_settings">Προώθηση συντομεύσεων πληκτρολογίου συστήματος</string>
+    <string name="summary_keyboard_a11y_settings">Άνοιγμα ρυθμίσεων Προσβασιμότητας για ενεργοποίηση της υπηρεσίας πληκτρολογίου Artemis. Απαιτείται για την προώθηση Alt+Tab, Alt+Esc, του πλήκτρου Win και άλλων συντομεύσεων συστήματος στον κεντρικό υπολογιστή.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Να μην γίνεται προτροπή για ενεργοποίηση της υπηρεσίας πληκτρολογίου</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Απόκρυψη της προτροπής που εμφανίζεται κατά τη ροή με φυσικό πληκτρολόγιο όταν η υπηρεσία Προσβασιμότητας είναι απενεργοποιημένη.</string>
 </resources>

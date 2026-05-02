@@ -339,6 +339,14 @@ public class StreamSettings extends AppCompatActivity {
             AppCompatActivity activity = (AppCompatActivity) requireActivity();
             PackageManager pm = activity.getPackageManager();
 
+            Preference openA11y = findPreference("open_keyboard_a11y_settings");
+            if (openA11y != null) {
+                openA11y.setOnPreferenceClickListener(p -> {
+                    com.limelight.utils.KeyboardAccessibilityHelper.openAccessibilitySettings(activity);
+                    return true;
+                });
+            }
+
             // hide on-screen controls category on non touch screen devices
             if (!pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)) {
                 PreferenceCategory category = findPreference("category_onscreen_controls");

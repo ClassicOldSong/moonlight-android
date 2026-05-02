@@ -480,6 +480,17 @@
             android:summary="@string/summary_enable_commit_text"
             android:title="@string/title_enable_commit_text"
             app:iconSpaceReserved="false" />
+        <Preference
+            android:key="open_keyboard_a11y_settings"
+            android:summary="@string/summary_keyboard_a11y_settings"
+            android:title="@string/title_keyboard_a11y_settings"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_suppress_keyboard_a11y_prompt"
+            android:summary="@string/summary_suppress_keyboard_a11y_prompt"
+            android:title="@string/title_suppress_keyboard_a11y_prompt"
+            app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <PreferenceCategory

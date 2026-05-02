@@ -715,4 +715,14 @@
 
     <string name="title_checkbox_full_screen">启用全屏</string>
     <string name="summary_checkbox_full_screen">使用沉浸模式隐藏系统状态栏</string>
+
+    <string name="keyboard_a11y_prompt_title">将系统快捷键转发到 PC？</string>
+    <string name="keyboard_a11y_prompt_message">Android 会在 Alt+Tab、Alt+Esc 和 Win 键等快捷键到达主机之前拦截它们。要转发这些快捷键，请在无障碍设置中启用 \"Artemis Physical keyboard\"。\n\n如果开关无法保持启用，请打开应用信息页面并允许受限设置，然后返回到无障碍设置。</string>
+    <string name="keyboard_a11y_prompt_open_settings">无障碍设置</string>
+    <string name="keyboard_a11y_prompt_app_details">应用信息</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">不再显示</string>
+    <string name="title_keyboard_a11y_settings">转发系统键盘快捷键</string>
+    <string name="summary_keyboard_a11y_settings">打开无障碍设置以启用 Artemis 键盘服务。将 Alt+Tab、Alt+Esc、Win 键和其他系统快捷键转发到主机 PC 所必需。</string>
+    <string name="title_suppress_keyboard_a11y_prompt">不提示启用键盘服务</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">在无障碍服务被禁用时使用物理键盘进行串流时隐藏出现的提示。</string>
 </resources>

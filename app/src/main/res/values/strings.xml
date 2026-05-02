@@ -365,6 +365,16 @@
     <string name="keyboard_service_label">Artemis Physical keyboard</string>
     <string name="accessibility_description_text">Only used when physical keyboard shortcut were intercepted by system. In some systems, several keyboard shortcut are defind and used by the Android system, causing them not being able to be passed through to the host PC. Artemis will not look through your input, nor collecting your password, credit card number or any other private information.</string>
 
+    <string name="keyboard_a11y_prompt_title">Forward system shortcuts to PC?</string>
+    <string name="keyboard_a11y_prompt_message">Android intercepts shortcuts like Alt+Tab, Alt+Esc and the Win key before they reach the host. To forward them, enable \"Artemis Physical keyboard\" in Accessibility settings.\n\nIf the toggle does not stay on, open the app info page and allow restricted settings, then return to Accessibility.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Accessibility settings</string>
+    <string name="keyboard_a11y_prompt_app_details">App info</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Don\'t show again</string>
+    <string name="title_keyboard_a11y_settings">Forward system keyboard shortcuts</string>
+    <string name="summary_keyboard_a11y_settings">Open Accessibility settings to enable the Artemis keyboard service. Required to forward Alt+Tab, Alt+Esc, Win key and other system shortcuts to the host PC.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Don\'t prompt to enable keyboard service</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Hide the prompt that appears when streaming with a physical keyboard while the Accessibility service is disabled.</string>
+
 
     <!-- In Game menu -->
     <string name="game_menu_toggle_keyboard">Show soft keyboard</string>

@@ -590,4 +590,14 @@
     <string name="title_checkbox_remember_zoom_pan">Mémoriser le zoom et le panoramique</string>
     <string name="summary_checkbox_remember_zoom_pan">Enregistre la position de zoom et de panoramique entre les sessions.</string>
     <string name="title_edit_profile">Modifier le profil</string>
+
+    <string name="keyboard_a11y_prompt_title">Transférer les raccourcis système vers le PC ?</string>
+    <string name="keyboard_a11y_prompt_message">Android intercepte les raccourcis tels qu\'Alt+Tab, Alt+Esc et la touche Win avant qu\'ils n\'atteignent l\'hôte. Pour les transférer, activez \"Artemis Physical keyboard\" dans les paramètres d\'Accessibilité.\n\nSi l\'interrupteur ne reste pas activé, ouvrez la page d\'informations de l\'application et autorisez les paramètres restreints, puis revenez dans Accessibilité.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Paramètres d\'accessibilité</string>
+    <string name="keyboard_a11y_prompt_app_details">Infos sur l\'application</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Ne plus afficher</string>
+    <string name="title_keyboard_a11y_settings">Transférer les raccourcis clavier système</string>
+    <string name="summary_keyboard_a11y_settings">Ouvre les paramètres d\'Accessibilité pour activer le service clavier Artemis. Nécessaire pour transférer Alt+Tab, Alt+Esc, la touche Win et d\'autres raccourcis système vers le PC hôte.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Ne pas demander d\'activer le service clavier</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Masque l\'invite qui apparaît lors d\'une diffusion avec un clavier physique tant que le service d\'Accessibilité est désactivé.</string>
 </resources>

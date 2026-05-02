@@ -153,4 +153,14 @@
     <string name="title_checkbox_touchscreen_trackpad">השתמש במסך מגע כמשטח מגע</string>
     <string name="title_enable_commit_text">הפעל קלט commit-text (החלקה/קול)</string>
     <string name="summary_enable_commit_text">מעביר טקסט מרובה תווים ממקלדות וירטואליות (החלקה, הצעות, הקלדה קולית). עלול לגרום בעיות במשחקים שמסתמכים על קלט לפי מקש.</string>
+
+    <string name="keyboard_a11y_prompt_title">להעביר קיצורי מקלדת של המערכת למחשב?</string>
+    <string name="keyboard_a11y_prompt_message">‏Android חוטף קיצורים כמו Alt+Tab, Alt+Esc ומקש Win לפני שהם מגיעים למארח. כדי להעביר אותם, הפעל את \"Artemis Physical keyboard\" בהגדרות הנגישות.\n\nאם המתג לא נשאר מופעל, פתח את דף פרטי האפליקציה ואפשר הגדרות מוגבלות, ואז חזור אל הנגישות.</string>
+    <string name="keyboard_a11y_prompt_open_settings">הגדרות נגישות</string>
+    <string name="keyboard_a11y_prompt_app_details">פרטי אפליקציה</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">לא להציג שוב</string>
+    <string name="title_keyboard_a11y_settings">העבר קיצורי מקלדת של המערכת</string>
+    <string name="summary_keyboard_a11y_settings">פתח את הגדרות הנגישות כדי להפעיל את שירות המקלדת של Artemis. נדרש כדי להעביר את Alt+Tab, Alt+Esc, מקש Win וקיצורי מערכת אחרים למחשב המארח.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">לא לבקש להפעיל את שירות המקלדת</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">מסתיר את ההודעה שמופיעה במהלך סטרימינג עם מקלדת פיזית כאשר שירות הנגישות מושבת.</string>
 </resources>
