@@ -273,4 +273,14 @@
     <string name="summary_setup_guide">Wyświetl instrukcje, jak skonfigurować komputer do gier do streamowania</string>
     <string name="title_enable_commit_text">Włącz przekazywanie tekstu (pisanie gestem/głos)</string>
     <string name="summary_enable_commit_text">Przekazuje wieloznakowy tekst z klawiatur ekranowych (pisanie gestem, podpowiedzi, dyktowanie głosowe) do hosta. Może powodować problemy w grach wymagających wprowadzania znak po znaku.</string>
+
+    <string name="keyboard_a11y_prompt_title">Przekazywać skróty systemowe do PC?</string>
+    <string name="keyboard_a11y_prompt_message">Android przechwytuje skróty takie jak Alt+Tab, Alt+Esc i klawisz Win, zanim dotrą do hosta. Aby je przekazywać, włącz \"Artemis Physical keyboard\" w ustawieniach Ułatwień dostępu.\n\nJeśli przełącznik nie pozostaje włączony, otwórz stronę informacji o aplikacji i zezwól na ustawienia ograniczone, a następnie wróć do Ułatwień dostępu.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Ustawienia ułatwień dostępu</string>
+    <string name="keyboard_a11y_prompt_app_details">Informacje o aplikacji</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Nie pokazuj ponownie</string>
+    <string name="title_keyboard_a11y_settings">Przekazuj skróty klawiaturowe systemu</string>
+    <string name="summary_keyboard_a11y_settings">Otwórz ustawienia Ułatwień dostępu, aby włączyć usługę klawiatury Artemis. Wymagane do przekazywania Alt+Tab, Alt+Esc, klawisza Win i innych skrótów systemowych do hosta PC.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Nie pytaj o włączenie usługi klawiatury</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Ukrywa monit pojawiający się podczas strumieniowania z klawiaturą fizyczną, gdy usługa Ułatwień dostępu jest wyłączona.</string>
 </resources>

@@ -284,4 +284,14 @@
     <string name="perf_overlay_hostprocessinglatency">Затримка обробки хостом мін./макс./середня: %1$.1f/%2$.1f/%3$.1f мс</string>
     <string name="title_enable_commit_text">Увімкнути commit-text ввід (свайп/голос)</string>
     <string name="summary_enable_commit_text">Пересилати багато-символьний текст з екранних клавіатур (жестове введення, підказки, голосовий ввід). Може порушити ігри, що покладаються на посимвольне введення.</string>
+
+    <string name="keyboard_a11y_prompt_title">Передавати системні комбінації клавіш на ПК?</string>
+    <string name="keyboard_a11y_prompt_message">Android перехоплює комбінації клавіш, такі як Alt+Tab, Alt+Esc і клавішу Win, перш ніж вони досягнуть хоста. Щоб передавати їх, увімкніть \"Artemis Physical keyboard\" у налаштуваннях Спеціальних можливостей.\n\nЯкщо перемикач не залишається увімкненим, відкрийте сторінку інформації про застосунок і дозвольте обмежені налаштування, потім поверніться до Спеціальних можливостей.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Спеціальні можливості</string>
+    <string name="keyboard_a11y_prompt_app_details">Про застосунок</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Більше не показувати</string>
+    <string name="title_keyboard_a11y_settings">Передавати системні комбінації клавіш</string>
+    <string name="summary_keyboard_a11y_settings">Відкрити налаштування Спеціальних можливостей, щоб увімкнути службу клавіатури Artemis. Потрібно для передавання Alt+Tab, Alt+Esc, клавіші Win та інших системних комбінацій на хост-ПК.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Не запитувати про ввімкнення служби клавіатури</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Приховує запит, що з\'являється під час стрімінгу з фізичною клавіатурою, коли службу Спеціальних можливостей вимкнено.</string>
 </resources>

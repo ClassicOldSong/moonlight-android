@@ -224,4 +224,14 @@
     <string name="videoformat_hevcalways">Gebruik HEVC altijd (mogelijkheid tot crashes)</string>
     <string name="title_enable_commit_text">Commit-tekstinvoer inschakelen (veeg/stem)</string>
     <string name="summary_enable_commit_text">Stuurt meerteksts invoer van softwaretoetsenborden (veegtypen, voorspellingen, spraakdicteren) door naar de pc. Kan problemen geven bij games die per-toetsinvoer vereisen.</string>
+
+    <string name="keyboard_a11y_prompt_title">Systeemsnelkoppelingen doorsturen naar pc?</string>
+    <string name="keyboard_a11y_prompt_message">Android onderschept snelkoppelingen zoals Alt+Tab, Alt+Esc en de Win-toets voordat ze de host bereiken. Om ze door te sturen, schakel je \"Artemis Physical keyboard\" in bij Toegankelijkheidsinstellingen.\n\nAls de schakelaar niet ingeschakeld blijft, open dan de app-info-pagina en sta beperkte instellingen toe, en keer dan terug naar Toegankelijkheid.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Toegankelijkheidsinstellingen</string>
+    <string name="keyboard_a11y_prompt_app_details">App-info</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Niet meer tonen</string>
+    <string name="title_keyboard_a11y_settings">Systeemtoetsenbordsnelkoppelingen doorsturen</string>
+    <string name="summary_keyboard_a11y_settings">Open Toegankelijkheidsinstellingen om de Artemis-toetsenbordservice in te schakelen. Vereist om Alt+Tab, Alt+Esc, de Win-toets en andere systeemsnelkoppelingen door te sturen naar de host-pc.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Niet vragen om toetsenbordservice in te schakelen</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Verbergt de melding die verschijnt bij streamen met een fysiek toetsenbord terwijl de Toegankelijkheidsservice is uitgeschakeld.</string>
 </resources>

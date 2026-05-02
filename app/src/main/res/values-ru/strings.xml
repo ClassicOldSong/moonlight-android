@@ -676,4 +676,14 @@
     <string name="render_mode_2d">По умолчанию 2D</string>
     <string name="title_checkbox_full_screen">Включить полноэкранный режим</string>
     <string name="summary_checkbox_full_screen">Скрывать системные панели в режиме погружения</string>
+
+    <string name="keyboard_a11y_prompt_title">Передавать системные сочетания клавиш на ПК?</string>
+    <string name="keyboard_a11y_prompt_message">Android перехватывает сочетания клавиш, такие как Alt+Tab, Alt+Esc и клавиша Win, до того как они достигнут хоста. Чтобы передавать их, включите \"Artemis Physical keyboard\" в настройках Специальных возможностей.\n\nЕсли переключатель не остаётся включённым, откройте страницу сведений о приложении и разрешите ограниченные настройки, затем вернитесь в Специальные возможности.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Спец. возможности</string>
+    <string name="keyboard_a11y_prompt_app_details">О приложении</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Больше не показывать</string>
+    <string name="title_keyboard_a11y_settings">Передавать системные сочетания клавиш</string>
+    <string name="summary_keyboard_a11y_settings">Открыть настройки Специальных возможностей, чтобы включить службу клавиатуры Artemis. Необходимо для передачи Alt+Tab, Alt+Esc, клавиши Win и других системных сочетаний на хост-ПК.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Не спрашивать о включении службы клавиатуры</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Скрывает запрос, появляющийся при стриминге с физической клавиатурой, пока служба Специальных возможностей отключена.</string>
 </resources>

@@ -289,4 +289,14 @@
     <string name="suffix_seekbar_vibrate_fallback_strength">%</string>
     <string name="title_enable_commit_text">커밋 텍스트 입력 활성화 (스와이프/음성)</string>
     <string name="summary_enable_commit_text">소프트 키보드의 여러 글자 입력(제스처 타이핑, 예측, 음성 입력)을 PC로 전달합니다. 키 단위 입력에 의존하는 게임에서는 문제가 발생할 수 있습니다.</string>
+
+    <string name="keyboard_a11y_prompt_title">시스템 단축키를 PC로 전달하시겠습니까?</string>
+    <string name="keyboard_a11y_prompt_message">Android는 Alt+Tab, Alt+Esc, Win 키와 같은 단축키를 호스트에 도달하기 전에 가로챕니다. 이를 전달하려면 접근성 설정에서 \"Artemis Physical keyboard\"를 활성화하세요.\n\n토글이 켜진 상태로 유지되지 않으면 앱 정보 페이지를 열어 제한된 설정을 허용한 후 접근성으로 돌아오세요.</string>
+    <string name="keyboard_a11y_prompt_open_settings">접근성 설정</string>
+    <string name="keyboard_a11y_prompt_app_details">앱 정보</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">다시 표시하지 않음</string>
+    <string name="title_keyboard_a11y_settings">시스템 키보드 단축키 전달</string>
+    <string name="summary_keyboard_a11y_settings">접근성 설정을 열어 Artemis 키보드 서비스를 활성화합니다. Alt+Tab, Alt+Esc, Win 키 및 기타 시스템 단축키를 호스트 PC로 전달하는 데 필요합니다.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">키보드 서비스 활성화 묻지 않기</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">접근성 서비스가 비활성화된 상태에서 물리 키보드로 스트리밍할 때 나타나는 알림을 숨깁니다.</string>
 </resources>

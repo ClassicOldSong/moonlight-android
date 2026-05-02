@@ -638,4 +638,14 @@
     <!-- New Strings -->
     <string name="title_enable_commit_text">Bật nhập commit-text (vuốt/giọng nói)</string>
     <string name="summary_enable_commit_text">Chuyển tiếp văn bản nhiều ký tự từ bàn phím ảo (gõ vuốt, gợi ý, nhập giọng nói). Có thể gây lỗi với trò chơi yêu cầu nhập từng phím.</string>
+
+    <string name="keyboard_a11y_prompt_title">Chuyển tiếp phím tắt hệ thống đến PC?</string>
+    <string name="keyboard_a11y_prompt_message">Android chặn các phím tắt như Alt+Tab, Alt+Esc và phím Win trước khi chúng đến máy chủ. Để chuyển tiếp chúng, hãy bật \"Artemis Physical keyboard\" trong cài đặt Trợ năng.\n\nNếu công tắc không duy trì bật, hãy mở trang thông tin ứng dụng và cho phép cài đặt bị hạn chế, sau đó quay lại Trợ năng.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Cài đặt trợ năng</string>
+    <string name="keyboard_a11y_prompt_app_details">Thông tin ứng dụng</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Không hiển thị lại</string>
+    <string name="title_keyboard_a11y_settings">Chuyển tiếp phím tắt bàn phím hệ thống</string>
+    <string name="summary_keyboard_a11y_settings">Mở cài đặt Trợ năng để bật dịch vụ bàn phím Artemis. Cần thiết để chuyển tiếp Alt+Tab, Alt+Esc, phím Win và các phím tắt hệ thống khác đến PC máy chủ.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Không hỏi để bật dịch vụ bàn phím</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Ẩn lời nhắc xuất hiện khi truyền phát với bàn phím vật lý trong khi dịch vụ Trợ năng bị tắt.</string>
 </resources>
