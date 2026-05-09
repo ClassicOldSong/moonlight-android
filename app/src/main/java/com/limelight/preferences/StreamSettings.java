@@ -631,7 +631,6 @@ public class StreamSettings extends AppCompatActivity {
 
             // Remove HDR preference for devices below Nougat.
             // On SDR handheld panels running Android N+, we still expose this toggle
-            // because Nova can request a 10-bit SDR stream from Polaris/Main10 hosts.
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                 LimeLog.info("Excluding HDR toggle based on OS");
                 PreferenceCategory category =
