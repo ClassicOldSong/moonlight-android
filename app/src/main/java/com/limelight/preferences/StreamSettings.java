@@ -629,7 +629,9 @@ public class StreamSettings extends AppCompatActivity {
                 }
             });
 
-            // Remove HDR preference for devices below Nougat
+            // Remove HDR preference for devices below Nougat.
+            // On SDR handheld panels running Android N+, we still expose this toggle
+            // because Nova can request a 10-bit SDR stream from Polaris/Main10 hosts.
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                 LimeLog.info("Excluding HDR toggle based on OS");
                 PreferenceCategory category =
@@ -650,21 +652,21 @@ public class StreamSettings extends AppCompatActivity {
                         }
                     }
                 }
+                PreferenceCategory category =
+                        (PreferenceCategory) findPreference("category_video_settings");
+                CheckBoxPreference hdrPref = (CheckBoxPreference) category.findPreference("checkbox_enable_hdr");
 
-                if (!foundHdr10) {
-                    LimeLog.info("Excluding HDR toggle based on display capabilities");
-                    PreferenceCategory category =
-                            (PreferenceCategory) findPreference("category_video_settings");
-                    category.removePreference(findPreference("checkbox_enable_hdr"));
+                if (!foundHdr10 && hdrPref != null) {
+                    LimeLog.info("Keeping HDR toggle visible for 10-bit SDR opt-in");
+                    hdrPref.setSummary(R.string.summary_enable_hdr_sdr_10bit);
                 }
                 else if (PreferenceConfiguration.isShieldAtvFirmwareWithBrokenHdr()) {
                     LimeLog.info("Disabling HDR toggle on old broken SHIELD TV firmware");
-                    PreferenceCategory category =
-                            (PreferenceCategory) findPreference("category_video_settings");
-                    CheckBoxPreference hdrPref = (CheckBoxPreference) category.findPreference("checkbox_enable_hdr");
-                    hdrPref.setEnabled(false);
-                    hdrPref.setChecked(false);
-                    hdrPref.setSummary("Update the firmware on your NVIDIA SHIELD Android TV to enable HDR");
+                    if (hdrPref != null) {
+                        hdrPref.setEnabled(false);
+                        hdrPref.setChecked(false);
+                        hdrPref.setSummary("Update the firmware on your NVIDIA SHIELD Android TV to enable HDR");
+                    }
                 }
             }
 
