@@ -948,7 +948,7 @@ private static int getFramePacingValue(Context context) {
 
         config.enableKeyboardVibrate = prefs.getBoolean(CHECKBOX_ENABLE_KEYBOARD_VIBRATE,false);
         //兼容joycon手柄
-        config.enableJoyConFix = prefs.getBoolean("checkbox_joycon_fix",false);
+        config.enableJoyConFix = prefs.getBoolean("checkbox_enable_joyconfix",false);
         //全键盘透明度
         config.oscKeyboardOpacity = prefs.getInt("seekbar_keyboard_axi_opacity",DEFAULT_OPACITY);
 
