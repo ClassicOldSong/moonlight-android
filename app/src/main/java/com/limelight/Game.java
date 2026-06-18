@@ -41,6 +41,8 @@ import com.limelight.preferences.GlPreferences;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.ui.ExternalControllerView;
+import com.limelight.ui.FoldableTriggerView;
+import com.limelight.ui.FoldStateManager;
 import com.limelight.ui.GameGestures;
 import com.limelight.ui.StreamContainer;
 import com.limelight.utils.Dialog;
@@ -208,6 +210,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private int specialKeyCode = KeyEvent.KEYCODE_UNKNOWN;
     private StreamContainer streamContainer;
     private long synthTouchDownTime = 0;
+
+    // Foldable display support
+    private FoldStateManager foldStateManager;
+    private FoldableTriggerView foldableTriggerView;
+    // Tracks L1/L2/R1/R2 flags contributed by the foldable panel
+    private int foldableTriggerInputMap = 0;
+    private byte foldableLeftTrigger = 0;
+    private byte foldableRightTrigger = 0;
 
     private boolean pendingDrag = false;
     private boolean isDragging = false;
@@ -464,6 +474,26 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         streamContainer.setCommitTextEnabled(prefConfig.enableCommitText);
 
         rootView = streamContainer.getParent();
+
+        // --- Foldable trigger panel setup ---
+        foldableTriggerView = new FoldableTriggerView(this);
+        foldableTriggerView.setVisibility(View.GONE);
+        foldableTriggerView.setInputListener((inputMapDelta, leftTrigger, rightTrigger) -> {
+            foldableTriggerInputMap = inputMapDelta;
+            foldableLeftTrigger = leftTrigger;
+            foldableRightTrigger = rightTrigger;
+            sendFoldableTriggerState();
+        });
+        FrameLayout.LayoutParams triggerParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        );
+        ((FrameLayout) rootView).addView(foldableTriggerView, triggerParams);
+
+        foldStateManager = new FoldStateManager(this);
+        foldStateManager.setListener(state -> runOnUiThread(() -> onFoldStateChanged(state)));
+        foldStateManager.startObserving();
+        // --- End foldable setup ---
 
         //串流画面 顶部居中显示
         if(prefConfig.alignDisplayTopCenter){
@@ -1102,6 +1132,49 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         virtualController = new VirtualController(controllerHandler, (FrameLayout)rootView, this);
         virtualController.refreshLayout();
         virtualController.show();
+    }
+
+    /**
+     * Called on the UI thread whenever the fold/hinge state changes.
+     * Shows the trigger panel in book mode, hides it otherwise.
+     */
+    private void onFoldStateChanged(FoldStateManager.FoldState state) {
+        if (foldableTriggerView == null) return;
+
+        if (state.isBookMode()) {
+            // Book mode: right half of the inner display becomes the trigger panel.
+            // Position it on the right 50% of the screen.
+            int screenW = ((FrameLayout) rootView).getWidth();
+            int screenH = ((FrameLayout) rootView).getHeight();
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(screenW / 2, screenH);
+            lp.gravity = Gravity.END;
+            foldableTriggerView.setLayoutParams(lp);
+            foldableTriggerView.setVisibility(View.VISIBLE);
+        } else {
+            foldableTriggerView.releaseAll();
+            foldableTriggerView.setVisibility(View.GONE);
+        }
+    }
+
+    /**
+     * Merges foldable panel button state into the VirtualController's input context and sends it.
+     * Called from the FoldableTriggerView input listener (already on UI thread via lambda).
+     */
+    private void sendFoldableTriggerState() {
+        if (virtualController == null || controllerHandler == null) return;
+        VirtualController.ControllerInputContext ctx = virtualController.getControllerInputContext();
+
+        // Merge foldable flags in — the existing OSC buttons remain active alongside
+        int mergedMap = ctx.inputMap | foldableTriggerInputMap;
+        byte mergedLT = (byte) Math.max(ctx.leftTrigger & 0xFF, foldableLeftTrigger & 0xFF);
+        byte mergedRT = (byte) Math.max(ctx.rightTrigger & 0xFF, foldableRightTrigger & 0xFF);
+
+        controllerHandler.reportOscState(
+                mergedMap,
+                ctx.leftStickX, ctx.leftStickY,
+                ctx.rightStickX, ctx.rightStickY,
+                mergedLT, mergedRT
+        );
     }
 
     private void initkeyBoardLayoutController(){

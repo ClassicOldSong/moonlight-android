@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inserted into activity_game root when book-mode fold is detected.
+     The stream already occupies the left half via its own SurfaceView;
+     this panel floats over the right half showing L1/L2/R1/R2. -->
+<com.limelight.ui.FoldableTriggerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/foldableTriggerPanel"
+    android:layout_width="0dp"
+    android:layout_height="match_parent"
+    android:layout_weight="1"
+    android:background="#CC1A1A2E"
+    android:visibility="gone"
+    android:elevation="100dp" />
