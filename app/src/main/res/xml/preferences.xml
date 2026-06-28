@@ -464,9 +464,9 @@
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"
-            android:key="checkbox_alt_cv_as_mac_copy"
-            android:summary="@string/summary_alt_cv_as_mac_copy"
-            android:title="@string/title_checkbox_alt_cv_as_mac_copy"
+            android:key="checkbox_right_alt_cv_as_mac_copy"
+            android:summary="@string/summary_right_alt_cv_as_mac_copy"
+            android:title="@string/title_checkbox_right_alt_cv_as_mac_copy"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"

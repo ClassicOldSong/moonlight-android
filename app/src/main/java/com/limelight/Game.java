@@ -200,7 +200,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private InputCaptureProvider inputCaptureProvider;
     private int modifierFlags = 0;
     private boolean rightAltHeld = false;
-    private short altCVInterceptedKey = 0;
+    private short rightAltCVInterceptedKey = 0;
     private boolean grabbedInput = true;
     private boolean cursorVisible = false;
     private boolean isPanZoomMode = false;
@@ -2110,9 +2110,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 return true;
             }
 
-            // Alt+C/V → Cmd+C/V for Mac: cancel the pending Alt and send Command instead
+            // Right Alt+C/V → Cmd+C/V for Mac: cancel the pending Right Alt and send Command instead
             int translatedVk = translated & 0xFF;
-            if (prefConfig.altCVAsMacCopy &&
+            if (prefConfig.rightAltCVAsMacCopy &&
                     rightAltHeld &&
                     (translatedVk == KeyboardTranslator.VK_C || translatedVk == KeyboardTranslator.VK_V)) {
                 byte noAltModifier = (byte) (modifierFlags & ~KeyboardPacket.MODIFIER_ALT);
@@ -2121,7 +2121,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 conn.sendKeyboardInput((short) 0xA5, KeyboardPacket.KEY_UP, noAltModifier, (byte) 0); // VK_RMENU
                 modifierFlags &= ~KeyboardPacket.MODIFIER_ALT;
                 sendKeys(new short[]{(short) KeyboardTranslator.VK_LWIN, (short) translatedVk});
-                altCVInterceptedKey = (short) translatedVk;
+                rightAltCVInterceptedKey = (short) translatedVk;
                 return true;
             }
 
@@ -2199,8 +2199,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
 
             // Consume the key-up for a key whose down was intercepted as Cmd (sendKeys handles release)
-            if (altCVInterceptedKey != 0 && (translated & 0xFF) == altCVInterceptedKey) {
-                altCVInterceptedKey = 0;
+            if (rightAltCVInterceptedKey != 0 && (translated & 0xFF) == rightAltCVInterceptedKey) {
+                rightAltCVInterceptedKey = 0;
                 return true;
             }
 

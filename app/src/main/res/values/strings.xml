@@ -391,8 +391,6 @@
     <string name="game_menu_send_keys_f11">F11</string>
     <string name="game_menu_send_keys_alt_f4">Alt + F4</string>
     <string name="game_menu_send_keys_ctrl_v">Ctrl + V</string>
-    <string name="game_menu_send_keys_cmd_c">Cmd + C (Mac Copy)</string>
-    <string name="game_menu_send_keys_cmd_v">Cmd + V (Mac Paste)</string>
     <string name="game_menu_send_keys_win">Win (Meta)</string>
     <string name="game_menu_send_keys_win_d">Win + D</string>
     <string name="game_menu_send_keys_alt_b">ALT + B</string>
@@ -541,8 +539,8 @@
     <string name="summary_checkbox_force_qwerty">Force use QWERTY keyboard layout.\nRequired by GFE.\nTurn off if you want to use a different keyboard layout.</string>
     <string name="title_checkbox_back_as_meta">Back button as Meta</string>
     <string name="summary_back_as_meta">Send Meta(Win) key on physical back button press.</string>
-    <string name="title_checkbox_alt_cv_as_mac_copy">Right Alt+C/V as Cmd+C/V (Mac)</string>
-    <string name="summary_alt_cv_as_mac_copy">Convert Right Alt+C and Right Alt+V to Command+C and Command+V for Mac streaming. Left Alt is unaffected.</string>
+    <string name="title_checkbox_right_alt_cv_as_mac_copy">Right Alt+C/V as Cmd+C/V (Mac)</string>
+    <string name="summary_right_alt_cv_as_mac_copy">Convert Right Alt+C and Right Alt+V to Command+C and Command+V for Mac streaming. Left Alt is unaffected.</string>
     <string name="title_back_as_guide">Back button as Guide</string>
     <string name="summary_back_as_guide">Send Guide(PS/HOME) button press when Back button is pressed on controllers.</string>
     <string name="title_checkbox_ignore_synth_events">Ignore synthetic events</string>
