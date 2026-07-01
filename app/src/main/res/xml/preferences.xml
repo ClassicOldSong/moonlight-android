@@ -286,6 +286,31 @@
             android:summary="@string/summary_analog_scrolling"
             android:title="@string/title_analog_scrolling"
             app:iconSpaceReserved="false" />
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="100"
+            android:dependency="checkbox_mouse_emulation"
+            android:key="seekbar_stick_mouse_sensitivity"
+            android:max="300"
+            android:summary="@string/summary_stick_mouse_sensitivity"
+            android:text="%"
+            android:title="@string/title_stick_mouse_sensitivity"
+            seekbar:min="10"
+            seekbar:step="10"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:dependency="checkbox_mouse_emulation"
+            android:key="checkbox_remap_x_to_ctrl"
+            android:summary="@string/summary_remap_x_to_ctrl"
+            android:title="@string/title_remap_x_to_ctrl"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:dependency="checkbox_mouse_emulation"
+            android:key="checkbox_remap_y_to_esc"
+            android:summary="@string/summary_remap_y_to_esc"
+            android:title="@string/title_remap_y_to_esc"
+            app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_flip_face_buttons"
@@ -810,6 +835,17 @@
         android:title="@string/title_virtual_trackpad_settings"
         app:initialExpandedChildrenCount="1"
         app:iconSpaceReserved="false">
+
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="80"
+            android:key="seekbar_keyboard_height_percent"
+            android:max="100"
+            android:summary="@string/summary_keyboard_height_percent"
+            android:text="%"
+            android:title="@string/title_keyboard_height_percent"
+            seekbar:min="50"
+            seekbar:step="5"
+            app:iconSpaceReserved="false" />
 
         <CheckBoxPreference
             android:defaultValue="false"

@@ -236,6 +236,14 @@
     <string name="summary_checkbox_usb_bind_all">Use Artemis\'s USB driver for all supported gamepads, even if native Xbox/Nintendo Pro controller support is present</string>
     <string name="title_checkbox_mouse_emulation">Mouse emulation via gamepad</string>
     <string name="summary_checkbox_mouse_emulation">Long-press the Start button to toggle between gamepad and mouse mode</string>
+    <string name="title_stick_mouse_sensitivity">Stick Mouse Sensitivity</string>
+    <string name="summary_stick_mouse_sensitivity">Analog stick cursor speed when using gamepad mouse emulation</string>
+    <string name="title_remap_x_to_ctrl">Remap X to Ctrl</string>
+    <string name="summary_remap_x_to_ctrl">Send keyboard Ctrl key instead of gamepad X button</string>
+    <string name="title_remap_y_to_esc">Remap Y to Esc</string>
+    <string name="summary_remap_y_to_esc">Send keyboard Escape key instead of gamepad Y button</string>
+    <string name="title_keyboard_height_percent">Keyboard Height</string>
+    <string name="summary_keyboard_height_percent">Virtual keyboard height as percentage of screen</string>
     <string name="title_checkbox_remember_mouse_mode">Remember mouse mode</string>
     <string name="summary_checkbox_remember_mouse_mode">Remember mouse mode selected during stream. When disabled, mouse mode changed during stream will be temporary.</string>
     <string name="title_checkbox_flip_face_buttons">Flip face buttons</string>

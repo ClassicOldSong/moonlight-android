@@ -263,7 +263,7 @@ public class GameMenu implements Game.GameMenuCallbacks {
             showSpecialKeysMenu();
         }));
 
-        options.add(new MenuOption(getString(R.string.game_menu_switch_touch_sensitivity_model), true, game::switchTouchSensitivity));
+        options.add(new MenuOption(getString(R.string.game_menu_switch_touch_sensitivity_model), game::switchTouchSensitivity));
         if (device != null) {
             options.addAll(device.getGameMenuOptions());
         }

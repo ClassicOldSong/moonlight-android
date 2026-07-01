@@ -33,6 +33,7 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.widget.Toast;
 
+import com.limelight.Game;
 import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.R;
@@ -41,6 +42,7 @@ import com.limelight.binding.input.driver.UsbDriverListener;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.input.ControllerPacket;
+import com.limelight.nvstream.input.KeyboardPacket;
 import com.limelight.nvstream.input.MouseButtonPacket;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.PreferenceConfiguration;
@@ -1344,10 +1346,36 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 }
             }
 
+            // Remap X→Ctrl / Y→Esc in mouse emulation mode.
+            // Route through Game.injectKey() for proper modifier state tracking
+            // (matches the virtual keyboard's modifier handling exactly).
+            if (prefConfig.remapXToCtrl) {
+                boolean xPressed = (inputMap & ControllerPacket.X_FLAG) != 0;
+                if (xPressed && !remapXActive) {
+                    Game.instance.injectKey((short)0xA2, KeyboardPacket.MODIFIER_CTRL, true);
+                    remapXActive = true;
+                } else if (!xPressed && remapXActive) {
+                    Game.instance.injectKey((short)0xA2, KeyboardPacket.MODIFIER_CTRL, false);
+                    remapXActive = false;
+                }
+            }
+            if (prefConfig.remapYToEsc) {
+                boolean yPressed = (inputMap & ControllerPacket.Y_FLAG) != 0;
+                if (yPressed && !remapYActive) {
+                    Game.instance.injectKey((short)27, (byte)0, true);
+                    remapYActive = true;
+                } else if (!yPressed && remapYActive) {
+                    Game.instance.injectKey((short)27, (byte)0, false);
+                    remapYActive = false;
+                }
+            }
+
             conn.sendControllerInput(controllerNumber, getActiveControllerMask(),
                     (short)0, (byte)0, (byte)0, (short)0, (short)0, (short)0, (short)0);
         }
         else {
+            // X→Ctrl / Y→Esc only active in mouse emulation mode;
+            // in normal gamepad mode X/Y keep their original function.
             conn.sendControllerInput(controllerNumber, getActiveControllerMask(),
                     inputMap,
                     leftTrigger, rightTrigger,
@@ -1957,36 +1985,75 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         Vector2d vector = new Vector2d();
         vector.initialize(stickX, stickY);
         vector.scalarMultiply(1 / 32766.0f);
-        vector.scalarMultiply(4);
         if (vector.getMagnitude() > 0) {
-            // Move faster as the stick is pressed further from center
-            vector.scalarMultiply(Math.pow(vector.getMagnitude(), 2));
+            double magnitude = vector.getMagnitude();
+            // sqrt curve for fine control at small deflections
+            // Full deflection: 12 pixels per frame (at 60Hz = 720 px/s)
+            double speedMultiplier = 12.0 * Math.sqrt(magnitude);
+            // Apply stick mouse sensitivity (default 100 = 1.0x)
+            speedMultiplier *= (prefConfig.stickMouseSensitivity / 100.0);
+            vector.scalarMultiply(speedMultiplier);
         }
         return vector;
     }
 
-    private void sendEmulatedMouseMove(short x, short y, boolean mouseEmulationXDown, int mouseEmulationPixelMultiplier) {
-        Vector2d vector = convertRawStickAxisToPixelMovement(x, y);
-        if (vector.getMagnitude() >= 1) {
+    // Sub-pixel accumulation for smooth fractional deltas (per-stick: left & right)
+    private final double[] emulatedMousePendingX = new double[2];
+    private final double[] emulatedMousePendingY = new double[2];
 
-            // Used a fixed amount of mouse movement while the X button is pressed
-            if(mouseEmulationXDown == true )
-            {
-                // convert the vector number to -1 if negative and +1 if positive and then send the mouse movement in pixels
-                conn.sendMouseMove((short)(Integer.signum((int)vector.getX()) * mouseEmulationPixelMultiplier) , (short)(Integer.signum((int)-vector.getY()) * mouseEmulationPixelMultiplier) );
+    private void sendEmulatedMouseMove(short x, short y, int stickIndex,
+                                        boolean xDown, int pixelMultiplier) {
+        Vector2d vector = convertRawStickAxisToPixelMovement(x, y);
+        if (vector.getMagnitude() >= 0.15) {
+            if (xDown) {
+                // X-button precision mode: fixed-step movement in stick direction
+                conn.sendMouseMove(
+                    (short)(Integer.signum((int)vector.getX()) * pixelMultiplier),
+                    (short)(Integer.signum((int)-vector.getY()) * pixelMultiplier));
+            } else {
+                // Accumulate sub-pixel deltas for smooth cursor movement
+                emulatedMousePendingX[stickIndex] += vector.getX();
+                emulatedMousePendingY[stickIndex] += -vector.getY();
+                short moveX = (short) emulatedMousePendingX[stickIndex];
+                short moveY = (short) emulatedMousePendingY[stickIndex];
+                if (moveX != 0 || moveY != 0) {
+                    conn.sendMouseMove(moveX, moveY);
+                    emulatedMousePendingX[stickIndex] -= moveX;
+                    emulatedMousePendingY[stickIndex] -= moveY;
+                }
             }
-            else {
-                // If X button is not pressed, base the movement on how much the stick is moved from the center
-                conn.sendMouseMove((short) vector.getX(), (short) -vector.getY());
-            }
+        } else {
+            // Stick at center: clear pending deltas to prevent cursor flickering
+            emulatedMousePendingX[stickIndex] = 0;
+            emulatedMousePendingY[stickIndex] = 0;
         }
     }
 
+    private double emulatedScrollPendingY = 0;
+    private double emulatedScrollPendingX = 0;
+
+    // State machine for X→Ctrl / Y→Esc remapping
+    private boolean remapXActive = false;
+    private boolean remapYActive = false;
+
     private void sendEmulatedMouseScroll(short x, short y) {
         Vector2d vector = convertRawStickAxisToPixelMovement(x, y);
-        if (vector.getMagnitude() >= 1) {
-            conn.sendMouseHighResScroll((short)vector.getY());
-            conn.sendMouseHighResHScroll((short)vector.getX());
+        if (vector.getMagnitude() >= 0.15) {
+            emulatedScrollPendingY += vector.getY();
+            emulatedScrollPendingX += vector.getX();
+            short scrollY = (short) emulatedScrollPendingY;
+            short scrollX = (short) emulatedScrollPendingX;
+            if (scrollY != 0) {
+                conn.sendMouseHighResScroll(scrollY);
+                emulatedScrollPendingY -= scrollY;
+            }
+            if (scrollX != 0) {
+                conn.sendMouseHighResHScroll(scrollX);
+                emulatedScrollPendingX -= scrollX;
+            }
+        } else {
+            emulatedScrollPendingY = 0;
+            emulatedScrollPendingX = 0;
         }
     }
 
@@ -3056,7 +3123,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public int mouseEmulationPixelMultiplier = 1;
 
         public int mouseEmulationLastInputMap;
-        public final int mouseEmulationReportPeriod = 50;
+        public int inputMapLastSent;
+        // Poll at ~60Hz for smooth cursor movement (was 50ms = 20Hz)
+        public final int mouseEmulationReportPeriod = 16;
 
         public final Runnable mouseEmulationRunnable = new Runnable() {
             @Override
@@ -3067,18 +3136,16 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
                 // Send mouse events from analog sticks
                 if (prefConfig.analogStickForScrolling == PreferenceConfiguration.AnalogStickForScrolling.RIGHT) {
-
-                    // Changed absolute value
-                    sendEmulatedMouseMove(leftStickX, leftStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
+                    sendEmulatedMouseMove(leftStickX, leftStickY, 0, mouseEmulationXDown, mouseEmulationPixelMultiplier);
                     sendEmulatedMouseScroll(rightStickX, rightStickY);
                 }
                 else if (prefConfig.analogStickForScrolling == PreferenceConfiguration.AnalogStickForScrolling.LEFT) {
-                    sendEmulatedMouseMove(rightStickX, rightStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
+                    sendEmulatedMouseMove(rightStickX, rightStickY, 0, mouseEmulationXDown, mouseEmulationPixelMultiplier);
                     sendEmulatedMouseScroll(leftStickX, leftStickY);
                 }
                 else {
-                    sendEmulatedMouseMove(leftStickX, leftStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
-                    sendEmulatedMouseMove(rightStickX, rightStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
+                    sendEmulatedMouseMove(leftStickX, leftStickY, 0, mouseEmulationXDown, mouseEmulationPixelMultiplier);
+                    sendEmulatedMouseMove(rightStickX, rightStickY, 1, mouseEmulationXDown, mouseEmulationPixelMultiplier);
                 }
 
                 // Requeue the callback
