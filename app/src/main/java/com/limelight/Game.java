@@ -51,6 +51,7 @@ import com.limelight.utils.PerformanceDataTracker;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.SpinnerDialog;
+import com.limelight.utils.StreamPresentationService;
 import com.limelight.utils.UiHelper;
 
 import android.annotation.SuppressLint;
@@ -72,12 +73,14 @@ import android.content.res.Configuration;
 import android.graphics.Outline;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.Color;
 import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.util.Log;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -103,9 +106,10 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ImageButton;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationManagerCompat;
@@ -209,6 +213,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private StreamContainer streamContainer;
     private long synthTouchDownTime = 0;
 
+    private StreamPresentationService streamPresentationService;
+    private boolean boundToPresentationService = false;
+    private android.content.ServiceConnection presentationServiceConnection;
+    private int presentationDisplayId = -1;
+    private boolean inPresentationMode = false;
+    private boolean presentationSessionEnding = false;
+
     private boolean pendingDrag = false;
     private boolean isDragging = false;
     private float lastTouchDownX, lastTouchDownY;
@@ -267,6 +278,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public static final String EXTRA_VDISPLAY = "VirtualDisplay";
     public static final String EXTRA_SERVER_COMMANDS = "ServerCommands";
     public static final String EXTRA_DISPLAY_ID = "DisplayID";
+    public static final String EXTRA_PRESENTATION_DISPLAY_ID = "PresentationDisplayID";
 
     public static final String CLIPBOARD_IDENTIFIER = "ArtemisStreaming";
 
@@ -396,24 +408,58 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         onExternelDisplay = currentDisplay.getDisplayId() != Display.DEFAULT_DISPLAY;
 
+        presentationDisplayId = getIntent().getIntExtra(EXTRA_PRESENTATION_DISPLAY_ID, -1);
+        inPresentationMode = presentationDisplayId != -1;
+        if (inPresentationMode) {
+            Log.i("MoonlightExtDisplay", "Game entering Presentation fallback mode for display id="
+                    + presentationDisplayId + " (Game activity running on default display, touchpad is host)");
+            currentOrientation = Configuration.ORIENTATION_LANDSCAPE;
+            onExternelDisplay = false;
+        }
+
         boolean shouldInvertDecoderResolution = false;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                && onExternelDisplay
+                && (onExternelDisplay || inPresentationMode)
                 && prefConfig.renderMode == 0 // For 3D we want to maintain configured resolution
         ) {
-            Display.Mode currentMode = currentDisplay.getMode();
-            displayWidth = currentMode.getPhysicalWidth();
-            displayHeight = currentMode.getPhysicalHeight();
-            prefConfig.width = displayWidth;
-            prefConfig.height = displayHeight;
-            prefConfig.fps = currentMode.getRefreshRate();
-            prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
-            prefConfig.enableFloatingButton = false;
-            prefConfig.showOverlayZoomToggleButton = false;
-            prefConfig.enablePip = false;
+            Display targetForMode = onExternelDisplay ? currentDisplay : null;
+            if (inPresentationMode) {
+                DisplayManager dm = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+                targetForMode = dm != null ? dm.getDisplay(presentationDisplayId) : null;
+            }
+            if (inPresentationMode && targetForMode == null) {
+                Log.w("MoonlightExtDisplay", "Presentation target display id=" + presentationDisplayId + " not found");
+                if (spinner != null) {
+                    spinner.dismiss();
+                    spinner = null;
+                }
+                Toast.makeText(this, R.string.no_external_display, Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
+            if (targetForMode != null) {
+                Display.Mode currentMode = targetForMode.getMode();
+                displayWidth = currentMode.getPhysicalWidth();
+                displayHeight = currentMode.getPhysicalHeight();
+                prefConfig.width = displayWidth;
+                prefConfig.height = displayHeight;
+                prefConfig.fps = currentMode.getRefreshRate();
+                prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
+                prefConfig.enableFloatingButton = false;
+                prefConfig.showOverlayZoomToggleButton = false;
+                prefConfig.enablePip = false;
+            }
             currentOrientation = Configuration.ORIENTATION_LANDSCAPE;
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE);
+            if (onExternelDisplay) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE);
+            } else {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+            }
+            if (inPresentationMode) {
+                Log.i("MoonlightExtDisplay", "Stream target via Presentation: " + displayWidth + "x"
+                        + displayHeight + "@" + prefConfig.fps + "Hz");
+            }
         } else {
             if (prefConfig.renderMode != 0) {
                 prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
@@ -432,7 +478,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             displayHeight = shouldInvertDecoderResolution ? prefConfig.width : prefConfig.height;
 
             // Enter landscape unless we're on a square screen
-            setPreferredOrientationForActivity();
+            if (!inPresentationMode) {
+                setPreferredOrientationForActivity();
+            }
         }
 
 
@@ -600,7 +648,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Check if the user has enabled HDR
         boolean willStreamHdr = false;
         if (prefConfig.enableHdr) {
-            if (onExternelDisplay) {
+            if (onExternelDisplay || inPresentationMode) {
                 // Enforce HDR on unsupported hardware can still enable 10bit streaming for better quality
                 willStreamHdr = true;
             } else {
@@ -826,6 +874,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             if (prefConfig.enableFullExDisplay && onExternelDisplay) {
                 requestFocusToExternalDisplayControl(this);
                 listenForExternalDisplayRemoval();
+            } else if (prefConfig.enableFullExDisplay && inPresentationMode) {
+                buildTouchpadOverlay();
+                listenForExternalDisplayRemoval();
             }
 
             // Initialize touch contexts based on preferences
@@ -865,18 +916,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         //streamContainer.getHolder().addCallback(this);
 
         streamContainer.setOnSurfaceAvailable(() -> {
-            if (!attemptedConnection) {
-                LimeLog.info("Surface is available, starting connection...");
-                attemptedConnection = true;
-
-                // Der Decoder erhält die jeweils aktive Oberfläche vom Container
-                decoderRenderer.setRenderTarget(streamContainer.getSurface());
-
-                // Starten Sie die NvConnection
-                conn.start(new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio),
-                        decoderRenderer, Game.this);
+            if (inPresentationMode) {
+                return;
             }
+            tryStartStream(streamContainer.getSurface());
         });
+
+        if (inPresentationMode) {
+            streamContainer.setVisibility(View.GONE);
+            bindToStreamPresentationService();
+        }
 
         gameMenuCallbacks = new GameMenu(this);
 
@@ -1032,6 +1081,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private void handleDisplayRemoved() {
         NotificationManagerCompat.from(getBaseContext()).cancel(SECONDARY_SCREEN_NOTIFICATION_ID);
         closeExternalDisplayControl();
+        if (inPresentationMode) {
+            try { stopService(new Intent(this, StreamPresentationService.class)); } catch (Throwable ignored) {}
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -1120,7 +1172,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     public void toggleFullKeyboard() {
-        if (isOnExternalDisplay()) {
+        if (isOnExternalDisplay() && ExternalDisplayControlActivity.instance != null) {
             ExternalDisplayControlActivity.toggleFullKeyboard();
             return;
         }
@@ -1189,7 +1241,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         super.onConfigurationChanged(newConfig);
 
         // Set requested orientation for possible new screen size
-        setPreferredOrientationForActivity();
+        if (!inPresentationMode) {
+            setPreferredOrientationForActivity();
+        }
 
         if (virtualController != null) {
             // Refresh layout of OSC for possible new screen size
@@ -1370,6 +1424,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (inPresentationMode && streamPresentationService != null && (connected || conn != null)) {
+            Log.i("MoonlightExtDisplay", "onNewIntent: connection active, dismissing spinner");
+            runOnUiThread(() -> {
+                if (spinner != null) {
+                    spinner.dismiss();
+                    spinner = null;
+                }
+            });
+        }
+    }
+
+    @Override
     public void onUserLeaveHint() {
         super.onUserLeaveHint();
 
@@ -1449,7 +1518,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     public boolean isOnExternalDisplay() {
-        return onExternelDisplay;
+        return onExternelDisplay || inPresentationMode;
+    }
+
+    public boolean isInPresentationMode() {
+        return inPresentationMode;
+    }
+
+    private int effectiveStreamWidth() {
+        int width = inPresentationMode ? displayWidth : streamContainer.getWidth();
+        return Math.max(width, 1);
+    }
+
+    private int effectiveStreamHeight() {
+        int height = inPresentationMode ? displayHeight : streamContainer.getHeight();
+        return Math.max(height, 1);
     }
 
     private float prepareDisplayForRendering(Display currentDisplay) {
@@ -1698,6 +1781,148 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         hideSystemUi(50);
     }
 
+    private void tryStartStream(Surface renderTarget) {
+        if (renderTarget == null || !renderTarget.isValid()) {
+            return;
+        }
+        if (!attemptedConnection) {
+            LimeLog.info("Surface is available, starting connection...");
+            attemptedConnection = true;
+            decoderRenderer.setRenderTarget(renderTarget);
+            conn.start(new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio),
+                    decoderRenderer, Game.this);
+        }
+    }
+
+    private void bindToStreamPresentationService() {
+        if (presentationDisplayId == -1) {
+            return;
+        }
+        if (boundToPresentationService) {
+            if (streamPresentationService != null) {
+                streamPresentationService.requestSurface(() -> tryStartStream(streamPresentationService.getSurface()));
+            }
+            return;
+        }
+        Intent svc = new Intent(this, StreamPresentationService.class);
+        svc.putExtra(StreamPresentationService.EXTRA_DISPLAY_ID, presentationDisplayId);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(svc);
+        } else {
+            startService(svc);
+        }
+        presentationServiceConnection = new android.content.ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, android.os.IBinder service) {
+                StreamPresentationService.LocalBinder binder = (StreamPresentationService.LocalBinder) service;
+                streamPresentationService = binder.getService();
+                Log.i("MoonlightExtDisplay", "Connected to StreamPresentationService");
+                streamPresentationService.setPresentationStateListener(new StreamPresentationService.PresentationStateListener() {
+                    @Override
+                    public void onPresentationFailure(String reason) {
+                        endPresentationSession("Presentation failed: " + reason);
+                    }
+
+                    @Override
+                    public void onPresentationSurfaceDestroyed() {
+                        endPresentationSession("Presentation surface destroyed");
+                    }
+                });
+                streamPresentationService.requestSurface(() -> tryStartStream(streamPresentationService.getSurface()));
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                Log.w("MoonlightExtDisplay", "StreamPresentationService disconnected");
+                streamPresentationService = null;
+            }
+        };
+        Intent bindIntent = new Intent(this, StreamPresentationService.class);
+        bindService(bindIntent, presentationServiceConnection, Context.BIND_AUTO_CREATE);
+        boundToPresentationService = true;
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void buildTouchpadOverlay() {
+        ExternalControllerView rootLayout = new ExternalControllerView(this);
+        rootLayout.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        rootLayout.setFocusable(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) rootLayout.setFocusedByDefault(true);
+        rootLayout.setInputCallbacks(this);
+        rootLayout.setCommitTextEnabled(prefConfig.enableCommitText);
+        rootLayout.setOnTouchListener((v, event) -> { handleMotionEvent(v, event); return true; });
+
+        LinearLayout topLeftHolder = createTouchpadButtonContainer(Gravity.TOP | Gravity.START);
+        topLeftHolder.addView(createTouchpadButton(R.drawable.ic_zoom_toggle,
+                v -> {
+                    if (keyBoardLayoutController != null && keyBoardLayoutController.isKeyboardVisible()) return;
+                    toggleZoomMode();
+                }));
+
+        LinearLayout topRightHolder = createTouchpadButtonContainer(Gravity.TOP | Gravity.END);
+        topRightHolder.addView(createTouchpadButton(R.drawable.ic_menu_external, v -> {
+            if (gameMenuCallbacks != null) gameMenuCallbacks.showMenu(null);
+        }));
+        topRightHolder.addView(createTouchpadButton(R.drawable.ic_close_external, v -> {
+            stopConnection();
+            if (inPresentationMode) {
+                try {
+                    stopService(new Intent(this, StreamPresentationService.class));
+                } catch (Throwable ignored) {}
+            }
+            finish();
+        }));
+
+        LinearLayout bottomLeftHolder = createTouchpadButtonContainer(Gravity.BOTTOM | Gravity.START);
+        bottomLeftHolder.addView(createTouchpadButton(R.drawable.ic_android_keyboard, v -> {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.toggleSoftInput(0, 0);
+        }));
+
+        LinearLayout bottomRightHolder = createTouchpadButtonContainer(Gravity.BOTTOM | Gravity.END);
+        bottomRightHolder.addView(createTouchpadButton(R.drawable.ic_fullscreen_keyboard, v -> {
+            if (keyBoardLayoutController == null) {
+                keyBoardLayoutController = new KeyBoardLayoutController(rootLayout, Game.this, prefConfig);
+                keyBoardLayoutController.refreshLayout();
+                keyBoardLayoutController.show();
+            } else {
+                keyBoardLayoutController.toggleVisibility();
+            }
+        }));
+
+        rootLayout.addView(topLeftHolder);
+        rootLayout.addView(topRightHolder);
+        rootLayout.addView(bottomLeftHolder);
+        rootLayout.addView(bottomRightHolder);
+
+        ViewGroup root = findViewById(android.R.id.content);
+        root.addView(rootLayout,
+                new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private LinearLayout createTouchpadButtonContainer(int gravity) {
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.HORIZONTAL);
+        l.setGravity(gravity);
+        l.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity));
+        l.setFocusable(false);
+        return l;
+    }
+
+    private ImageButton createTouchpadButton(int resId, View.OnClickListener listener) {
+        ImageButton b = new ImageButton(this);
+        b.setImageResource(resId);
+        b.setBackgroundColor(Color.TRANSPARENT);
+        b.setOnClickListener(listener);
+        float density = getResources().getDisplayMetrics().density;
+        b.setLayoutParams(new LinearLayout.LayoutParams((int)(56*density), (int)(56*density)));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) b.setTooltipText("");
+        return b;
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -1706,6 +1931,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         timerHandler.removeCallbacksAndMessages(null);
 
         if (prefConfig.enableFullExDisplay) handleDisplayRemoved();
+
+        if (boundToPresentationService) {
+            try {
+                if (presentationServiceConnection != null) {
+                    unbindService(presentationServiceConnection);
+                }
+            } catch (Throwable ignored) {}
+            boundToPresentationService = false;
+            presentationServiceConnection = null;
+            streamPresentationService = null;
+        }
+        if (inPresentationMode) {
+            try { stopService(new Intent(this, StreamPresentationService.class)); } catch (Throwable ignored) {}
+        }
 
         if (controllerHandler != null) {
             controllerHandler.destroy();
@@ -1742,6 +1981,23 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         streamContainer.onDestroy();
     }
 
+    private void endPresentationSession(String reason) {
+        if (presentationSessionEnding || !inPresentationMode || isFinishing()) {
+            return;
+        }
+        presentationSessionEnding = true;
+        Log.w("MoonlightExtDisplay", reason);
+        runOnUiThread(() -> {
+            if (spinner != null) {
+                spinner.dismiss();
+                spinner = null;
+            }
+            try { stopService(new Intent(this, StreamPresentationService.class)); } catch (Throwable ignored) {}
+            stopConnection();
+            finish();
+        });
+    }
+
     @Override
     protected void onPause() {
         if (isFinishing()) {
@@ -1775,7 +2031,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             keyBoardLayoutController.hide();
         }
 
-        if (conn != null) {
+        if (conn != null && (!inPresentationMode || isFinishing())) {
             int videoFormat = decoderRenderer.getActiveVideoFormat();
 
             displayedFailureDialog = true;
@@ -1852,7 +2108,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         }
 
-        finish();
+        if (!inPresentationMode || isFinishing()) {
+            finish();
+        }
     }
 
     public static String formatCurrentTime(long currentTimeMillis) {
@@ -2400,7 +2658,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void toggleKeyboard() {
-        if (isOnExternalDisplay()) {
+        if (isOnExternalDisplay() && ExternalDisplayControlActivity.instance != null) {
             ExternalDisplayControlActivity.toggleKeyboard();
         } else {
             LimeLog.info("Toggling keyboard overlay");
@@ -2477,11 +2735,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 normalizedY= bean.getLastRelativelyY() +dy;
             }
             if(prefConfig.touchSensitivityRotationAuto){
-                if(normalizedX>= streamContainer.getWidth()){
-                    normalizedX= streamContainer.getWidth()/2.0f;
+                if(normalizedX>= effectiveStreamWidth()){
+                    normalizedX= effectiveStreamWidth()/2.0f;
                 }
-                if(normalizedY>= streamContainer.getHeight()){
-                    normalizedY= streamContainer.getHeight()/2.0f;
+                if(normalizedY>= effectiveStreamHeight()){
+                    normalizedY= effectiveStreamHeight()/2.0f;
                 }
             }
             bean.setLastAbsoluteX(event.getX(pointerIndex));
@@ -2520,11 +2778,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         normalizedX = Math.max(normalizedX, 0.0f);
         normalizedY = Math.max(normalizedY, 0.0f);
 
-        normalizedX = Math.min(normalizedX, streamContainer.getWidth());
-        normalizedY = Math.min(normalizedY, streamContainer.getHeight());
+        normalizedX = Math.min(normalizedX, effectiveStreamWidth());
+        normalizedY = Math.min(normalizedY, effectiveStreamHeight());
 
-        normalizedX /= streamContainer.getWidth();
-        normalizedY /= streamContainer.getHeight();
+        normalizedX /= effectiveStreamWidth();
+        normalizedY /= effectiveStreamHeight();
 
         return new float[] { normalizedX, normalizedY };
     }
@@ -2624,10 +2882,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         float[] contactAreaMinorCartesian = polarToCartesian(contactAreaMinor, (float)(orientation + (Math.PI / 2)));
 
         // Normalize the contact area to the stream view size
-        contactAreaMajorCartesian[0] = Math.min(Math.abs(contactAreaMajorCartesian[0]), streamContainer.getWidth()) / streamContainer.getWidth();
-        contactAreaMinorCartesian[0] = Math.min(Math.abs(contactAreaMinorCartesian[0]), streamContainer.getWidth()) / streamContainer.getWidth();
-        contactAreaMajorCartesian[1] = Math.min(Math.abs(contactAreaMajorCartesian[1]), streamContainer.getHeight()) / streamContainer.getHeight();
-        contactAreaMinorCartesian[1] = Math.min(Math.abs(contactAreaMinorCartesian[1]), streamContainer.getHeight()) / streamContainer.getHeight();
+        contactAreaMajorCartesian[0] = Math.min(Math.abs(contactAreaMajorCartesian[0]), effectiveStreamWidth()) / effectiveStreamWidth();
+        contactAreaMinorCartesian[0] = Math.min(Math.abs(contactAreaMinorCartesian[0]), effectiveStreamWidth()) / effectiveStreamWidth();
+        contactAreaMajorCartesian[1] = Math.min(Math.abs(contactAreaMajorCartesian[1]), effectiveStreamHeight()) / effectiveStreamHeight();
+        contactAreaMinorCartesian[1] = Math.min(Math.abs(contactAreaMinorCartesian[1]), effectiveStreamHeight()) / effectiveStreamHeight();
 
         // Convert the normalized values back into polar coordinates
         return new float[] { cartesianToR(contactAreaMajorCartesian), cartesianToR(contactAreaMinorCartesian) };
@@ -2830,7 +3088,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         if (prefConfig.absoluteMouseMode) {
                             // NB: view may be null, but we can unconditionally use streamView because we don't need to adjust
                             // relative axis deltas for the position of the streamView within the parent's coordinate system.
-                            conn.sendMouseMoveAsMousePosition(deltaX, deltaY, (short) streamContainer.getWidth(), (short) streamContainer.getHeight());
+                            conn.sendMouseMoveAsMousePosition(deltaX, deltaY, (short) effectiveStreamWidth(), (short) effectiveStreamHeight());
                         }
                         else {
                             conn.sendMouseMove(deltaX, deltaY);
@@ -3396,10 +3654,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Normalize these to the view size. We can't just drop them because we won't always get an event
         // right at the boundary of the view, so dropping them would result in our cursor never really
         // reaching the sides of the screen.
-        eventX = Math.min(Math.max(eventX, 0), streamContainer.getWidth());
-        eventY = Math.min(Math.max(eventY, 0), streamContainer.getHeight());
+        eventX = Math.min(Math.max(eventX, 0), effectiveStreamWidth());
+        eventY = Math.min(Math.max(eventY, 0), effectiveStreamHeight());
 
-        conn.sendMousePosition((short)eventX, (short)eventY, (short) streamContainer.getWidth(), (short) streamContainer.getHeight());
+        conn.sendMousePosition((short)eventX, (short)eventY, (short) effectiveStreamWidth(), (short) effectiveStreamHeight());
     }
 
     @Override
@@ -4004,6 +4262,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     public void rotateScreen() {
+        if (inPresentationMode) return;
         if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
             currentOrientation = Configuration.ORIENTATION_PORTRAIT;
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT);
@@ -4215,6 +4474,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (prefConfig.smartClipboardSync) {
             getClipboard(-1);
         }
+        if (inPresentationMode) {
+            try { stopService(new Intent(this, StreamPresentationService.class)); } catch (Throwable ignored) {}
+        }
         finish();
     }
 
@@ -4232,6 +4494,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         builder.setPositiveButton(getString(R.string.yes), (dialog, which) -> {
             quitOnStop = true;
             dialog.dismiss();
+            if (inPresentationMode) {
+                try { stopService(new Intent(this, StreamPresentationService.class)); } catch (Throwable ignored) {}
+            }
             finish();
         });
 
@@ -4243,7 +4508,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void showGameMenu(GameInputDevice device) {
-        if(isOnExternalDisplay()) {
+        if(isOnExternalDisplay() && ExternalDisplayControlActivity.instance != null) {
             ExternalDisplayControlActivity.toggleGameMenu();
         } else {
             if (gameMenuCallbacks != null) {
