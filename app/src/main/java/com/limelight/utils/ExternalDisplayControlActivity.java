@@ -19,6 +19,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -55,6 +56,8 @@ import com.limelight.ui.ExternalControllerView;
  * It creates its own UI programmatically and hosts the GameMenu for in-game options.
  */
 public class ExternalDisplayControlActivity extends AppCompatActivity implements View.OnKeyListener, KeyBoardLayoutController.ViewCallbacks {
+
+    private static final String TAG = "MoonlightExtDisplay";
 
     public static String EXTRA_LAUNCH_INTENT = "launchIntent";
 
@@ -123,20 +126,53 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
                 finish();
             } else {
                 Display secondaryDisplay = getSecondaryDisplay(this);
+                boolean launchedOnSecondary = false;
                 if (secondaryDisplay != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    ActivityOptions options = ActivityOptions.makeBasic();
-                    options.setLaunchDisplayId(secondaryDisplay.getDisplayId());
+                    try {
+                        ActivityOptions options = ActivityOptions.makeBasic();
+                        options.setLaunchDisplayId(secondaryDisplay.getDisplayId());
+                        Toast.makeText(this,
+                                getString(R.string.external_display_info,
+                                        secondaryDisplay.getMode().getPhysicalWidth(),
+                                        secondaryDisplay.getMode().getPhysicalHeight(),
+                                        secondaryDisplay.getMode().getRefreshRate()),
+                                Toast.LENGTH_LONG).show();
+                        startActivity(gameIntent, options.toBundle());
+                        launchedOnSecondary = true;
+                        ServerHelper.setSamsungRestricted(false);
+                    } catch (RuntimeException e) {
+                        Log.w(TAG, "setLaunchDisplayId failed on display id="
+                                + secondaryDisplay.getDisplayId()
+                                + " (likely Samsung Android 16 / One UI 8 restriction). "
+                                + "Falling back to Presentation path: " + e);
+                        ServerHelper.setSamsungRestricted(true);
+                        launchedOnSecondary = false;
+                    }
+                }
+                if (!launchedOnSecondary && secondaryDisplay != null) {
                     Toast.makeText(this,
                             getString(R.string.external_display_info,
                                     secondaryDisplay.getMode().getPhysicalWidth(),
                                     secondaryDisplay.getMode().getPhysicalHeight(),
                                     secondaryDisplay.getMode().getRefreshRate()),
                             Toast.LENGTH_LONG).show();
-
-                    startActivity(gameIntent, options.toBundle());
-                } else {
+                    gameIntent.putExtra(Game.EXTRA_DISPLAY_ID, Display.DEFAULT_DISPLAY);
+                    gameIntent.putExtra(Game.EXTRA_PRESENTATION_DISPLAY_ID, secondaryDisplay.getDisplayId());
+                    try {
+                        startActivity(gameIntent);
+                        launchedOnSecondary = true;
+                    } catch (RuntimeException e) {
+                        Log.w(TAG, "Fallback startActivity (Presentation path) failed: " + e);
+                    }
+                }
+                if (!launchedOnSecondary) {
                     LimeLog.warning(getString(R.string.no_external_display));
-                    startActivity(gameIntent);
+                    Toast.makeText(this, R.string.no_external_display, Toast.LENGTH_LONG).show();
+                    try {
+                        startActivity(gameIntent);
+                    } catch (RuntimeException e) {
+                        Log.w(TAG, "Starting Game on default display failed: " + e);
+                    }
                     finish();
                 }
             }
@@ -514,6 +550,9 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     // --- Notification Management ---
 
     private void checkNotificationPermission() {
+        if (Game.instance != null && Game.instance.isOnExternalDisplay()) {
+            return;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERMISSION_REQUEST_CODE);

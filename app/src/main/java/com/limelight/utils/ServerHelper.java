@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
+import android.util.Log;
 import android.view.Display;
 import android.widget.Toast;
 
@@ -34,6 +35,16 @@ import java.util.ArrayList;
 
 public class ServerHelper {
     public static final String CONNECTION_TEST_SERVER = "android.conntest.moonlight-stream.org";
+    private static final String TAG = "MoonlightExtDisplay";
+    private static Boolean sSamsungRestricted = null;
+
+    public static void setSamsungRestricted(boolean restricted) {
+        sSamsungRestricted = restricted;
+    }
+
+    private static boolean isExternalDisplayLaunchRestricted() {
+        return sSamsungRestricted != null && sSamsungRestricted;
+    }
 
     public static ComputerDetails.AddressTuple getCurrentAddressFromComputer(ComputerDetails computer) throws IOException {
         if (computer.activeAddress == null) {
@@ -72,22 +83,38 @@ public class ServerHelper {
 
     public static Display getSecondaryDisplay(Context context) {
         DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
-        Display display = null;
-        Display[] displays = displayManager.getDisplays();
+        if (displayManager == null) {
+            return null;
+        }
+
         int mainDisplayId = Display.DEFAULT_DISPLAY;
-        int secondaryDisplayId = -1;
-        for (Display displayVariant : displays) {
-            LimeLog.info(displayVariant.toString());
-            if (displayVariant.getDisplayId() != mainDisplayId) {
-                secondaryDisplayId = displayVariant.getDisplayId();
-                break;
+
+        Display[] presentationDisplays = displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+        ArrayList<Display> candidates = new ArrayList<>();
+        if (presentationDisplays != null) {
+            for (Display d : presentationDisplays) {
+                if (d != null && d.getDisplayId() != mainDisplayId && d.getState() == Display.STATE_ON) {
+                    candidates.add(d);
+                }
+            }
+        }
+        Display[] allDisplays = displayManager.getDisplays();
+        if (allDisplays != null) {
+            for (Display d : allDisplays) {
+                if (d != null && d.getDisplayId() != mainDisplayId && !candidates.contains(d)
+                        && d.getState() == Display.STATE_ON) {
+                    candidates.add(d);
+                }
             }
         }
 
-        if (secondaryDisplayId != -1) {
-            display = displayManager.getDisplay(secondaryDisplayId);
+        for (Display d : candidates) {
+            Log.i(TAG, "Selected secondary display id=" + d.getDisplayId() + " " + d);
+            return d;
         }
-        return display;
+
+        Log.w(TAG, "No usable secondary display found (candidates=" + candidates.size() + ")");
+        return null;
     }
 
     public static Intent createStartIntent(Activity parent, NvApp app, ComputerDetails computer,
@@ -95,11 +122,17 @@ public class ServerHelper {
                                            boolean withVDisplay) {
         Intent gameIntent = null;
         PreferenceConfiguration prefConfig = PreferenceConfiguration.readPreferences(parent);
-        // Try to add secondary DisplayContext if supported and connected
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && prefConfig.enableFullExDisplay && getSecondaryDisplay(parent) != null) {
-            Context displayContext = parent.createDisplayContext(getSecondaryDisplay(parent)); // use secondary display
-            gameIntent = new Intent(displayContext, Game.class);
-            gameIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        Display secondaryDisplay = prefConfig.enableFullExDisplay ? getSecondaryDisplay(parent) : null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && secondaryDisplay != null) {
+            try {
+                Context displayContext = parent.createDisplayContext(secondaryDisplay);
+                gameIntent = new Intent(displayContext, Game.class);
+                gameIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            } catch (RuntimeException e) {
+                Log.w(TAG, "createDisplayContext failed for display id=" + secondaryDisplay.getDisplayId()
+                        + ", falling back to default context: " + e);
+                gameIntent = null;
+            }
         }
         if(gameIntent == null) gameIntent = new Intent(parent, Game.class);
         gameIntent.putExtra(Game.EXTRA_HOST, computer.activeAddress.address);
@@ -123,15 +156,18 @@ public class ServerHelper {
             e.printStackTrace();
         }
 
-        if (prefConfig.enableFullExDisplay) {
-            Display secondaryDisplay = getSecondaryDisplay(parent);
-            if (secondaryDisplay != null) {
-                int secondaryDisplayId = secondaryDisplay.getDisplayId();
-                gameIntent.putExtra(Game.EXTRA_DISPLAY_ID, secondaryDisplayId);
-                Intent touchpadIntent = new Intent(parent, ExternalDisplayControlActivity.class);
-                touchpadIntent.putExtra(ExternalDisplayControlActivity.EXTRA_LAUNCH_INTENT, gameIntent);
-                return touchpadIntent;
+        if (secondaryDisplay != null) {
+            int secondaryDisplayId = secondaryDisplay.getDisplayId();
+            if (isExternalDisplayLaunchRestricted()) {
+                Log.i(TAG, "External display launch restriction detected; returning Game intent with Presentation extras");
+                gameIntent.putExtra(Game.EXTRA_DISPLAY_ID, Display.DEFAULT_DISPLAY);
+                gameIntent.putExtra(Game.EXTRA_PRESENTATION_DISPLAY_ID, secondaryDisplayId);
+                return gameIntent;
             }
+            gameIntent.putExtra(Game.EXTRA_DISPLAY_ID, secondaryDisplayId);
+            Intent touchpadIntent = new Intent(parent, ExternalDisplayControlActivity.class);
+            touchpadIntent.putExtra(ExternalDisplayControlActivity.EXTRA_LAUNCH_INTENT, gameIntent);
+            return touchpadIntent;
         }
 
         return gameIntent;
