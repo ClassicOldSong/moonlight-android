@@ -199,8 +199,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     private InputCaptureProvider inputCaptureProvider;
     private int modifierFlags = 0;
-    private boolean rightAltHeld = false;
-    private short rightAltCVInterceptedKey = 0;
     private boolean grabbedInput = true;
     private boolean cursorVisible = false;
     private boolean isPanZoomMode = false;
@@ -1906,10 +1904,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
         else if (androidKeyCode == KeyEvent.KEYCODE_ALT_LEFT ||
                 androidKeyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
-            modifierMask = KeyboardPacket.MODIFIER_ALT;
-            if (androidKeyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
-                rightAltHeld = down;
+            if (prefConfig.rightAltAsMeta && androidKeyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
+                // Remap Right Alt → Command (VK_LWIN) for Mac streaming
+                if (down) {
+                    modifierFlags |= KeyboardPacket.MODIFIER_META;
+                } else {
+                    modifierFlags &= ~KeyboardPacket.MODIFIER_META;
+                }
+                conn.sendKeyboardInput((short) KeyboardTranslator.VK_LWIN,
+                        down ? KeyboardPacket.KEY_DOWN : KeyboardPacket.KEY_UP,
+                        (byte) modifierFlags, (byte) 0);
+                return true;
             }
+            modifierMask = KeyboardPacket.MODIFIER_ALT;
         }
         else if (androidKeyCode == KeyEvent.KEYCODE_META_LEFT ||
                 androidKeyCode == KeyEvent.KEYCODE_META_RIGHT) {
@@ -2014,7 +2021,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             modifier |= KeyboardPacket.MODIFIER_CTRL;
         }
         if (event.isAltPressed()) {
-            modifier |= KeyboardPacket.MODIFIER_ALT;
+            // When Right Alt is remapped to Meta, only treat Alt as held if Left Alt is specifically pressed
+            if (!prefConfig.rightAltAsMeta || (event.getMetaState() & KeyEvent.META_ALT_LEFT_ON) != 0) {
+                modifier |= KeyboardPacket.MODIFIER_ALT;
+            }
         }
         if (event.isMetaPressed()) {
             modifier |= KeyboardPacket.MODIFIER_META;
@@ -2110,21 +2120,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 return true;
             }
 
-            // Right Alt+C/V → Cmd+C/V for Mac: cancel the pending Right Alt and send Command instead
-            int translatedVk = translated & 0xFF;
-            if (prefConfig.rightAltCVAsMacCopy &&
-                    rightAltHeld &&
-                    (translatedVk == KeyboardTranslator.VK_C || translatedVk == KeyboardTranslator.VK_V)) {
-                byte noAltModifier = (byte) (modifierFlags & ~KeyboardPacket.MODIFIER_ALT);
-                // Cancel whichever Alt key Sunshine has held — send both UP to cover left and right
-                conn.sendKeyboardInput((short) 0xA4, KeyboardPacket.KEY_UP, noAltModifier, (byte) 0); // VK_LMENU
-                conn.sendKeyboardInput((short) 0xA5, KeyboardPacket.KEY_UP, noAltModifier, (byte) 0); // VK_RMENU
-                modifierFlags &= ~KeyboardPacket.MODIFIER_ALT;
-                sendKeys(new short[]{(short) KeyboardTranslator.VK_LWIN, (short) translatedVk});
-                rightAltCVInterceptedKey = (short) translatedVk;
-                return true;
-            }
-
             conn.sendKeyboardInput(translated, KeyboardPacket.KEY_DOWN, getModifierState(event),
                     keyboardTranslator.hasNormalizedMapping(event.getKeyCode(), deviceId) ? 0 : MoonBridge.SS_KBE_FLAG_NON_NORMALIZED);
         }
@@ -2196,12 +2191,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     int unicodeChar = event.getUnicodeChar();
                     return (unicodeChar & KeyCharacterMap.COMBINING_ACCENT) == 0 && (unicodeChar & KeyCharacterMap.COMBINING_ACCENT_MASK) != 0;
                 }
-            }
-
-            // Consume the key-up for a key whose down was intercepted as Cmd (sendKeys handles release)
-            if (rightAltCVInterceptedKey != 0 && (translated & 0xFF) == rightAltCVInterceptedKey) {
-                rightAltCVInterceptedKey = 0;
-                return true;
             }
 
             conn.sendKeyboardInput(translated, KeyboardPacket.KEY_UP, getModifierState(event),

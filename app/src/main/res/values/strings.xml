@@ -539,8 +539,8 @@
     <string name="summary_checkbox_force_qwerty">Force use QWERTY keyboard layout.\nRequired by GFE.\nTurn off if you want to use a different keyboard layout.</string>
     <string name="title_checkbox_back_as_meta">Back button as Meta</string>
     <string name="summary_back_as_meta">Send Meta(Win) key on physical back button press.</string>
-    <string name="title_checkbox_right_alt_cv_as_mac_copy">Right Alt+C/V as Cmd+C/V (Mac)</string>
-    <string name="summary_right_alt_cv_as_mac_copy">Convert Right Alt+C and Right Alt+V to Command+C and Command+V for Mac streaming. Left Alt is unaffected.</string>
+    <string name="title_checkbox_right_alt_as_meta">Right Alt as Command (Mac)</string>
+    <string name="summary_right_alt_as_meta">Remap Right Alt to the Command key for Mac streaming. Any Right Alt+key combo becomes Command+key. Left Alt is unaffected.</string>
     <string name="title_back_as_guide">Back button as Guide</string>
     <string name="summary_back_as_guide">Send Guide(PS/HOME) button press when Back button is pressed on controllers.</string>
     <string name="title_checkbox_ignore_synth_events">Ignore synthetic events</string>
