@@ -25,6 +25,11 @@ import com.limelight.utils.Stereo3DRenderer;
  */
 public class StreamContainer extends FrameLayout implements SurfaceHolder.Callback, Stereo3DRenderer.OnSurfaceReadyListener {
 
+    public interface SurfaceAvailableCallback {
+        void onSurfaceAvailable(Surface surface);
+        void onSurfaceDestroyed();
+    }
+
     public interface InputCallbacks {
         boolean handleKeyUp(KeyEvent event);
         boolean handleKeyDown(KeyEvent event);
@@ -46,6 +51,7 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
     private SurfaceView mSurfaceView;
     private Surface mCurrentSurface;
     private Runnable onSurfaceAvailable;
+    private SurfaceAvailableCallback surfaceAvailableCallback;
     private StreamMode renderMode = null;
     private InputCallbacks mInputCallbacks;
     private boolean commitTextEnabled = false;
@@ -68,6 +74,22 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
         }
 
         this.game = game;
+        initInternal(prefConfig);
+    }
+
+    public void setSurfaceAvailableCallback(SurfaceAvailableCallback callback) {
+        this.surfaceAvailableCallback = callback;
+    }
+
+    public void initAsPresentation(PreferenceConfiguration prefConfig) {
+        if (this.prefConfig != null) {
+            return;
+        }
+        this.game = null;
+        initInternal(prefConfig);
+    }
+
+    private void initInternal(PreferenceConfiguration prefConfig) {
         this.prefConfig = prefConfig;
         this.renderMode = mapIntToStreamMode(prefConfig.renderMode);
 
@@ -79,7 +101,7 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
         Context context = getContext();
         LayoutParams childParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
 
-        // Always craete a surface view as a Workaround for the sizing issue of GLSurfaceView
+        // Always create a surface view as a workaround for the sizing issue of GLSurfaceView
         mSurfaceView = new SurfaceView(context);
         addView(mSurfaceView, childParams);
 
@@ -230,11 +252,16 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
         if (onSurfaceAvailable != null) {
             onSurfaceAvailable.run();
         }
+        if (surfaceAvailableCallback != null && mCurrentSurface != null && mCurrentSurface.isValid()) {
+            surfaceAvailableCallback.onSurfaceAvailable(mCurrentSurface);
+        }
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        game.surfaceCreated(holder);
+        if (game != null) {
+            game.surfaceCreated(holder);
+        }
     }
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
@@ -243,7 +270,9 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
             notifySurfaceReady();
         }
 
-        game.surfaceChanged(holder, format, width, height);
+        if (game != null) {
+            game.surfaceChanged(holder, format, width, height);
+        }
     }
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
@@ -254,7 +283,12 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
             mStereoRenderer.onSurfaceDestroyed();
         }
 
-        game.surfaceDestroyed(holder);
+        if (surfaceAvailableCallback != null) {
+            surfaceAvailableCallback.onSurfaceDestroyed();
+        }
+        if (game != null) {
+            game.surfaceDestroyed(holder);
+        }
     }
 
     @Override

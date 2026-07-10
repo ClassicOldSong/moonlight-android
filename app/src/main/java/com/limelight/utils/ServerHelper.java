@@ -72,36 +72,41 @@ public class ServerHelper {
 
     public static Display getSecondaryDisplay(Context context) {
         DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
-        Display display = null;
-        Display[] displays = displayManager.getDisplays();
-        int mainDisplayId = Display.DEFAULT_DISPLAY;
-        int secondaryDisplayId = -1;
-        for (Display displayVariant : displays) {
-            LimeLog.info(displayVariant.toString());
-            if (displayVariant.getDisplayId() != mainDisplayId) {
-                secondaryDisplayId = displayVariant.getDisplayId();
-                break;
+        if (displayManager == null) {
+            return null;
+        }
+
+        Display presentationDisplay = getFirstNonDefaultOnDisplay(
+                displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION));
+        if (presentationDisplay != null) {
+            return presentationDisplay;
+        }
+
+        return getFirstNonDefaultOnDisplay(displayManager.getDisplays());
+    }
+
+    private static Display getFirstNonDefaultOnDisplay(Display[] displays) {
+        if (displays == null) {
+            return null;
+        }
+
+        for (Display display : displays) {
+            LimeLog.info(display.toString());
+            if (display.getDisplayId() != Display.DEFAULT_DISPLAY
+                    && display.getState() == Display.STATE_ON) {
+                return display;
             }
         }
 
-        if (secondaryDisplayId != -1) {
-            display = displayManager.getDisplay(secondaryDisplayId);
-        }
-        return display;
+        return null;
     }
 
     public static Intent createStartIntent(Activity parent, NvApp app, ComputerDetails computer,
                                            ComputerManagerService.ComputerManagerBinder managerBinder,
                                            boolean withVDisplay) {
-        Intent gameIntent = null;
+        Intent gameIntent = new Intent(parent, Game.class);
         PreferenceConfiguration prefConfig = PreferenceConfiguration.readPreferences(parent);
-        // Try to add secondary DisplayContext if supported and connected
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && prefConfig.enableFullExDisplay && getSecondaryDisplay(parent) != null) {
-            Context displayContext = parent.createDisplayContext(getSecondaryDisplay(parent)); // use secondary display
-            gameIntent = new Intent(displayContext, Game.class);
-            gameIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        }
-        if(gameIntent == null) gameIntent = new Intent(parent, Game.class);
+        Display secondaryDisplay = prefConfig.enableFullExDisplay ? getSecondaryDisplay(parent) : null;
         gameIntent.putExtra(Game.EXTRA_HOST, computer.activeAddress.address);
         gameIntent.putExtra(Game.EXTRA_PORT, computer.activeAddress.port);
         gameIntent.putExtra(Game.EXTRA_HTTPS_PORT, computer.httpsPort);
@@ -123,15 +128,13 @@ public class ServerHelper {
             e.printStackTrace();
         }
 
-        if (prefConfig.enableFullExDisplay) {
-            Display secondaryDisplay = getSecondaryDisplay(parent);
-            if (secondaryDisplay != null) {
-                int secondaryDisplayId = secondaryDisplay.getDisplayId();
-                gameIntent.putExtra(Game.EXTRA_DISPLAY_ID, secondaryDisplayId);
-                Intent touchpadIntent = new Intent(parent, ExternalDisplayControlActivity.class);
-                touchpadIntent.putExtra(ExternalDisplayControlActivity.EXTRA_LAUNCH_INTENT, gameIntent);
-                return touchpadIntent;
-            }
+        if (secondaryDisplay != null) {
+            int secondaryDisplayId = secondaryDisplay.getDisplayId();
+            gameIntent.putExtra(Game.EXTRA_DISPLAY_ID, Display.DEFAULT_DISPLAY);
+            gameIntent.putExtra(Game.EXTRA_PRESENTATION_DISPLAY_ID, secondaryDisplayId);
+            Intent touchpadIntent = new Intent(parent, ExternalDisplayControlActivity.class);
+            touchpadIntent.putExtra(ExternalDisplayControlActivity.EXTRA_LAUNCH_INTENT, gameIntent);
+            return touchpadIntent;
         }
 
         return gameIntent;
