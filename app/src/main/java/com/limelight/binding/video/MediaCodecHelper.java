@@ -11,6 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ConfigurationInfo;
@@ -53,6 +54,7 @@ public class MediaCodecHelper {
 
     private static boolean isLowEndSnapdragon = false;
     private static boolean isAdreno620 = false;
+    private static boolean isSnapdragon8EliteTier = false;
     private static boolean initialized = false;
 
     static {
@@ -333,6 +335,35 @@ public class MediaCodecHelper {
         return getAdrenoRendererModelNumber(glRenderer) >= 400;
     }
 
+    // Snapdragon 8 Elite (Adreno 830) and Snapdragon 8 Elite Gen 5 (expected Adreno 840+).
+    // Used to gate experimental Qualcomm vendor extensions that have only been tried on
+    // these two generations (see enableQualcommHwFence in setDecoderLowLatencyOptions()).
+    // Adjust the lower bound here if Qualcomm's actual Gen 5 Adreno numbering differs.
+    private static boolean isSnapdragon8EliteTierRenderer(String glRenderer) {
+        return getAdrenoRendererModelNumber(glRenderer) >= 830;
+    }
+
+    // Secondary signal for the same SoC tier, based on the platform codename rather than the
+    // GPU renderer string. Build.SOC_MODEL is only populated on Android 12+ (API 31).
+    // SM8750 = Snapdragon 8 Elite, SM8850 = Snapdragon 8 Elite Gen 5 (codename unconfirmed).
+    @TargetApi(Build.VERSION_CODES.S)
+    private static boolean isSnapdragon8EliteTierSocModel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return false;
+        }
+        try {
+            String socModel = Build.SOC_MODEL;
+            if (socModel == null) {
+                return false;
+            }
+            String socModelLower = socModel.toLowerCase(Locale.US);
+            return socModelLower.contains("sm8750") || socModelLower.contains("sm8850");
+        } catch (Throwable t) {
+            // Not all devices reliably populate SOC_MODEL
+            return false;
+        }
+    }
+
     public static void initialize(Context context, String glRenderer) {
         if (initialized) {
             return;
@@ -380,6 +411,12 @@ public class MediaCodecHelper {
 
             isLowEndSnapdragon = isLowEndSnapdragonRenderer(glRenderer);
             isAdreno620 = getAdrenoRendererModelNumber(glRenderer) == 620;
+
+            isSnapdragon8EliteTier = isSnapdragon8EliteTierRenderer(glRenderer) || isSnapdragon8EliteTierSocModel();
+            if (isSnapdragon8EliteTier) {
+                LimeLog.info("Detected Snapdragon 8 Elite tier SoC (Adreno " + getAdrenoRendererModelNumber(glRenderer) +
+                        ", SOC_MODEL=" + (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? Build.SOC_MODEL : "n/a") + ")");
+            }
 
             // Tegra K1 and later can do reference frame invalidation properly
             if (configInfo.reqGlEsVersion >= 0x30000) {
@@ -512,6 +549,60 @@ public class MediaCodecHelper {
         return false;
     }
 
+    private static boolean vendorParametersDumped = false;
+
+    // Diagnostic helper (not used for any decision-making): enumerates every vendor
+    // MediaCodec parameter exposed by the given decoder and logs it with its type.
+    //
+    // Qualcomm's Codec2 vendor extension tables for modern SoCs (8 Gen-series, 8 Elite,
+    // 8 Elite Gen 5, ...) are not publicly documented - unlike the old OMX-era headers for
+    // sdm845/msm8998 referenced elsewhere in this file, there is no public source listing
+    // "vendor.qti-ext-*" keys for current-generation chips. This is the only reliable way to
+    // discover what a specific device's decoder actually exposes: ask it directly via
+    // getSupportedVendorParameters() (API 31+) and getParameterDescriptor() (API 31+) for the
+    // value type of each one. Check logcat (LimeLog) after starting a stream to see the results.
+    public static void dumpVendorParameters(String decoderName) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || vendorParametersDumped) {
+            return;
+        }
+        vendorParametersDumped = true;
+
+        MediaCodec testCodec = null;
+        try {
+            testCodec = MediaCodec.createByCodecName(decoderName);
+
+            List<String> vendorParams = testCodec.getSupportedVendorParameters();
+            LimeLog.info("Vendor parameters supported by " + decoderName + " (" + vendorParams.size() + "):");
+
+            for (String param : vendorParams) {
+                String typeStr = "unknown";
+                try {
+                    MediaCodec.ParameterDescriptor descriptor = testCodec.getParameterDescriptor(param);
+                    if (descriptor != null) {
+                        switch (descriptor.getType()) {
+                            case MediaFormat.TYPE_INTEGER: typeStr = "int"; break;
+                            case MediaFormat.TYPE_LONG: typeStr = "long"; break;
+                            case MediaFormat.TYPE_FLOAT: typeStr = "float"; break;
+                            case MediaFormat.TYPE_STRING: typeStr = "string"; break;
+                            case MediaFormat.TYPE_BYTE_BUFFER: typeStr = "bytebuffer"; break;
+                            default: typeStr = "type=" + descriptor.getType(); break;
+                        }
+                    }
+                } catch (Throwable t) {
+                    // Tolerate buggy codecs that throw for certain parameter names
+                }
+
+                LimeLog.info("  " + param + " (" + typeStr + ")");
+            }
+        } catch (Exception e) {
+            LimeLog.info("Failed to dump vendor parameters for " + decoderName + ": " + e);
+        } finally {
+            if (testCodec != null) {
+                testCodec.release();
+            }
+        }
+    }
+
     private static boolean decoderSupportsMaxOperatingRate(String decoderName) {
         // Operate at maximum rate to lower latency as much as possible on
         // some Qualcomm platforms. We could also set KEY_PRIORITY to 0 (realtime)
@@ -530,7 +621,7 @@ public class MediaCodecHelper {
                 ) && !isAdreno620;
     }
 
-    public static boolean setDecoderLowLatencyOptions(MediaFormat videoFormat, MediaCodecInfo decoderInfo, boolean ultraLowLatency, int tryNumber) {
+    public static boolean setDecoderLowLatencyOptions(MediaFormat videoFormat, MediaCodecInfo decoderInfo, boolean ultraLowLatency, boolean enableQualcommHwFence, int tryNumber) {
         // Options here should be tried in the order of most to least risky. The decoder will use
         // the first MediaFormat that doesn't fail in configure().
 
@@ -619,7 +710,17 @@ public class MediaCodecHelper {
                     //latency-wise, software fencing is the most important flag for latest Snapdragons
                     videoFormat.setInteger("vendor.qti-ext-output-sw-fence-enable.value", 1); //Snapdragon 8 gen 2
                     videoFormat.setInteger("vendor.qti-ext-output-fence.enable", 1); // Snapdragon 8s Gen 3 and Elite
-                    videoFormat.setInteger("vendor.qti-ext-output-fence.fence_type", 1); // Snapdragon 8s Gen 3 and ELite / 0 = none, 1 = sw, 2 = hw, 3 = hybrid. Best option = 1
+
+                    // EXPERIMENTAL, opt-in: hardware fence path for Snapdragon 8 Elite / 8 Elite Gen 5
+                    // (Adreno 830+) only. Not confirmed on real hardware yet - kept as a separate
+                    // toggle from the sw-fence path above, which remains the confirmed-working
+                    // default for gen2/gen3/Elite. 0 = none, 1 = sw, 2 = hw, 3 = hybrid.
+                    int fenceType = 1;
+                    if (enableQualcommHwFence && isSnapdragon8EliteTier) {
+                        fenceType = 2;
+                        LimeLog.info("Trying experimental Qualcomm hardware fence (Snapdragon 8 Elite / 8 Elite Gen 5)");
+                    }
+                    videoFormat.setInteger("vendor.qti-ext-output-fence.fence_type", fenceType);
                     ////////////////////////////////////////////////////////////////////////////////
 
                     setNewOption = true;

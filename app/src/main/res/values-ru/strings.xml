@@ -502,6 +502,8 @@
     <string name="summary_checkbox_enforce_display_mode">Принудительно использовать оптимальный режим отображения.\nТребуется в некоторых системах (например, ColorOS) для корректной установки частоты/разрешения.\nНе включайте на ChromeCast 4K может вызвать ошибки.</string>
     <string name="title_checkbox_ultra_low_latency">Сверхнизкая задержка (экспериментально)</string>
     <string name="summary_checkbox_ultra_low_latency">Эффективно только на SD8Gen2 / 8(s)Gen3 / 8Elite</string>
+    <string name="title_checkbox_qcom_hw_fence">Аппаратный fence Qualcomm (экспериментально)</string>
+    <string name="summary_checkbox_qcom_hw_fence">Непроверенный режим аппаратного fence, применяется только на Snapdragon 8 Elite / 8 Elite Gen 5. На остальных чипах используется подтверждённый программный fence.</string>
     <string name="summary_checkbox_forceTightThresholds">Более строгие пороги вертикальной синхронизации для снижения задержки; может увеличить количество сбоев.</string>
     <string name="title_checkbox_use_virtual_display">Использовать виртуальный дисплей</string>
     <string name="summary_checkbox_use_virtual_display">Использовать виртуальный дисплей по умолчанию.\nВиртуальный дисплей автоматически подбирает клиентское разрешение и частоту, обеспечивая плавный стрим.\nТребует Apollo на хосте.</string>

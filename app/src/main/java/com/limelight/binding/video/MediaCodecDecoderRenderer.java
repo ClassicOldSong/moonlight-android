@@ -753,12 +753,19 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         adaptivePlayback = MediaCodecHelper.decoderSupportsAdaptivePlayback(selectedDecoderInfo, mimeType);
         fusedIdrFrame = MediaCodecHelper.decoderSupportsFusedIdrFrame(selectedDecoderInfo, mimeType);
 
+        // Diagnostic only: log every vendor MediaCodec parameter this decoder exposes so that
+        // undocumented flags on newer Qualcomm SoCs (e.g. 8 Elite / 8 Elite Gen 5) can be
+        // discovered from a real device instead of guessing. No effect on configuration.
+        if (MediaCodecHelper.isQualcommDecoder(selectedDecoderInfo.getName())) {
+            MediaCodecHelper.dumpVendorParameters(selectedDecoderInfo.getName());
+        }
+
         for (int tryNumber = 0;; tryNumber++) {
             LimeLog.info("Decoder configuration try: "+tryNumber);
 
             MediaFormat mediaFormat = createBaseMediaFormat(mimeType);
             // This will try low latency options until we find one that works (or we give up).
-            boolean newFormat = MediaCodecHelper.setDecoderLowLatencyOptions(mediaFormat, selectedDecoderInfo, prefs.enableUltraLowLatency, tryNumber);
+            boolean newFormat = MediaCodecHelper.setDecoderLowLatencyOptions(mediaFormat, selectedDecoderInfo, prefs.enableUltraLowLatency, prefs.enableQualcommHwFence, tryNumber);
             //todo 色彩格式
 //            MediaCodecInfo.CodecCapabilities codecCapabilities = selectedDecoderInfo.getCapabilitiesForType(mimeType);
 //            int[] colorFormats=codecCapabilities.colorFormats;
