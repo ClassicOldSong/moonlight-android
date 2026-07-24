@@ -925,6 +925,9 @@ public class KeyMapper {
     public static int VK_PACKET = 0xE7;    // Used to pass Unicode characters as if they were keystrokes. The VK_PACKET key is the low word of a 32-bit Virtual Key value used for non-keyboard input methods. For more information, see Remark in KEYBDINPUT, SendInput, WM_KEYDOWN, and WM_KEYUP
     // 0xE8 Unassigned
     // 0xE9-F5 OEM specific
+    public static int VK_OEM_FINISH = 0xF1;    // VK_DBE_KATAKANA on Japanese keyboard layouts
+    public static int VK_OEM_COPY = 0xF2;    // VK_DBE_HIRAGANA on Japanese keyboard layouts
+    public static int VK_OEM_AUTO = 0xF3;    // VK_DBE_SBCSCHAR (Hankaku/Zenkaku key) on Japanese keyboard layouts
     public static int VK_ATTN = 0xF6;    // Attn key
     public static int VK_CRSEL = 0xF7;    // CrSel key
     public static int VK_EXSEL = 0xF8;    // ExSel key
@@ -1057,7 +1060,13 @@ public class KeyMapper {
         linuxToWindowsKeyMap[KEY_KP3] = VK_NUMPAD3;
         linuxToWindowsKeyMap[KEY_KP0] = VK_NUMPAD0;
         linuxToWindowsKeyMap[KEY_KPDOT] = VK_DECIMAL;
+        linuxToWindowsKeyMap[KEY_ZENKAKUHANKAKU] = VK_OEM_AUTO;
         linuxToWindowsKeyMap[KEY_102ND] = VK_OEM_102;
+        linuxToWindowsKeyMap[KEY_KATAKANA] = VK_OEM_FINISH;
+        linuxToWindowsKeyMap[KEY_HIRAGANA] = VK_OEM_COPY;
+        linuxToWindowsKeyMap[KEY_HENKAN] = VK_CONVERT;
+        linuxToWindowsKeyMap[KEY_KATAKANAHIRAGANA] = VK_OEM_COPY;
+        linuxToWindowsKeyMap[KEY_MUHENKAN] = VK_NONCONVERT;
         linuxToWindowsKeyMap[KEY_COMPOSE] = VK_PROCESSKEY;
     }
 
