@@ -335,6 +335,18 @@
             android:summary="@string/summary_enable_rumble"
             android:title="@string/title_enable_rumble"
             app:iconSpaceReserved="false" />
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="0"
+            android:dependency="checkbox_enable_rumble"
+            android:key="seekbar_rumble_throttle_ms"
+            android:max="100"
+            android:summary="@string/summary_rumble_throttle"
+            android:text="@string/suffix_rumble_throttle"
+            android:title="@string/title_rumble_throttle"
+            app:iconSpaceReserved="false"
+            seekbar:keyStep="5"
+            seekbar:min="0"
+            seekbar:step="5" />
         <CheckBoxPreference
             android:defaultValue="false"
             android:dependency="checkbox_enable_rumble"
