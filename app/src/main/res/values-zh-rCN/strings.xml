@@ -522,8 +522,8 @@
     <string name="summary_checkbox_gamepad_enable_battery_report">在可用时汇报手柄电池状态。\n如果在使用触摸屏/触摸板/手写笔/鼠标时偶尔有卡顿现象发生，关闭此选项可能会有用。</string>
     <string name="title_checkbox_enforce_display_mode">强制设置显示模式</string>
     <string name="summary_checkbox_enforce_display_mode">强制使用最佳显示模式。\n在某些系统(如ColorOS等)上必须启用才能正确设置刷新率/分辨率。\n请勿在ChromeCast 4K上启用此选项，可能会导致bug。</string>
-    <string name="title_checkbox_ultra_low_latency">超低延迟（实验性）</string>
-    <string name="summary_checkbox_ultra_low_latency">仅对高通8Gen2/8(s)Gen3/8Elite有效。</string>
+    <string name="title_checkbox_ultra_low_latency">厂商超低延迟优化（实验性）</string>
+    <string name="summary_checkbox_ultra_low_latency">支持时会自动启用 Android 标准低延迟。此选项会添加经过能力检查的厂商解码器优化。</string>
     <string name="title_checkbox_use_virtual_display">使用虚拟显示器</string>
     <string name="summary_checkbox_use_virtual_display">默认使用虚拟显示器。\n虚拟显示器可以自动匹配设备端的分辨率与刷新率设置，提供无缝的串流体验。\n需要使用 Apollo 作为服务端串流软件。</string>
     <string name="title_checkbox_enable_sticky_modifier_key_virtual_keyboard">粘滞修饰键</string>

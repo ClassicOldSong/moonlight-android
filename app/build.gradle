@@ -103,6 +103,16 @@ android {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        lowLatencyDebug {
+            initWith debug
+            applicationIdSuffix = ".artemis.lowlatency.debug"
+            signingConfig signingConfigs.debug
+            debuggable true
+            resValue "string", "app_label", "Artemis Low Latency (Debug)"
+            resValue "string", "app_label_root", "Artemis Low Latency (Debug Root)"
+            resValue "string", "app_label_game", "Artemis Low Latency (Debug Game)"
+            matchingFallbacks = ['debug']
+        }
         release {
             // To whomever is releasing/using an APK in release mode with
             // Moonlight's official application ID, please stop. I see every

@@ -493,8 +493,8 @@
     <string name="summary_checkbox_gamepad_enable_battery_report">Signaler l\'état de la batterie de la manette lorsque cela est possible.\nLa désactivation de cette option peut aider si vous rencontrez des problèmes de bégaiement avec l\'entrée tactile/trackpad/stylet/souris.</string>
     <string name="title_checkbox_enforce_display_mode">Forcer le mode d\'affichage</string>
     <string name="summary_checkbox_enforce_display_mode">Forcer la surface à utiliser le mode d\'affichage optimal.\nRequis par certains systèmes (comme ColorOS) pour définir correctement la résolution/le taux de rafraîchissement.</string>
-    <string name="title_checkbox_ultra_low_latency">Latence ultra faible (expérimental)</string>
-    <string name="summary_checkbox_ultra_low_latency">Efficace uniquement pour SD8Gen2/8(s)Gen3/8Elite.</string>
+    <string name="title_checkbox_ultra_low_latency">Optimisations de latence ultra-faible du fournisseur (expérimental)</string>
+    <string name="summary_checkbox_ultra_low_latency">La faible latence standard d’Android est activée automatiquement lorsqu’elle est prise en charge. Cette option ajoute des optimisations de décodeur propres au fournisseur, vérifiées selon les capacités.</string>
     <string name="title_checkbox_use_virtual_display">Utiliser l\'affichage virtuel</string>
     <string name="summary_checkbox_use_virtual_display">Utiliser l\'affichage virtuel par défaut.\nL\'affichage virtuel peut correspondre automatiquement à la résolution et au taux de rafraîchissement de votre appareil, offrant une expérience de streaming fluide.\nNécessite Apollo comme logiciel de streaming hôte.</string>
     <string name="title_checkbox_resume_without_confirm">Reprise rapide</string>
