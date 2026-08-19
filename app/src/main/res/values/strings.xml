@@ -214,6 +214,14 @@
     <string name="video_scale_mode_stretch">Stretch</string>
 
     <string name="category_audio_settings">Audio Settings</string>
+    <string name="title_audio_output_mode">Audio output format</string>
+    <string name="summary_audio_output_mode">PCM is compatible with all devices. AC-3 and Dolby Digital Plus send encoded 5.1 audio to an HDMI/eARC receiver and fall back to PCM if the route fails.</string>
+    <string name="audio_output_mode_pcm">PCM (default)</string>
+    <string name="audio_output_mode_ac3_auto">AC-3 5.1 (automatic, experimental)</string>
+    <string name="audio_output_mode_ac3_force">AC-3 5.1 (force, experimental)</string>
+    <string name="audio_output_mode_eac3_auto">Dolby Digital Plus / E-AC-3 5.1 (automatic, experimental)</string>
+    <string name="audio_output_mode_eac3_force">Dolby Digital Plus / E-AC-3 5.1 (force, experimental)</string>
+    <string name="encoded_audio_fallback_to_pcm">Encoded audio output is unavailable. Continuing with PCM audio.</string>
     <string name="title_audio_config_list">Surround sound configuration</string>
     <string name="summary_audio_config_list">Enable 5.1 or 7.1 surround sound for home-theater systems</string>
     <string name="title_checkbox_enable_audiofx">Enable system equalizer support</string>
