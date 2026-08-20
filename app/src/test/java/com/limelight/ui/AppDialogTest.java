@@ -3,6 +3,7 @@ package com.limelight.ui;
 import android.os.Bundle;
 import android.os.Looper;
 import android.view.View;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
@@ -150,6 +151,31 @@ public class AppDialogTest {
 
         assertFalse(dialog.isShowing());
         assertTrue(dismissed.get());
+    }
+
+    @Test
+    public void overlayTrapsRemoteFocusAndRestoresPreviousFocusOnDismiss() {
+        TestActivity activity = createActivity();
+        FrameLayout activityContent = activity.findViewById(android.R.id.content);
+        FrameLayout background = (FrameLayout) activityContent.getChildAt(0);
+        Button backgroundOption = new Button(activity);
+        background.addView(backgroundOption);
+        assertTrue(backgroundOption.requestFocus());
+
+        AppDialog dialog = AppDialog.builder(activity)
+                .setSingleChoiceItems(new CharSequence[]{"720p", "1080p"}, 1, null)
+                .show();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        LinearLayout items = activity.findViewById(R.id.app_dialog_items);
+        assertTrue(items.getChildAt(1).hasFocus());
+        assertFalse(backgroundOption.requestFocus());
+        assertTrue(items.getChildAt(1).hasFocus());
+
+        dialog.dismiss();
+
+        assertTrue(backgroundOption.isFocusable());
+        assertTrue(backgroundOption.hasFocus());
     }
 
     private static TestActivity createActivity() {

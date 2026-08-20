@@ -25,6 +25,8 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.limelight.R;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -56,6 +58,8 @@ public final class AppDialog {
     private final FrameLayout host;
     private final FrameLayout overlay;
     private final TextView messageView;
+    private final View previousFocus;
+    private final List<BackgroundFocusState> backgroundFocusStates = new ArrayList<>();
     private final OnBackPressedCallback backCallback;
     private final boolean cancelable;
     private final Runnable onCancel;
@@ -76,6 +80,9 @@ public final class AppDialog {
             }
             SHOWN_DIALOGS.put(activity, this);
         }
+
+        View focusedView = activity.getCurrentFocus();
+        previousFocus = focusedView != null ? focusedView : host.findFocus();
 
         overlay = (FrameLayout) LayoutInflater.from(activity)
                 .inflate(R.layout.app_dialog_overlay, host, false);
@@ -216,6 +223,7 @@ public final class AppDialog {
                 finishDismiss(false);
             }
         });
+        suspendBackgroundFocus();
         host.addView(overlay, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         ViewCompat.requestApplyInsets(overlay);
@@ -247,14 +255,12 @@ public final class AppDialog {
             });
         });
 
-        if (initialFocus != null) {
-            View focus = initialFocus;
+        View focus = initialFocus != null ? initialFocus : overlay;
+        focus.requestFocus();
+        focus.post(() -> {
             focus.requestFocus();
-            focus.post(() -> {
-                focus.requestFocus();
-                focus.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
-            });
-        }
+            focus.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+        });
     }
 
     /** Inflates custom dialog content with layout parameters resolved against a neutral parent. */
@@ -284,6 +290,10 @@ public final class AppDialog {
         backCallback.remove();
         if (removeOverlay && overlay.getParent() == host) {
             host.removeView(overlay);
+        }
+        restoreBackgroundFocus();
+        if (removeOverlay && previousFocus != null && previousFocus.isAttachedToWindow()) {
+            previousFocus.requestFocus();
         }
         synchronized (SHOWN_DIALOGS) {
             if (SHOWN_DIALOGS.get(activity) == this) {
@@ -366,6 +376,49 @@ public final class AppDialog {
 
     private int dp(int value) {
         return Math.round(value * activity.getResources().getDisplayMetrics().density);
+    }
+
+    private void suspendBackgroundFocus() {
+        for (int i = 0; i < host.getChildCount(); i++) {
+            View child = host.getChildAt(i);
+            BackgroundFocusState state = new BackgroundFocusState(child);
+            backgroundFocusStates.add(state);
+            child.setFocusableInTouchMode(false);
+            child.setFocusable(false);
+            if (child instanceof ViewGroup) {
+                ((ViewGroup) child).setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+            }
+        }
+    }
+
+    private void restoreBackgroundFocus() {
+        for (BackgroundFocusState state : backgroundFocusStates) {
+            state.restore();
+        }
+        backgroundFocusStates.clear();
+    }
+
+    private static final class BackgroundFocusState {
+        private final View view;
+        private final boolean focusable;
+        private final boolean focusableInTouchMode;
+        private final int descendantFocusability;
+
+        BackgroundFocusState(View view) {
+            this.view = view;
+            focusable = view.isFocusable();
+            focusableInTouchMode = view.isFocusableInTouchMode();
+            descendantFocusability = view instanceof ViewGroup
+                    ? ((ViewGroup) view).getDescendantFocusability() : -1;
+        }
+
+        void restore() {
+            if (view instanceof ViewGroup) {
+                ((ViewGroup) view).setDescendantFocusability(descendantFocusability);
+            }
+            view.setFocusable(focusable);
+            view.setFocusableInTouchMode(focusableInTouchMode);
+        }
     }
 
     private enum ChoiceMode {
