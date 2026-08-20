@@ -224,6 +224,10 @@ public final class AppDialog {
             }
         });
         suspendBackgroundFocus();
+        if (previousFocus != null) {
+            previousFocus.clearFocus();
+        }
+        enableTouchModeFocus(overlay);
         host.addView(overlay, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         ViewCompat.requestApplyInsets(overlay);
@@ -256,9 +260,9 @@ public final class AppDialog {
         });
 
         View focus = initialFocus != null ? initialFocus : overlay;
-        focus.requestFocus();
+        requestDialogFocus(focus);
         focus.post(() -> {
-            focus.requestFocus();
+            requestDialogFocus(focus);
             focus.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
         });
     }
@@ -376,6 +380,24 @@ public final class AppDialog {
 
     private int dp(int value) {
         return Math.round(value * activity.getResources().getDisplayMetrics().density);
+    }
+
+    private static void enableTouchModeFocus(@NonNull View view) {
+        if (view.isFocusable()) {
+            view.setFocusableInTouchMode(true);
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                enableTouchModeFocus(group.getChildAt(i));
+            }
+        }
+    }
+
+    private static void requestDialogFocus(@NonNull View view) {
+        if (!view.requestFocus()) {
+            view.requestFocusFromTouch();
+        }
     }
 
     private void suspendBackgroundFocus() {
