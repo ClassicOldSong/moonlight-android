@@ -2,29 +2,26 @@ package com.limelight.preferences;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.Gravity;
-import android.widget.LinearLayout;
+import android.view.View;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.preference.Preference;
 
 import com.limelight.R;
+import com.limelight.ui.AppDialog;
 
 import java.util.Locale;
 
-// Based on a Stack Overflow example: http://stackoverflow.com/questions/1974193/slider-on-my-preferencescreen
-public class SeekBarPreference extends Preference
-{
+/**
+ * Integer preference edited with an application-owned slider overlay.
+ */
+public class SeekBarPreference extends Preference {
     private static final String ANDROID_SCHEMA_URL = "http://schemas.android.com/apk/res/android";
-    private static final String SEEKBAR_SCHEMA_URL = "http://schemas.moonlight-stream.com/apk/res/seekbar";
+    private static final String SEEKBAR_SCHEMA_URL =
+            "http://schemas.moonlight-stream.com/apk/res/seekbar";
 
-    private AlertDialog dialog;
-    private SeekBar seekBar;
-    private TextView valueText;
     private final Context context;
-
     private final String dialogMessage;
     private final String suffix;
     private final int defaultValue;
@@ -35,171 +32,120 @@ public class SeekBarPreference extends Preference
     private final int divisor;
     private int currentValue;
 
-    private final int seekbarMax;
-
     public SeekBarPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
         this.context = context;
 
-        // Read the message from XML
-        int dialogMessageId = attrs.getAttributeResourceValue(ANDROID_SCHEMA_URL, "dialogMessage", 0);
-        if (dialogMessageId == 0) {
-            dialogMessage = attrs.getAttributeValue(ANDROID_SCHEMA_URL, "dialogMessage");
-        }
-        else {
-            dialogMessage = context.getString(dialogMessageId);
-        }
+        int dialogMessageId =
+                attrs.getAttributeResourceValue(ANDROID_SCHEMA_URL, "dialogMessage", 0);
+        dialogMessage = dialogMessageId == 0
+                ? attrs.getAttributeValue(ANDROID_SCHEMA_URL, "dialogMessage")
+                : context.getString(dialogMessageId);
 
-        // Get the suffix for the number displayed in the dialog
         int suffixId = attrs.getAttributeResourceValue(ANDROID_SCHEMA_URL, "text", 0);
-        if (suffixId == 0) {
-            suffix = attrs.getAttributeValue(ANDROID_SCHEMA_URL, "text");
-        }
-        else {
-            suffix = context.getString(suffixId);
-        }
+        suffix = suffixId == 0
+                ? attrs.getAttributeValue(ANDROID_SCHEMA_URL, "text")
+                : context.getString(suffixId);
 
-        // Get default, min, and max seekbar values
-        defaultValue = attrs.getAttributeIntValue(ANDROID_SCHEMA_URL, "defaultValue", PreferenceConfiguration.getDefaultBitrate(context));
+        defaultValue = attrs.getAttributeIntValue(ANDROID_SCHEMA_URL, "defaultValue",
+                PreferenceConfiguration.getDefaultBitrate(context));
         maxValue = attrs.getAttributeIntValue(ANDROID_SCHEMA_URL, "max", 100);
         minValue = attrs.getAttributeIntValue(SEEKBAR_SCHEMA_URL, "min", 1);
-        stepSize = attrs.getAttributeIntValue(SEEKBAR_SCHEMA_URL, "step", 1);
-        divisor = attrs.getAttributeIntValue(SEEKBAR_SCHEMA_URL, "divisor", 1);
+        stepSize = Math.max(1,
+                attrs.getAttributeIntValue(SEEKBAR_SCHEMA_URL, "step", 1));
+        divisor = Math.max(1,
+                attrs.getAttributeIntValue(SEEKBAR_SCHEMA_URL, "divisor", 1));
         keyStepSize = attrs.getAttributeIntValue(SEEKBAR_SCHEMA_URL, "keyStep", 0);
-        seekbarMax = maxValue - minValue;
-    }
-
-    protected AlertDialog getDialog() {
-        if (dialog != null) {
-            return dialog;
-        }
-
-        LinearLayout.LayoutParams params;
-        LinearLayout layout = new LinearLayout(context);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(6, 6, 6, 6);
-
-        TextView splashText = new TextView(context);
-        splashText.setPadding(30, 10, 30, 10);
-        if (dialogMessage != null) {
-            splashText.setText(dialogMessage);
-        }
-        layout.addView(splashText);
-
-        valueText = new TextView(context);
-        valueText.setGravity(Gravity.CENTER_HORIZONTAL);
-        valueText.setTextSize(32);
-        // Default text for value; hides bug where OnSeekBarChangeListener isn't called when opacity is 0%
-        valueText.setText("0%");
-        params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        layout.addView(valueText, params);
-
-        seekBar = new SeekBar(context);
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int value, boolean b) {
-                value += minValue;
-                if (value < minValue) {
-                    seekBar.setProgress(0);
-                    return;
-                }
-
-                int roundedValue = Math.round((float)value / stepSize) * stepSize;
-                if (roundedValue != value) {
-                    seekBar.setProgress(roundedValue - minValue);
-                    return;
-                }
-
-                String t;
-                if (divisor != 1) {
-                    float floatValue = roundedValue / (float)divisor;
-                    t = String.format((Locale)null, "%.1f", floatValue);
-                }
-                else {
-                    t = String.valueOf(value);
-                }
-                valueText.setText(suffix == null ? t : t.concat(suffix.length() > 1 ? " "+suffix : suffix));
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
-        });
-
-        layout.addView(seekBar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        if (shouldPersist()) {
-            currentValue = getPersistedInt(defaultValue);
-        }
-
-        seekBar.setMax(seekbarMax);
-        if (keyStepSize != 0) {
-            seekBar.setKeyProgressIncrement(keyStepSize);
-        }
-        seekBar.setProgress(currentValue - minValue);
-
-        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(context);
-        dialogBuilder.setTitle(getTitle());
-        dialogBuilder.setView(layout);
-
-        dialogBuilder.setPositiveButton("OK", (dialog, which) -> {
-            if (shouldPersist()) {
-                currentValue = seekBar.getProgress() + minValue;
-                persistInt(currentValue);
-                callChangeListener(currentValue);
-            }
-
-            dialog.dismiss();
-        });
-        dialogBuilder.setNegativeButton(context.getString(R.string.cancel), (dialog, which) -> dialog.dismiss());
-
-        dialog = dialogBuilder.create();
-        return dialog;
-    }
-
-    protected void updateSeekbar() {
-        seekBar.setMax(seekbarMax);
-        if (keyStepSize != 0) {
-            seekBar.setKeyProgressIncrement(keyStepSize);
-        }
-        seekBar.setProgress(currentValue - minValue);
+        currentValue = defaultValue;
     }
 
     @Override
-    protected void onSetInitialValue(boolean restore, Object defaultValue)
-    {
-        super.onSetInitialValue(restore, defaultValue);
-        if (restore) {
-            currentValue = shouldPersist() ? getPersistedInt(this.defaultValue) : 0;
-        }
-        else {
+    protected void onSetInitialValue(boolean restorePersistedValue, Object defaultValue) {
+        super.onSetInitialValue(restorePersistedValue, defaultValue);
+        if (restorePersistedValue) {
+            currentValue = shouldPersist() ? getPersistedInt(this.defaultValue) : this.defaultValue;
+        } else if (defaultValue instanceof Integer) {
             currentValue = (Integer) defaultValue;
         }
     }
 
-    public void setProgress(int progress) {
-        this.currentValue = progress;
-        if (seekBar != null) {
-            seekBar.setProgress(progress - minValue);
-        }
-    }
-    public int getProgress() {
-        return currentValue + minValue;
+    @Override
+    protected void onClick() {
+        showDialog();
     }
 
     public void showDialog() {
-        AlertDialog dialog = getDialog();
-        updateSeekbar();
-        dialog.show();
+        if (shouldPersist()) {
+            currentValue = getPersistedInt(defaultValue);
+        }
+
+        View content = AppDialog.inflateContent(context, R.layout.app_dialog_seekbar_content);
+        TextView valueText = content.findViewById(R.id.app_dialog_seekbar_value);
+        SeekBar seekBar = content.findViewById(R.id.app_dialog_seekbar);
+        seekBar.setMax(maxValue - minValue);
+        if (keyStepSize != 0) {
+            seekBar.setKeyProgressIncrement(keyStepSize);
+        }
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar changedSeekBar, int progress, boolean fromUser) {
+                int absoluteValue = progress + minValue;
+                int roundedValue = Math.round((float) absoluteValue / stepSize) * stepSize;
+                roundedValue = Math.max(minValue, Math.min(maxValue, roundedValue));
+                if (roundedValue != absoluteValue) {
+                    changedSeekBar.setProgress(roundedValue - minValue);
+                    return;
+                }
+                valueText.setText(formatValue(roundedValue));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+        seekBar.setProgress(Math.max(0, Math.min(maxValue - minValue,
+                currentValue - minValue)));
+        valueText.setText(formatValue(seekBar.getProgress() + minValue));
+
+        AppDialog.builder(context)
+                .setTitle(getTitle())
+                .setMessage(dialogMessage)
+                .setView(content)
+                .setNegativeButton(R.string.cancel, dialog -> true)
+                .setPositiveButton(android.R.string.ok, dialog -> {
+                    int newValue = seekBar.getProgress() + minValue;
+                    if (!callChangeListener(newValue)) {
+                        return false;
+                    }
+                    currentValue = newValue;
+                    if (shouldPersist()) {
+                        persistInt(currentValue);
+                    }
+                    notifyChanged();
+                    return true;
+                })
+                .show();
     }
 
-    @Override
-    protected void onClick() {
-        super.onClick();
-        showDialog();
+    public void setProgress(int progress) {
+        currentValue = Math.max(minValue, Math.min(maxValue, progress));
+    }
+
+    public int getProgress() {
+        return currentValue;
+    }
+
+    private String formatValue(int value) {
+        String text = divisor == 1
+                ? String.valueOf(value)
+                : String.format((Locale) null, "%.1f", value / (float) divisor);
+        if (suffix == null) {
+            return text;
+        }
+        return text.concat(suffix.length() > 1 ? " " + suffix : suffix);
     }
 }

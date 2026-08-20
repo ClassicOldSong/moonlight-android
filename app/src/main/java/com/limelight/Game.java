@@ -40,6 +40,7 @@ import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.GlPreferences;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
+import com.limelight.ui.AppDialog;
 import com.limelight.ui.ExternalControllerView;
 import com.limelight.ui.GameGestures;
 import com.limelight.ui.StreamView;
@@ -55,7 +56,6 @@ import com.limelight.utils.UiHelper;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
-import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.app.Service;
 import android.content.ClipData;
@@ -4015,10 +4015,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
         final MouseModeOption[] optionArray = options.toArray(new MouseModeOption[0]);
 
-        new AlertDialog.Builder(context)
-                .setTitle(getString(R.string.game_menu_select_mouse_mode))
+        AppDialog.builder(context)
+                .setTitle(R.string.game_menu_select_mouse_mode)
                 .setItems(labels, (dialog, which) -> {
-                    dialog.dismiss();
                     MouseModeOption selected = optionArray[which];
                     if (selected.index == -1) {
                         toggleMouseLocalCursor();
@@ -4030,7 +4029,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                                 .apply();
                     }
                 })
-                .create()
                 .show();
     }
 
@@ -4123,20 +4121,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         } else {
             context = this;
         }
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle(R.string.game_dialog_title_quit_confirm);
-        builder.setMessage(R.string.game_dialog_message_quit_confirm);
-
-        builder.setPositiveButton(getString(R.string.yes), (dialog, which) -> {
-            quitOnStop = true;
-            dialog.dismiss();
-            finish();
-        });
-
-        builder.setNegativeButton(getString(R.string.no), (dialog, which) -> dialog.dismiss());
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
+        AppDialog.builder(context)
+                .setTitle(R.string.game_dialog_title_quit_confirm)
+                .setMessage(R.string.game_dialog_message_quit_confirm)
+                .setNegativeButton(R.string.no, dialog -> true)
+                .setPositiveButton(R.string.yes, dialog -> {
+                    quitOnStop = true;
+                    finish();
+                    return true;
+                })
+                .show();
     }
 
     @Override

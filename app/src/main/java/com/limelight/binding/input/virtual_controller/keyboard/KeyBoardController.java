@@ -4,7 +4,6 @@
 
 package com.limelight.binding.input.virtual_controller.keyboard;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Point;
@@ -28,6 +27,7 @@ import com.limelight.Game;
 import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.R;
+import com.limelight.ui.AppDialog;
 import com.limelight.binding.input.ControllerHandler;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.preferences.PreferenceConfiguration;
@@ -195,10 +195,10 @@ public class KeyBoardController {
         buttonClearAll.setAlpha(0.7f);
         buttonClearAll.setVisibility(View.GONE);
         buttonClearAll.setOnClickListener(v -> {
-            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            AppDialog.Builder builder = AppDialog.builder(context);
             builder.setTitle(context.getString(R.string.keyboard_clear_all_confirm_title));
             builder.setMessage(context.getString(R.string.keyboard_clear_all_confirm_message));
-            builder.setPositiveButton(context.getString(R.string.yes), (dialog, which) -> {
+            builder.setPositiveButton(context.getString(R.string.yes), dialog -> {
                 // Instead of removing elements, mark them as hidden
                 for (keyBoardVirtualControllerElement element : elements) {
                     element.hidden = true;
@@ -207,8 +207,9 @@ public class KeyBoardController {
                 // Save the new state
                 KeyBoardControllerConfigurationLoader.saveProfile(KeyBoardController.this, context);
                 vibrate(KeyEvent.ACTION_DOWN);
+                return true;
             });
-            builder.setNegativeButton(context.getString(R.string.no), null);
+            builder.setNegativeButton(context.getString(R.string.no), dialog -> true);
             builder.show();
         });
 
@@ -502,13 +503,13 @@ public class KeyBoardController {
             String[] keyNames = keyNamesList.toArray(new String[0]);
             boolean[] checkedItems = new boolean[keyNames.length];
 
-            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            AppDialog.Builder builder = AppDialog.builder(context);
             builder.setTitle(context.getString(R.string.keyboard_select_keys));
             builder.setMultiChoiceItems(keyNames, checkedItems, (dialog, which, isChecked) -> {
                 checkedItems[which] = isChecked;
             });
 
-            builder.setPositiveButton(context.getString(R.string.keyboard_add), (dialog, which) -> {
+            builder.setPositiveButton(context.getString(R.string.keyboard_add), dialog -> {
                 DisplayMetrics screen = context.getResources().getDisplayMetrics();
                 int height = screen.heightPixels;
                 
@@ -688,9 +689,10 @@ public class KeyBoardController {
                 if (feedback.length() > 0) {
                     Toast.makeText(context, feedback.toString(), Toast.LENGTH_LONG).show();
                 }
+                return true;
             });
 
-            builder.setNegativeButton(context.getString(R.string.cancel), null);
+            builder.setNegativeButton(context.getString(R.string.cancel), dialog -> true);
             builder.show();
 
         } catch (Exception e) {

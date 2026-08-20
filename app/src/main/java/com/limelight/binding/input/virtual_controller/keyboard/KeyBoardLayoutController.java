@@ -22,7 +22,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.PopupWindow;
 import android.widget.TextView;
 
 import com.limelight.Game;
@@ -46,7 +45,6 @@ public class KeyBoardLayoutController {
     private final Handler handler;
     public boolean shown = false;
     private final LinearLayout keyboardView;
-    private PopupWindow keyPopup;
     private TextView keyPopupText;
     private Runnable hidePopupRunnable;
 
@@ -149,31 +147,29 @@ public class KeyBoardLayoutController {
 
                         keyPopupText.setText(popupText);
 
-                        // Force layout measurement
                         keyPopupText.measure(
                                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-                        );
-
+                                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
                         int popupWidth = keyPopupText.getMeasuredWidth();
-
-                        // Calculate position using the measured width
-                        int[] location = new int[2];
-                        v.getLocationInWindow(location);
-
-                        // Center the popup over the key
-                        int x = location[0] + (v.getWidth() - popupWidth) / 2;
-
-                        // Show the popup above the key
-                        int y = (int) (location[1] - v.getHeight() * 1.5);
-
-                        keyPopup.update(x, y, popupWidth, ViewGroup.LayoutParams.WRAP_CONTENT);
-
-                        if (keyPopup.isShowing()) {
-                            keyPopup.update(x, y, popupWidth, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        int[] keyLocation = new int[2];
+                        int[] rootLocation = new int[2];
+                        v.getLocationInWindow(keyLocation);
+                        frame_layout.getLocationInWindow(rootLocation);
+                        int x = keyLocation[0] - rootLocation[0]
+                                + (v.getWidth() - popupWidth) / 2;
+                        int y = (int) (keyLocation[1] - rootLocation[1]
+                                - v.getHeight() * 1.5);
+                        FrameLayout.LayoutParams popupParams = new FrameLayout.LayoutParams(
+                                popupWidth, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        popupParams.leftMargin = x;
+                        popupParams.topMargin = Math.max(0, y);
+                        if (keyPopupText.getParent() == null) {
+                            frame_layout.addView(keyPopupText, popupParams);
                         } else {
-                            keyPopup.showAtLocation(v, Gravity.NO_GRAVITY, x, y);
+                            keyPopupText.setLayoutParams(popupParams);
                         }
+                        keyPopupText.setVisibility(View.VISIBLE);
+                        keyPopupText.bringToFront();
                     }
 
                     keyAction = KeyEvent.ACTION_DOWN;
@@ -254,21 +250,14 @@ public class KeyBoardLayoutController {
     }
 
     private void initKeyPopup() {
-        // Create the popup window
         keyPopupText = new TextView(context);
         keyPopupText.setBackgroundResource(R.drawable.key_popup_background);
         keyPopupText.setTextColor(Color.WHITE);
         keyPopupText.setTextSize(32);
         keyPopupText.setGravity(Gravity.CENTER);
         keyPopupText.setPadding(24, 16, 24, 16);
-
-        keyPopup = new PopupWindow(
-                keyPopupText,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        );
-
-        hidePopupRunnable = () -> keyPopup.dismiss();
+        keyPopupText.setVisibility(View.GONE);
+        hidePopupRunnable = () -> keyPopupText.setVisibility(View.GONE);
     }
 
     public void hide(boolean temporary) {

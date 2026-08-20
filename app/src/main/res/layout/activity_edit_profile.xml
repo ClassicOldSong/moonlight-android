@@ -8,7 +8,40 @@
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize" />
+        android:layout_height="?attr/actionBarSize">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/action_rename"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/rename"
+                android:focusable="true"
+                android:padding="12dp"
+                android:src="@drawable/ic_edit"
+                app:tint="?android:attr/textColorPrimary" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/action_save"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/save"
+                android:focusable="true"
+                android:padding="12dp"
+                android:src="@drawable/ic_check"
+                app:tint="?android:attr/textColorPrimary" />
+
+        </LinearLayout>
+
+    </androidx.appcompat.widget.Toolbar>
 
     <FrameLayout
         android:id="@+id/preferences_container"

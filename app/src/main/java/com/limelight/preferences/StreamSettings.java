@@ -18,7 +18,6 @@ import android.os.Vibrator;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import androidx.fragment.app.DialogFragment;
 import androidx.preference.CheckBoxPreference;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
@@ -1061,18 +1060,6 @@ public class StreamSettings extends AppCompatActivity implements SearchPreferenc
             }
         }
 
-        @Override
-        public void onDisplayPreferenceDialog(@NonNull Preference preference) {
-            if (preference instanceof ConfirmDeleteOscPreference) {
-                DialogFragment dialogFragment = ConfirmDeleteOscPreference.DialogFragmentCompat.newInstance(preference.getKey());
-                dialogFragment.setTargetFragment(this, 0);
-                dialogFragment.show(getFragmentManager(), null);
-            } else if (preference instanceof ConfirmDeleteKeyboardPreference) {
-                DialogFragment dialogFragment = ConfirmDeleteKeyboardPreference.DialogFragmentCompat.newInstance(preference.getKey());
-                dialogFragment.setTargetFragment(this, 0);
-                dialogFragment.show(getFragmentManager(), null);
-            } else super.onDisplayPreferenceDialog(preference);
-        }
 
         private File getJsonContent(Context context,File file){
             String name = getPrefs().getString(KeyBoardControllerConfigurationLoader.OSC_PREFERENCE, KeyBoardControllerConfigurationLoader.OSC_PREFERENCE_VALUE);

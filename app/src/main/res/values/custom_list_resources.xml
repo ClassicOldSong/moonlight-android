@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="custom_list_overlay_scrim">#CC000000</color>
+    <color name="custom_list_surface">#FF252525</color>
+    <color name="custom_list_border">#FF555555</color>
+    <color name="custom_list_text_primary">#FFFFFFFF</color>
+    <color name="custom_list_accent">#FF76B900</color>
+    <color name="custom_list_item_focused">#4D76B900</color>
+    <color name="custom_list_item_pressed">#6676B900</color>
+
+    <string name="custom_list_close" translatable="false">×</string>
+    <string name="custom_list_selected" translatable="false">●</string>
+    <string name="custom_list_unselected" translatable="false">○</string>
+</resources>

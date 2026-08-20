@@ -1,11 +1,11 @@
 package com.limelight.profiles;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Looper;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.RadioButton;
 
 import androidx.recyclerview.widget.RecyclerView;
@@ -24,11 +24,12 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.Shadows;
 import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowAlertDialog;
 
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 @Config(sdk = {33}, shadows = {com.limelight.shadows.ShadowMoonBridge.class, com.limelight.shadows.ShadowGameManager.class})
 @RunWith(RobolectricTestRunner.class)
@@ -44,7 +45,6 @@ public class ProfilesActivityUiTest {
     @Before
     public void setUp() {
         context = ApplicationProvider.getApplicationContext();
-//        ApplicationProvider.getApplicationContext().setTheme(R.style.SettingsTheme);
         ProfilesManager.instance = null;
         pm = ProfilesManager.getInstance();
         pm.load(context);
@@ -66,7 +66,6 @@ public class ProfilesActivityUiTest {
 
     @Test
     public void radioClick_changesActiveProfile() {
-        // Prepare two profiles
         SettingsProfile p1 = new SettingsProfile(UUID.randomUUID(), "One", System.currentTimeMillis(), System.currentTimeMillis(), null);
         SettingsProfile p2 = new SettingsProfile(UUID.randomUUID(), "Two", System.currentTimeMillis(), System.currentTimeMillis(), null);
         pm.add(p1);
@@ -80,7 +79,6 @@ public class ProfilesActivityUiTest {
         rv.layout(0, 0, 1000, 1000);
         assertEquals(2, rv.getAdapter().getItemCount());
 
-        // Click radio of second profile
         RecyclerView.ViewHolder vh = rv.findViewHolderForAdapterPosition(1);
         assertNotNull(vh);
         RadioButton rb = vh.itemView.findViewById(R.id.profileActive);
@@ -92,7 +90,6 @@ public class ProfilesActivityUiTest {
 
     @Test
     public void deleteProfile_removesRowAndUpdatesEmptyState() {
-        // Single profile
         SettingsProfile p = new SettingsProfile(UUID.randomUUID(), "ToDelete", System.currentTimeMillis(), System.currentTimeMillis(), null);
         pm.add(p);
 
@@ -105,19 +102,15 @@ public class ProfilesActivityUiTest {
         ImageButton deleteBtn = vh.itemView.findViewById(R.id.deleteProfile);
         deleteBtn.performClick();
 
-        // Confirm the dialog
-        AlertDialog dialog = ShadowAlertDialog.getLatestAlertDialog();
-        assertNotNull(dialog);
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        LinearLayout actions = activity.findViewById(R.id.app_dialog_actions);
+        assertNotNull(actions);
+        actions.getChildAt(actions.getChildCount() - 1).performClick();
 
-        // Process queued UI tasks
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        // Adapter should now have zero items and empty state should be visible
         assertEquals(0, rv.getAdapter().getItemCount());
         assertTrue(pm.getProfiles().isEmpty());
 
-        // After dataset change, RecyclerView may not refresh immediately; force layout
         rv.layout(0, 0, 1000, 1000);
         assertEquals(View.GONE, rv.getVisibility());
     }

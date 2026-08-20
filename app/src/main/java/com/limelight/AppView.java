@@ -2,6 +2,7 @@ package com.limelight;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -17,6 +18,7 @@ import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.ui.AdapterFragment;
 import com.limelight.ui.AdapterFragmentCallbacks;
+import com.limelight.ui.AppDialog;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
@@ -37,18 +39,13 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.view.ContextMenu;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
-import android.view.ContextMenu.ContextMenuInfo;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.AdapterView.AdapterContextMenuInfo;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -440,104 +437,91 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         }
     }
 
-    @Override
-    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
-        super.onCreateContextMenu(menu, v, menuInfo);
-
-        AdapterContextMenuInfo info = (AdapterContextMenuInfo) menuInfo;
-        AppObject selectedApp = (AppObject) appGridAdapter.getItem(info.position);
-
-        menu.setHeaderTitle(selectedApp.app.getAppName());
+    private void showAppMenu(int position, View targetView) {
+        AppObject selectedApp = (AppObject) appGridAdapter.getItem(position);
+        List<Integer> actionIds = new ArrayList<>();
+        List<CharSequence> actionLabels = new ArrayList<>();
 
         if (lastRunningAppId == 0) {
             if (prefConfig.useVirtualDisplay) {
-                menu.add(Menu.NONE, START_OR_RESUME_ID, 1, getResources().getString(R.string.applist_menu_start_primarydisplay));
+                addAppMenuItem(actionIds, actionLabels, START_OR_RESUME_ID, R.string.applist_menu_start_primarydisplay);
             } else {
-                menu.add(Menu.NONE, START_WITH_VDISPLAY, 1, getResources().getString(R.string.applist_menu_start_vdisplay));
+                addAppMenuItem(actionIds, actionLabels, START_WITH_VDISPLAY, R.string.applist_menu_start_vdisplay);
             }
+        } else if (lastRunningAppId == selectedApp.app.getAppId()) {
+            addAppMenuItem(actionIds, actionLabels, START_OR_RESUME_ID, R.string.applist_menu_resume);
+            addAppMenuItem(actionIds, actionLabels, QUIT_ID, R.string.applist_menu_quit);
+        } else if (prefConfig.useVirtualDisplay) {
+            addAppMenuItem(actionIds, actionLabels, START_WITH_QUIT_VDISPLAY, R.string.applist_menu_quit_and_start);
+            addAppMenuItem(actionIds, actionLabels, START_WITH_QUIT, R.string.applist_menu_quit_and_start_primarydisplay);
         } else {
-            if (lastRunningAppId == selectedApp.app.getAppId()) {
-                menu.add(Menu.NONE, START_OR_RESUME_ID, 1, getResources().getString(R.string.applist_menu_resume));
-                menu.add(Menu.NONE, QUIT_ID, 2, getResources().getString(R.string.applist_menu_quit));
-            }
-            else {
-                if (prefConfig.useVirtualDisplay) {
-                    menu.add(Menu.NONE, START_WITH_QUIT_VDISPLAY, 1, getResources().getString(R.string.applist_menu_quit_and_start));
-                    menu.add(Menu.NONE, START_WITH_QUIT, 2, getResources().getString(R.string.applist_menu_quit_and_start_primarydisplay));
-                } else{
-                    menu.add(Menu.NONE, START_WITH_QUIT, 1, getResources().getString(R.string.applist_menu_quit_and_start));
-                    menu.add(Menu.NONE, START_WITH_QUIT_VDISPLAY, 2, getResources().getString(R.string.applist_menu_quit_and_start_vdisplay));
-                }
-            }
+            addAppMenuItem(actionIds, actionLabels, START_WITH_QUIT, R.string.applist_menu_quit_and_start);
+            addAppMenuItem(actionIds, actionLabels, START_WITH_QUIT_VDISPLAY, R.string.applist_menu_quit_and_start_vdisplay);
         }
 
         // Only show the hide checkbox if this is not the currently running app or it's already hidden
         if (lastRunningAppId != selectedApp.app.getAppId() || selectedApp.isHidden) {
-            MenuItem hideAppItem = menu.add(Menu.NONE, HIDE_APP_ID, 3, getResources().getString(R.string.applist_menu_hide_app));
-            hideAppItem.setCheckable(true);
-            hideAppItem.setChecked(selectedApp.isHidden);
+            actionIds.add(HIDE_APP_ID);
+            actionLabels.add((selectedApp.isHidden ? "☑ " : "☐ ") + getString(R.string.applist_menu_hide_app));
         }
 
-        menu.add(Menu.NONE, VIEW_DETAILS_ID, 4, getResources().getString(R.string.applist_menu_details));
+        addAppMenuItem(actionIds, actionLabels, VIEW_DETAILS_ID, R.string.applist_menu_details);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Only add an option to create shortcut if box art is loaded
             // and when we're in grid-mode (not list-mode).
-            ImageView appImageView = info.targetView.findViewById(R.id.grid_image);
+            ImageView appImageView = targetView.findViewById(R.id.grid_image);
             if (appImageView != null) {
                 // We have a grid ImageView, so we must be in grid-mode
                 BitmapDrawable drawable = (BitmapDrawable)appImageView.getDrawable();
                 if (drawable != null && drawable.getBitmap() != null) {
                     // We have a bitmap loaded too
-                    menu.add(Menu.NONE, CREATE_SHORTCUT_ID, 5, getResources().getString(R.string.applist_menu_scut));
+                    addAppMenuItem(actionIds, actionLabels, CREATE_SHORTCUT_ID, R.string.applist_menu_scut);
                 }
             }
         }
 
-        menu.add(Menu.NONE, EXPORT_LAUNCHER_FILE_ID, 6, getResources().getString(R.string.applist_menu_export_launcher));
+        addAppMenuItem(actionIds, actionLabels, EXPORT_LAUNCHER_FILE_ID, R.string.applist_menu_export_launcher);
+
+        AppDialog.builder(this)
+                .setTitle(selectedApp.app.getAppName())
+                .setItems(actionLabels.toArray(new CharSequence[0]),
+                        (dialog, which) -> handleAppMenuItem(actionIds.get(which), selectedApp, targetView))
+                .show();
     }
 
-    @Override
-    public void onContextMenuClosed(Menu menu) {
+    private void addAppMenuItem(List<Integer> ids, List<CharSequence> labels,
+                                int id, int labelResource) {
+        ids.add(id);
+        labels.add(getString(labelResource));
     }
 
-    @Override
-    public boolean onContextItemSelected(MenuItem item) {
-        AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
-        final AppObject app = (AppObject) appGridAdapter.getItem(info.position);
-        int itemId = item.getItemId();
+    private boolean handleAppMenuItem(int itemId, AppObject app, View targetView) {
         switch (itemId) {
             case START_WITH_QUIT:
             case START_WITH_QUIT_VDISPLAY: {
-                boolean withVDiaplay = itemId == START_WITH_QUIT_VDISPLAY;
-                if (withVDiaplay && !(computer.vDisplaySupported && computer.vDisplayDriverReady)) {
+                boolean withVDisplay = itemId == START_WITH_QUIT_VDISPLAY;
+                if (withVDisplay && !(computer.vDisplaySupported && computer.vDisplayDriverReady)) {
                     UiHelper.displayVdisplayConfirmationDialog(
-                        AppView.this,
-                        computer,
-                        () -> UiHelper.displayQuitConfirmationDialog(this, new Runnable() {
-                            @Override
-                            public void run() {
-                                ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, true);
-                            }
-                        }, null),
-                        null
+                            AppView.this,
+                            computer,
+                            () -> UiHelper.displayQuitConfirmationDialog(this,
+                                    () -> ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, true),
+                                    null),
+                            null
                     );
                 } else {
-                    // Display a confirmation dialog first
-                    UiHelper.displayQuitConfirmationDialog(this, new Runnable() {
-                        @Override
-                        public void run() {
-                            ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, withVDiaplay);
-                        }
-                    }, null);
+                    UiHelper.displayQuitConfirmationDialog(this,
+                            () -> ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, withVDisplay),
+                            null);
                 }
                 return true;
             }
 
             case START_OR_RESUME_ID:
             case START_WITH_VDISPLAY: {
-                boolean withVDiaplay = itemId == START_WITH_VDISPLAY;
-                if (withVDiaplay && !(computer.vDisplaySupported && computer.vDisplayDriverReady)) {
+                boolean withVDisplay = itemId == START_WITH_VDISPLAY;
+                if (withVDisplay && !(computer.vDisplaySupported && computer.vDisplayDriverReady)) {
                     UiHelper.displayVdisplayConfirmationDialog(
                             AppView.this,
                             computer,
@@ -546,40 +530,32 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     );
                 } else {
                     // Resume is the same as start for us
-                    ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, withVDiaplay);
+                    ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, withVDisplay);
                 }
                 return true;
             }
 
             case QUIT_ID: {
-                // Display a confirmation dialog first
-                UiHelper.displayQuitConfirmationDialog(this, new Runnable() {
-                    @Override
-                    public void run() {
-                        suspendGridUpdates = true;
-                        ServerHelper.doQuit(AppView.this, computer,
-                                app.app, managerBinder, new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        // Trigger a poll immediately
-                                        suspendGridUpdates = false;
-                                        if (poller != null) {
-                                            poller.pollNow();
-                                        }
-                                    }
-                                });
-                    }
+                UiHelper.displayQuitConfirmationDialog(this, () -> {
+                    suspendGridUpdates = true;
+                    ServerHelper.doQuit(AppView.this, computer, app.app, managerBinder, () -> {
+                        // Trigger a poll immediately
+                        suspendGridUpdates = false;
+                        if (poller != null) {
+                            poller.pollNow();
+                        }
+                    });
                 }, null);
                 return true;
             }
 
             case VIEW_DETAILS_ID: {
-                Dialog.displayDialog(AppView.this, getResources().getString(R.string.title_details), app.app.toString(), false);
+                Dialog.displayDialog(AppView.this, getString(R.string.title_details), app.app.toString(), false);
                 return true;
             }
 
             case HIDE_APP_ID: {
-                if (item.isChecked()) {
+                if (app.isHidden) {
                     // Transitioning hidden to shown
                     hiddenAppIds.remove(app.app.getAppId());
                 } else {
@@ -591,22 +567,22 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
             }
 
             case CREATE_SHORTCUT_ID: {
-                ImageView appImageView = info.targetView.findViewById(R.id.grid_image);
+                ImageView appImageView = targetView.findViewById(R.id.grid_image);
                 Bitmap appBits = ((BitmapDrawable) appImageView.getDrawable()).getBitmap();
                 if (!shortcutHelper.createPinnedGameShortcut(computer, app.app, appBits)) {
-                    Toast.makeText(AppView.this, getResources().getString(R.string.unable_to_pin_shortcut), Toast.LENGTH_LONG).show();
+                    Toast.makeText(AppView.this, getString(R.string.unable_to_pin_shortcut), Toast.LENGTH_LONG).show();
                 }
                 return true;
             }
 
             case EXPORT_LAUNCHER_FILE_ID: {
-                if (app.app.getAppUUID() == null || (app.app.getAppUUID() != null && app.app.getAppUUID().isEmpty())) {
+                if (app.app.getAppUUID() == null || app.app.getAppUUID().isEmpty()) {
                     UiHelper.displayConfirmationDialog(
                             AppView.this,
-                            getResources().getString(R.string.title_export_sunshine_launcher_file),
-                            getResources().getString(R.string.message_export_sunshine_launcher_file),
-                            getResources().getString(R.string.proceed),
-                            getResources().getString(R.string.cancel),
+                            getString(R.string.title_export_sunshine_launcher_file),
+                            getString(R.string.message_export_sunshine_launcher_file),
+                            getString(R.string.proceed),
+                            getString(R.string.cancel),
                             () -> shortcutHelper.exportLauncherFile(computer, app.app),
                             null
                     );
@@ -616,9 +592,8 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                 return true;
             }
 
-            default: {
-                return super.onContextItemSelected(item);
-            }
+            default:
+                return false;
         }
     }
 
@@ -754,7 +729,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     if (prefConfig.resumeWithoutConfirm && lastRunningAppId == app.app.getAppId()) {
                         ServerHelper.doStart(AppView.this, app.app, computer, managerBinder, prefConfig.useVirtualDisplay);
                     } else {
-                        openContextMenu(arg1);
+                        showAppMenu(pos, arg1);
                     }
                 } else {
                     if (prefConfig.useVirtualDisplay && !(computer.vDisplaySupported && computer.vDisplayDriverReady)) {
@@ -770,8 +745,11 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                 }
             }
         });
+        listView.setOnItemLongClickListener((parent, view, position, id) -> {
+            showAppMenu(position, view);
+            return true;
+        });
         UiHelper.applyStatusBarPadding(listView);
-        registerForContextMenu(listView);
         listView.requestFocus();
     }
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="custom_list_text_secondary">#FFCCCCCC</color>
+    <string name="app_dialog_multi_selected" translatable="false">☑</string>
+    <string name="app_dialog_multi_unselected" translatable="false">☐</string>
+    <string name="app_dialog_pin_hint" translatable="false">PIN</string>
+</resources>

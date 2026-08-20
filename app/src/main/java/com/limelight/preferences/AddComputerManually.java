@@ -19,10 +19,10 @@ import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
+import com.limelight.ui.AppDialog;
 import com.limelight.utils.SpinnerDialog;
 import com.limelight.utils.UiHelper;
 
-import android.app.AlertDialog;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -375,20 +375,16 @@ public class AddComputerManually extends AppCompatActivity {
                 hostName = server;
             }
 
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle(R.string.pair_pc_confirm_title);
-            builder.setMessage(getString(R.string.pair_pc_confirm_message, hostName));
-
-            builder.setPositiveButton(getString(R.string.proceed), (dialog, which) -> {
-                dialog.dismiss();
-                finish();
-                computersToAdd.add(server + '?' + query);
-            });
-
-            builder.setNegativeButton(getString(R.string.cancel), (dialog, which) -> dialog.dismiss());
-
-            AlertDialog dialog = builder.create();
-            dialog.show();
+            AppDialog.builder(this)
+                    .setTitle(R.string.pair_pc_confirm_title)
+                    .setMessage(getString(R.string.pair_pc_confirm_message, hostName))
+                    .setNegativeButton(R.string.cancel, dialog -> true)
+                    .setPositiveButton(R.string.proceed, dialog -> {
+                        finish();
+                        computersToAdd.add(server + "?" + query);
+                        return true;
+                    })
+                    .show();
         }
     }
 

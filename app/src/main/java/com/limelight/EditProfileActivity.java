@@ -7,14 +7,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.view.Display;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.preference.Preference;
@@ -27,6 +24,7 @@ import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.preferences.StreamSettings;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.profiles.SettingsProfile;
+import com.limelight.ui.AppDialog;
 import com.limelight.utils.UiHelper;
 
 import org.jcodec.containers.mp4.boxes.Edit;
@@ -54,6 +52,9 @@ public class EditProfileActivity extends AppCompatActivity implements SearchPref
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        toolbar.setNavigationOnClickListener(view -> finish());
+        findViewById(R.id.action_rename).setOnClickListener(view -> showRenameDialog());
+        findViewById(R.id.action_save).setOnClickListener(view -> saveProfile());
 
         // Get profile UUID from intent
         profileUuid = getIntent().getStringExtra("profileUuid");
@@ -91,30 +92,6 @@ public class EditProfileActivity extends AppCompatActivity implements SearchPref
             .commit();
 
         UiHelper.notifyNewRootView(this);
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.edit_profile_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-
-        if (id == android.R.id.home) {
-            finish();
-            return true;
-        } else if (id == R.id.action_save) {
-            saveProfile();
-            return true;
-        } else if (id == R.id.action_rename) {
-            showRenameDialog();
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -173,21 +150,25 @@ public class EditProfileActivity extends AppCompatActivity implements SearchPref
     }
 
     private void showRenameDialog() {
-        final android.widget.EditText input = new android.widget.EditText(this);
-        String initial = currentProfile != null ? currentProfile.getName() : (pendingProfileName != null ? pendingProfileName : "");
+        View inputView = AppDialog.inflateContent(this, R.layout.app_dialog_edit_text_content);
+        android.widget.EditText input = inputView.findViewById(R.id.app_dialog_edit_text);
+        String initial = currentProfile != null ? currentProfile.getName()
+                : (pendingProfileName != null ? pendingProfileName : "");
+        input.setSingleLine(true);
         input.setText(initial);
         input.setSelection(initial.length());
 
-        new AlertDialog.Builder(this)
+        AppDialog.builder(this)
                 .setTitle(R.string.profile_manager_edit_profile_name)
-                .setView(input)
-                .setPositiveButton("OK", (dialog, which) -> {
+                .setView(inputView)
+                .setNegativeButton(R.string.cancel, dialog -> true)
+                .setPositiveButton(android.R.string.ok, dialog -> {
                     String newName = input.getText().toString().trim();
                     if (newName.isEmpty()) {
-                        Toast.makeText(this, R.string.profile_manager_name_cannot_be_blank, Toast.LENGTH_SHORT).show();
-                        return;
+                        Toast.makeText(this, R.string.profile_manager_name_cannot_be_blank,
+                                Toast.LENGTH_SHORT).show();
+                        return false;
                     }
-
                     if (currentProfile != null) {
                         currentProfile.setName(newName);
                         currentProfile.setModifiedUtc(System.currentTimeMillis());
@@ -197,8 +178,8 @@ public class EditProfileActivity extends AppCompatActivity implements SearchPref
                         pendingProfileName = newName;
                         setTitle(getString(R.string.profile_manager_new_profile_with, newName));
                     }
+                    return true;
                 })
-                .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
 

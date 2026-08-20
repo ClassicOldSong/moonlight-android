@@ -1,9 +1,7 @@
 package com.limelight;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.hardware.Sensor;
 import android.media.AudioAttributes;
 import android.os.Build;
@@ -22,6 +20,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.limelight.ui.AppDialog;
 import com.limelight.utils.DeviceUtils;
 
 import java.util.ArrayList;
@@ -86,21 +85,18 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
         }
         // Device Vibration
         if (v.getId() == R.id.bt_vibrator) {
-            String[] titles = new String[]{getString(R.string.debug_info_simple_vibration), getString(R.string.debug_info_continuous_hd_vibration)};
-            new AlertDialog.Builder(this).setItems(titles, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                    switch (which) {
-                        case 0:
+            String[] titles = new String[]{getString(R.string.debug_info_simple_vibration),
+                    getString(R.string.debug_info_continuous_hd_vibration)};
+            AppDialog.builder(this)
+                    .setTitle(R.string.debug_info_please_choose)
+                    .setItems(titles, (dialog, which) -> {
+                        if (which == 0) {
                             vibrator.vibrate(1000);
-                            break;
-                        case 1:
+                        } else if (which == 1) {
                             rumble(vibrator);
-                            break;
-                    }
-                }
-            }).setTitle(getString(R.string.debug_info_please_choose)).create().show();
+                        }
+                    })
+                    .show();
             return;
         }
 
@@ -114,33 +110,32 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
             for (int i = 0; i < ids.size(); i++) {
                 strings[i] = ids.get(i).getName();
             }
-            new AlertDialog.Builder(this).setItems(strings, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                    if (ids.get(which).getVibrator().hasVibrator()) {
-                        String[] titles = new String[]{getString(R.string.debug_info_simple_vibration), getString(R.string.debug_info_continuous_hd_vibration)};
-                        new AlertDialog.Builder(DebugInfoActivity.this).setItems(titles, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which2) {
-                                dialog.dismiss();
-                                switch (which2) {
-                                    case 0:
-                                        ids.get(which).getVibrator().vibrate(1000);
-                                        break;
-                                    case 1:
-                                        cancleRumble();
-                                        vibratorOnline = ids.get(which).getVibrator();
-                                        rumble(vibratorOnline);
-                                        break;
-                                }
-                            }
-                        }).setTitle(getString(R.string.debug_info_please_choose)).create().show();
-                    } else {
-                        Toast.makeText(DebugInfoActivity.this, getString(R.string.debug_info_no_vibrator), Toast.LENGTH_SHORT).show();
-                    }
-                }
-            }).setTitle(getString(R.string.debug_info_please_choose)).create().show();
+            AppDialog.builder(this)
+                    .setTitle(R.string.debug_info_please_choose)
+                    .setItems(strings, (deviceDialog, which) -> {
+                        if (ids.get(which).getVibrator().hasVibrator()) {
+                            String[] titles = new String[]{
+                                    getString(R.string.debug_info_simple_vibration),
+                                    getString(R.string.debug_info_continuous_hd_vibration)};
+                            AppDialog.builder(DebugInfoActivity.this)
+                                    .setTitle(R.string.debug_info_please_choose)
+                                    .setItems(titles, (modeDialog, which2) -> {
+                                        if (which2 == 0) {
+                                            ids.get(which).getVibrator().vibrate(1000);
+                                        } else if (which2 == 1) {
+                                            cancleRumble();
+                                            vibratorOnline = ids.get(which).getVibrator();
+                                            rumble(vibratorOnline);
+                                        }
+                                    })
+                                    .show();
+                        } else {
+                            Toast.makeText(DebugInfoActivity.this,
+                                    getString(R.string.debug_info_no_vibrator),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .show();
             return;
         }
 
@@ -151,32 +146,37 @@ public class DebugInfoActivity extends AppCompatActivity implements View.OnClick
         }
 
         if (v.getId() == R.id.bt_vibrator_value) {
-            SeekBar mSeekBar = getSeekBar();
-            AlertDialog.Builder editDialog = new AlertDialog.Builder(this);
-            editDialog.setTitle(getString(R.string.debug_info_set_amplitude));
-            editDialog.setView(mSeekBar);
-            editDialog.create().show();
+            showAmplitudeDialog();
         }
     }
 
-    private SeekBar getSeekBar() {
-        SeekBar mSeekBar = new SeekBar(this);
-        mSeekBar.setMax(255);
-        mSeekBar.setProgress(simulatedAmplitude);
-        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+    private void showAmplitudeDialog() {
+        View content = AppDialog.inflateContent(this, R.layout.app_dialog_seekbar_content);
+        TextView valueText = content.findViewById(R.id.app_dialog_seekbar_value);
+        SeekBar seekBar = content.findViewById(R.id.app_dialog_seekbar);
+        seekBar.setMax(255);
+        seekBar.setProgress(simulatedAmplitude);
+        valueText.setText(String.valueOf(simulatedAmplitude));
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            public void onProgressChanged(SeekBar changedSeekBar, int progress, boolean fromUser) {
                 simulatedAmplitude = progress;
+                valueText.setText(String.valueOf(progress));
                 showSimlateAmp();
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
 
             @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
         });
-        return mSeekBar;
+        AppDialog.builder(this)
+                .setTitle(R.string.debug_info_set_amplitude)
+                .setView(content)
+                .show();
     }
 
     private void rumble(Vibrator vibrator) {

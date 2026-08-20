@@ -5,11 +5,8 @@ import android.util.AttributeSet;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.preference.ListPreference;
 
-import com.limelight.utils.UiHelper;
-
-public class LanguagePreference extends ListPreference {
+public class LanguagePreference extends CustomListPreference {
 
     public LanguagePreference(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);

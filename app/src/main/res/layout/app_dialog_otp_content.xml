@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <androidx.appcompat.widget.AppCompatEditText
+        android:id="@+id/app_dialog_otp_pin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@color/custom_list_accent"
+        android:hint="@string/app_dialog_pin_hint"
+        android:inputType="number"
+        android:maxLength="4"
+        android:padding="12dp"
+        android:singleLine="true"
+        android:textColor="@color/custom_list_text_primary"
+        android:textColorHint="@color/custom_list_text_secondary" />
+
+    <androidx.appcompat.widget.AppCompatEditText
+        android:id="@+id/app_dialog_otp_passphrase"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:backgroundTint="@color/custom_list_accent"
+        android:hint="@string/pair_passphrase_hint"
+        android:inputType="textPassword"
+        android:padding="12dp"
+        android:singleLine="true"
+        android:textColor="@color/custom_list_text_primary"
+        android:textColorHint="@color/custom_list_text_secondary" />
+</LinearLayout>

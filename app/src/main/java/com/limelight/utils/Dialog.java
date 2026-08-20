@@ -1,113 +1,83 @@
 package com.limelight.utils;
 
-import java.util.ArrayList;
-
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
-import android.widget.Button;
 
 import com.limelight.R;
+import com.limelight.ui.AppDialog;
 
+import java.util.ArrayList;
+
+/** Non-cancelable application-owned message overlay with help support. */
 public class Dialog implements Runnable {
     private final String title;
     private final String message;
     private final Activity activity;
     private final Runnable runOnDismiss;
-
-    private AlertDialog alert;
+    private AppDialog alert;
 
     private static final ArrayList<Dialog> rundownDialogs = new ArrayList<>();
 
-    private Dialog(Activity activity, String title, String message, Runnable runOnDismiss)
-    {
+    private Dialog(Activity activity, String title, String message, Runnable runOnDismiss) {
         this.activity = activity;
         this.title = title;
         this.message = message;
         this.runOnDismiss = runOnDismiss;
     }
 
-    public static void closeDialogs()
-    {
+    public static void closeDialogs() {
         synchronized (rundownDialogs) {
-            for (Dialog d : rundownDialogs) {
-                if (d.alert.isShowing()) {
-                    d.alert.dismiss();
+            for (Dialog dialog : rundownDialogs) {
+                if (dialog.alert != null && dialog.alert.isShowing()) {
+                    dialog.alert.dismiss();
                 }
             }
-
             rundownDialogs.clear();
         }
     }
 
-    public static void displayDialog(final Activity activity, String title, String message, final boolean endAfterDismiss)
-    {
-        activity.runOnUiThread(new Dialog(activity, title, message, new Runnable() {
-            @Override
-            public void run() {
-                if (endAfterDismiss) {
-                    activity.finish();
-                }
+    public static void displayDialog(final Activity activity, String title, String message,
+                                     final boolean endAfterDismiss) {
+        activity.runOnUiThread(new Dialog(activity, title, message, () -> {
+            if (endAfterDismiss) {
+                activity.finish();
             }
         }));
     }
 
-    public static void displayDialog(Activity activity, String title, String message, Runnable runOnDismiss)
-    {
+    public static void displayDialog(Activity activity, String title, String message,
+                                     Runnable runOnDismiss) {
         activity.runOnUiThread(new Dialog(activity, title, message, runOnDismiss));
     }
 
     @Override
     public void run() {
-        // If we're dying, don't bother creating a dialog
-        if (activity.isFinishing())
+        if (activity.isFinishing()) {
             return;
+        }
 
-        alert = new AlertDialog.Builder(activity).create();
-
-        alert.setTitle(title);
-        alert.setMessage(message);
-        alert.setCancelable(false);
-        alert.setCanceledOnTouchOutside(false);
- 
-        alert.setButton(AlertDialog.BUTTON_POSITIVE, activity.getResources().getText(android.R.string.ok), new DialogInterface.OnClickListener() {
-              public void onClick(DialogInterface dialog, int which) {
-                  synchronized (rundownDialogs) {
-                      rundownDialogs.remove(Dialog.this);
-                      alert.dismiss();
-                  }
-
-                  runOnDismiss.run();
-              }
-        });
-        alert.setButton(AlertDialog.BUTTON_NEUTRAL, activity.getResources().getText(R.string.help), new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int which) {
-                synchronized (rundownDialogs) {
-                    rundownDialogs.remove(Dialog.this);
-                    alert.dismiss();
-                }
-
-                runOnDismiss.run();
-
-                HelpLauncher.launchTroubleshooting(activity);
-            }
-        });
-        alert.setOnShowListener(new DialogInterface.OnShowListener(){
-
-            @Override
-            public void onShow(DialogInterface dialog) {
-                // Set focus to the OK button by default
-                Button button = alert.getButton(AlertDialog.BUTTON_POSITIVE);
-                button.setFocusable(true);
-                button.setFocusableInTouchMode(true);
-                button.requestFocus();
-            }
-        });
-
+        alert = AppDialog.builder(activity)
+                .setTitle(title)
+                .setMessage(message)
+                .setCancelable(false)
+                .setNeutralButton(activity.getText(R.string.help), dialog -> {
+                    removeAndRunCallback();
+                    HelpLauncher.launchTroubleshooting(activity);
+                    return true;
+                })
+                .setPositiveButton(android.R.string.ok, dialog -> {
+                    removeAndRunCallback();
+                    return true;
+                })
+                .show();
         synchronized (rundownDialogs) {
             rundownDialogs.add(this);
-            alert.show();
         }
     }
 
+    private void removeAndRunCallback() {
+        synchronized (rundownDialogs) {
+            rundownDialogs.remove(this);
+        }
+        runOnDismiss.run();
+    }
 }

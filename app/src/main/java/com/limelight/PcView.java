@@ -22,6 +22,7 @@ import com.limelight.preferences.GlPreferences;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.preferences.StreamSettings;
 import com.limelight.profiles.ProfilesManager;
+import com.limelight.ui.AppDialog;
 import com.limelight.ui.AdapterFragment;
 import com.limelight.ui.AdapterFragmentCallbacks;
 import com.limelight.utils.Dialog;
@@ -31,7 +32,6 @@ import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
 
 import android.app.ActivityManager;
-import android.app.AlertDialog;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -44,28 +44,23 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
-import android.text.InputFilter;
-import android.text.InputType;
-import android.view.ContextMenu;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
-import android.view.ContextMenu.ContextMenuInfo;
 import android.view.View.OnClickListener;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
-import android.widget.AdapterView.AdapterContextMenuInfo;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.PreferenceManager;
 
 import org.xmlpull.v1.XmlPullParserException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -395,76 +390,67 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         Dialog.closeDialogs();
     }
 
-    @Override
-    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
+    private void showComputerMenu(int position) {
         stopComputerUpdates(false);
-
-        // Call superclass
-        super.onCreateContextMenu(menu, v, menuInfo);
-
-        AdapterContextMenuInfo info = (AdapterContextMenuInfo) menuInfo;
-        ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(info.position);
-
-        // Add a header with PC status details
-        menu.clearHeader();
+        ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(position);
         String headerTitle = computer.details.name + " - ";
-        switch (computer.details.state)
-        {
+        switch (computer.details.state) {
             case ONLINE:
-                headerTitle += getResources().getString(R.string.pcview_menu_header_online);
+                headerTitle += getString(R.string.pcview_menu_header_online);
                 break;
             case OFFLINE:
-                menu.setHeaderIcon(R.drawable.ic_pc_offline);
-                headerTitle += getResources().getString(R.string.pcview_menu_header_offline);
+                headerTitle += getString(R.string.pcview_menu_header_offline);
                 break;
-            case UNKNOWN:
-                headerTitle += getResources().getString(R.string.pcview_menu_header_unknown);
+            default:
+                headerTitle += getString(R.string.pcview_menu_header_unknown);
                 break;
         }
 
-        menu.setHeaderTitle(headerTitle);
-
-        // Inflate the context menu
+        List<Integer> actionIds = new ArrayList<>();
+        List<CharSequence> labels = new ArrayList<>();
         if (computer.details.state == ComputerDetails.State.OFFLINE ||
-            computer.details.state == ComputerDetails.State.UNKNOWN) {
-            menu.add(Menu.NONE, WOL_ID, 1, getResources().getString(R.string.pcview_menu_send_wol));
-            menu.add(Menu.NONE, GAMESTREAM_EOL_ID, 2, getResources().getString(R.string.pcview_menu_eol));
-        }
-        else if (computer.details.pairState != PairState.PAIRED) {
-            menu.add(Menu.NONE, PAIR_ID_OTP, 1, getResources().getString(R.string.pcview_menu_pair_pc_otp));
-            menu.add(Menu.NONE, PAIR_ID, 2, getResources().getString(R.string.pcview_menu_pair_pc));
-            if (computer.details.nvidiaServer) {
-                menu.add(Menu.NONE, GAMESTREAM_EOL_ID, 3, getResources().getString(R.string.pcview_menu_eol));
-            } else {
-                menu.add(Menu.NONE, OPEN_MANAGEMENT_PAGE_ID, 3, getResources().getString(R.string.pcview_menu_open_management_page));
-            }
-        }
-        else {
+                computer.details.state == ComputerDetails.State.UNKNOWN) {
+            actionIds.add(WOL_ID);
+            labels.add(getText(R.string.pcview_menu_send_wol));
+            actionIds.add(GAMESTREAM_EOL_ID);
+            labels.add(getText(R.string.pcview_menu_eol));
+        } else if (computer.details.pairState != PairState.PAIRED) {
+            actionIds.add(PAIR_ID_OTP);
+            labels.add(getText(R.string.pcview_menu_pair_pc_otp));
+            actionIds.add(PAIR_ID);
+            labels.add(getText(R.string.pcview_menu_pair_pc));
+            actionIds.add(computer.details.nvidiaServer
+                    ? GAMESTREAM_EOL_ID : OPEN_MANAGEMENT_PAGE_ID);
+            labels.add(getText(computer.details.nvidiaServer
+                    ? R.string.pcview_menu_eol : R.string.pcview_menu_open_management_page));
+        } else {
             if (computer.details.runningGameId != 0) {
-                menu.add(Menu.NONE, RESUME_ID, 1, getResources().getString(R.string.applist_menu_resume));
-                menu.add(Menu.NONE, QUIT_ID, 2, getResources().getString(R.string.applist_menu_quit));
+                actionIds.add(RESUME_ID);
+                labels.add(getText(R.string.applist_menu_resume));
+                actionIds.add(QUIT_ID);
+                labels.add(getText(R.string.applist_menu_quit));
             }
-
-            if (computer.details.nvidiaServer) {
-                menu.add(Menu.NONE, GAMESTREAM_EOL_ID, 3, getResources().getString(R.string.pcview_menu_eol));
-            } else {
-                menu.add(Menu.NONE, OPEN_MANAGEMENT_PAGE_ID, 3, getResources().getString(R.string.pcview_menu_open_management_page));
-            }
-
-            menu.add(Menu.NONE, FULL_APP_LIST_ID, 4, getResources().getString(R.string.pcview_menu_app_list));
+            actionIds.add(computer.details.nvidiaServer
+                    ? GAMESTREAM_EOL_ID : OPEN_MANAGEMENT_PAGE_ID);
+            labels.add(getText(computer.details.nvidiaServer
+                    ? R.string.pcview_menu_eol : R.string.pcview_menu_open_management_page));
+            actionIds.add(FULL_APP_LIST_ID);
+            labels.add(getText(R.string.pcview_menu_app_list));
         }
+        actionIds.add(TEST_NETWORK_ID);
+        labels.add(getText(R.string.pcview_menu_test_network));
+        actionIds.add(DELETE_ID);
+        labels.add(getText(R.string.pcview_menu_delete_pc));
+        actionIds.add(VIEW_DETAILS_ID);
+        labels.add(getText(R.string.pcview_menu_details));
 
-        menu.add(Menu.NONE, TEST_NETWORK_ID, 5, getResources().getString(R.string.pcview_menu_test_network));
-        menu.add(Menu.NONE, DELETE_ID, 6, getResources().getString(R.string.pcview_menu_delete_pc));
-        menu.add(Menu.NONE, VIEW_DETAILS_ID, 7,  getResources().getString(R.string.pcview_menu_details));
-    }
-
-    @Override
-    public void onContextMenuClosed(Menu menu) {
-        // For some reason, this gets called again _after_ onPause() is called on this activity.
-        // startComputerUpdates() manages this and won't actual start polling until the activity
-        // returns to the foreground.
-        startComputerUpdates();
+        AppDialog.builder(this)
+                .setTitle(headerTitle)
+                .setItems(labels.toArray(new CharSequence[0]),
+                        (dialog, which) -> handleComputerMenuItem(
+                                actionIds.get(which), computer))
+                .setOnDismiss(this::startComputerUpdates)
+                .show();
     }
 
     private void doPair(final ComputerDetails computer, String otp, String passphrase) {
@@ -584,46 +570,31 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     private void doOTPPair(final ComputerDetails computer) {
         Context context = PcView.this;
 
-        LinearLayout layout = new LinearLayout(context);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(50, 40, 50, 40);
+        View layout = AppDialog.inflateContent(context, R.layout.app_dialog_otp_content);
+        EditText otpInput = layout.findViewById(R.id.app_dialog_otp_pin);
+        EditText passphraseInput = layout.findViewById(R.id.app_dialog_otp_passphrase);
 
-        final EditText otpInput = new EditText(context);
-        otpInput.setHint("PIN");
-        otpInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        otpInput.setFilters(new InputFilter[] { new InputFilter.LengthFilter(4) });
-
-        final EditText passphraseInput = new EditText(context);
-        passphraseInput.setHint(getString(R.string.pair_passphrase_hint));
-        passphraseInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-
-        layout.addView(otpInput);
-        layout.addView(passphraseInput);
-
-        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(context);
-        dialogBuilder.setTitle(R.string.pcview_menu_pair_pc_otp);
-        dialogBuilder.setView(layout);
-
-        dialogBuilder.setPositiveButton(getString(R.string.proceed), null);
-
-        dialogBuilder.setNegativeButton(getString(R.string.cancel), (dialog, which) -> dialog.dismiss());
-        AlertDialog dialog = dialogBuilder.create();
-        dialog.show();
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String pin = otpInput.getText().toString();
-            String passphrase = passphraseInput.getText().toString();
-            if (pin.length() != 4) {
-                Toast.makeText(context, getString(R.string.pair_pin_length_msg), Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (passphrase.length() < 4 ) {
-                Toast.makeText(context, getString(R.string.pair_passphrase_length_msg), Toast.LENGTH_SHORT).show();
-                return;
-            }
-            doPair(computer, pin, passphrase);
-            dialog.dismiss(); // Manually dismiss the dialog if the input is valid
-        });
+        AppDialog.builder(context)
+                .setTitle(R.string.pcview_menu_pair_pc_otp)
+                .setView(layout)
+                .setNegativeButton(R.string.cancel, dialog -> true)
+                .setPositiveButton(R.string.proceed, dialog -> {
+                    String pin = otpInput.getText().toString();
+                    String passphrase = passphraseInput.getText().toString();
+                    if (pin.length() != 4) {
+                        Toast.makeText(context, getString(R.string.pair_pin_length_msg),
+                                Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
+                    if (passphrase.length() < 4) {
+                        Toast.makeText(context, getString(R.string.pair_passphrase_length_msg),
+                                Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
+                    doPair(computer, pin, passphrase);
+                    return true;
+                })
+                .show();
     }
 
     private void doWakeOnLan(final ComputerDetails computer) {
@@ -729,11 +700,8 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         startActivity(i);
     }
 
-    @Override
-    public boolean onContextItemSelected(MenuItem item) {
-        AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
-        final ComputerObject computer = (ComputerObject) pcGridAdapter.getItem(info.position);
-        switch (item.getItemId()) {
+    private boolean handleComputerMenuItem(int itemId, ComputerObject computer) {
+        switch (itemId) {
             case PAIR_ID:
                 doPair(computer.details, null, null);
                 return true;
@@ -817,7 +785,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
                 }
 
             default:
-                return super.onContextItemSelected(item);
+                return false;
         }
     }
 
@@ -898,7 +866,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
                 if (computer.details.state == ComputerDetails.State.UNKNOWN ||
                     computer.details.state == ComputerDetails.State.OFFLINE) {
                     // Open the context menu if a PC is offline or refreshing
-                    openContextMenu(arg1);
+                    showComputerMenu(pos);
                 } else if (computer.details.pairState != PairState.PAIRED) {
                     // Pair an unpaired machine by default
                     doPair(computer.details, null, null);
@@ -907,8 +875,11 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
                 }
             }
         });
+        listView.setOnItemLongClickListener((parent, view, position, id) -> {
+            showComputerMenu(position);
+            return true;
+        });
         UiHelper.applyStatusBarPadding(listView);
-        registerForContextMenu(listView);
     }
 
     public static class ComputerObject {

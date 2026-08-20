@@ -1,31 +1,28 @@
 package com.limelight.utils;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.GameManager;
 import android.app.GameState;
 import android.app.LocaleManager;
 import android.app.UiModeManager;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.os.Build;
 import android.os.LocaleList;
 import android.text.Html;
-import android.text.method.LinkMovementMethod;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.limelight.AppView;
 import com.limelight.Game;
 import com.limelight.LimeLog;
 import com.limelight.R;
+import com.limelight.ui.AppDialog;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.preferences.PreferenceConfiguration;
 
@@ -218,36 +215,26 @@ public class UiHelper {
     }
 
     public static <T> void displayConfirmationDialog(Activity parent, String title, String message, String btnYesText, String btnNoText, final Runnable onYes, final Runnable onNo) {
-        DialogInterface.OnClickListener dialogClickListener = (dialog, which) -> {
-            switch (which){
-                case DialogInterface.BUTTON_POSITIVE:
-                    if (onYes != null) {
-                        onYes.run();
-                    }
-                    break;
-
-                case DialogInterface.BUTTON_NEGATIVE:
-                    if (onNo != null) {
-                        onNo.run();
-                    }
-                    break;
-            }
-        };
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(parent);
-        builder.setMessage(Html.fromHtml(message));
-        if (title != null) {
-            builder.setTitle(title);
-        }
+        AppDialog.Builder builder = AppDialog.builder(parent)
+                .setTitle(title)
+                .setMessage(Html.fromHtml(message));
         if (btnYesText != null) {
-            builder.setPositiveButton(btnYesText, dialogClickListener);
+            builder.setPositiveButton(btnYesText, dialog -> {
+                if (onYes != null) {
+                    onYes.run();
+                }
+                return true;
+            });
         }
         if (btnNoText != null) {
-            builder.setNegativeButton(btnNoText, dialogClickListener);
+            builder.setNegativeButton(btnNoText, dialog -> {
+                if (onNo != null) {
+                    onNo.run();
+                }
+                return true;
+            });
         }
-        AlertDialog dialog = builder.create();
-        dialog.show();
-        ((TextView)dialog.findViewById(android.R.id.message)).setMovementMethod(LinkMovementMethod.getInstance());
+        builder.show();
     }
 
     public static void displayVdisplayConfirmationDialog(Activity parent, ComputerDetails computer, final Runnable onYes, final Runnable onNo) {

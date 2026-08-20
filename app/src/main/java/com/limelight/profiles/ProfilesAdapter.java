@@ -1,6 +1,5 @@
 package com.limelight.profiles;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.text.format.DateUtils;
@@ -17,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.limelight.EditProfileActivity;
 import com.limelight.R;
+import com.limelight.ui.AppDialog;
 
 import java.util.List;
 import java.util.UUID;
@@ -69,16 +69,20 @@ public class ProfilesAdapter extends RecyclerView.Adapter<ProfilesAdapter.Profil
         });
 
         holder.deleteProfile.setOnClickListener(v -> {
-            new AlertDialog.Builder(context)
-                .setTitle(R.string.profile_manager_delete_profile)
-                .setMessage(context.getString(R.string.profile_manager_confirm_profile_deleteion, profile.getName()))
-                .setPositiveButton(R.string.profile_manager_delete, (dialog, which) -> {
-                    profilesManager.delete(profile.getUuid());
-                    profilesManager.save(context);
-                    Toast.makeText(context, context.getString(R.string.profile_manager_profile_deleted, profile.getName()), Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton(context.getString(R.string.cancel), null)
-                .show();
+            AppDialog.builder(context)
+                    .setTitle(R.string.profile_manager_delete_profile)
+                    .setMessage(context.getString(
+                            R.string.profile_manager_confirm_profile_deleteion, profile.getName()))
+                    .setNegativeButton(R.string.cancel, dialog -> true)
+                    .setPositiveButton(R.string.profile_manager_delete, dialog -> {
+                        profilesManager.delete(profile.getUuid());
+                        profilesManager.save(context);
+                        Toast.makeText(context, context.getString(
+                                R.string.profile_manager_profile_deleted, profile.getName()),
+                                Toast.LENGTH_SHORT).show();
+                        return true;
+                    })
+                    .show();
         });
 
         // Also make the whole row clickable to edit

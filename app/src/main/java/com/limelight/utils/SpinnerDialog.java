@@ -1,47 +1,46 @@
 package com.limelight.utils;
 
+import android.app.Activity;
+import android.view.View;
+
+import com.limelight.R;
+import com.limelight.ui.AppDialog;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import android.app.Activity;
-import android.app.ProgressDialog;
-import android.content.DialogInterface;
-import android.content.DialogInterface.OnCancelListener;
-
-public class SpinnerDialog implements Runnable,OnCancelListener {
+/** Application-owned blocking progress overlay. */
+public class SpinnerDialog implements Runnable {
     private final String title;
-    private final String message;
+    private String message;
     private final Activity activity;
-    private ProgressDialog progress;
+    private AppDialog progress;
     private final boolean finish;
 
     private static final ArrayList<SpinnerDialog> rundownDialogs = new ArrayList<>();
 
-    private SpinnerDialog(Activity activity, String title, String message, boolean finish)
-    {
+    private SpinnerDialog(Activity activity, String title, String message, boolean finish) {
         this.activity = activity;
         this.title = title;
         this.message = message;
-        this.progress = null;
         this.finish = finish;
     }
 
-    public static SpinnerDialog displayDialog(Activity activity, String title, String message, boolean finish)
-    {
+    public static SpinnerDialog displayDialog(Activity activity, String title, String message,
+                                              boolean finish) {
         SpinnerDialog spinner = new SpinnerDialog(activity, title, message, finish);
         activity.runOnUiThread(spinner);
         return spinner;
     }
 
-    public static void closeDialogs(Activity activity)
-    {
+    public static void closeDialogs(Activity activity) {
         synchronized (rundownDialogs) {
-            Iterator<SpinnerDialog> i = rundownDialogs.iterator();
-            while (i.hasNext()) {
-                SpinnerDialog dialog = i.next();
+            Iterator<SpinnerDialog> iterator = rundownDialogs.iterator();
+            while (iterator.hasNext()) {
+                SpinnerDialog dialog = iterator.next();
                 if (dialog.activity == activity) {
-                    i.remove();
-                    if (dialog.progress.isShowing()) {
+                    iterator.remove();
+                    if (dialog.progress != null && dialog.progress.isShowing()) {
                         dialog.progress.dismiss();
                     }
                 }
@@ -49,17 +48,14 @@ public class SpinnerDialog implements Runnable,OnCancelListener {
         }
     }
 
-    public void dismiss()
-    {
-        // Running again with progress != null will destroy it
+    public void dismiss() {
         activity.runOnUiThread(this);
     }
 
-    public void setMessage(final String message)
-    {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
+    public void setMessage(final String message) {
+        activity.runOnUiThread(() -> {
+            this.message = message;
+            if (progress != null) {
                 progress.setMessage(message);
             }
         });
@@ -67,54 +63,29 @@ public class SpinnerDialog implements Runnable,OnCancelListener {
 
     @Override
     public void run() {
-
-        // If we're dying, don't bother doing anything
         if (activity.isFinishing()) {
             return;
         }
 
-        if (progress == null)
-        {
-            progress = new ProgressDialog(activity);
-
-            progress.setTitle(title);
-            progress.setMessage(message);
-            progress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-            progress.setOnCancelListener(this);
-
-            // If we want to finish the activity when this is killed, make it cancellable
-            if (finish)
-            {
-                progress.setCancelable(true);
-                progress.setCanceledOnTouchOutside(false);
-            }
-            else
-            {
-                progress.setCancelable(false);
-            }
-
+        if (progress == null) {
+            View spinner = AppDialog.inflateContent(activity, R.layout.app_dialog_progress_content);
+            progress = AppDialog.builder(activity)
+                    .setTitle(title)
+                    .setMessage(message)
+                    .setView(spinner)
+                    .setCancelable(finish)
+                    .setCanceledOnTouchOutside(false)
+                    .setOnCancel(finish ? activity::finish : null)
+                    .show();
             synchronized (rundownDialogs) {
                 rundownDialogs.add(this);
-                progress.show();
             }
-        }
-        else
-        {
+        } else {
             synchronized (rundownDialogs) {
                 if (rundownDialogs.remove(this) && progress.isShowing()) {
                     progress.dismiss();
                 }
             }
         }
-    }
-
-    @Override
-    public void onCancel(DialogInterface dialog) {
-        synchronized (rundownDialogs) {
-            rundownDialogs.remove(this);
-        }
-
-        // This will only be called if finish was true, so we don't need to check again
-        activity.finish();
     }
 }

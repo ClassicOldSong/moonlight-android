@@ -9,7 +9,7 @@
         android:key="category_video_settings"
         android:title="@string/category_video_settings"
         app:iconSpaceReserved="false">
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="1280x720"
             android:entries="@array/resolution_names"
             android:entryValues="@array/resolution_values"
@@ -17,7 +17,7 @@
             android:summary="@string/summary_resolution_list"
             android:title="@string/title_resolution_list"
             app:iconSpaceReserved="false" />
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="60"
             android:entries="@array/fps_names"
             android:entryValues="@array/fps_values"
@@ -50,7 +50,7 @@
             seekbar:min="0"
             seekbar:step="500" />
 
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="latency"
             android:entries="@array/video_frame_pacing_names"
             android:entryValues="@array/video_frame_pacing_values"
@@ -109,7 +109,7 @@
             seekbar:min="20"
             seekbar:step="1" />
 
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="fit"
             android:entries="@array/video_scale_mode_names"
             android:entryValues="@array/video_scale_mode_values"
@@ -118,7 +118,7 @@
             android:title="@string/title_video_scale_mode"
             app:iconSpaceReserved="false" />
 
-        <EditTextPreference
+        <com.limelight.preferences.CustomEditTextPreference
             android:defaultValue="1920x1080"
             android:dialogTitle="@string/dialog_custom_resolution"
             android:key="edit_diy_w_h"
@@ -127,7 +127,7 @@
             android:title="@string/title_custom_resolution"
             app:iconSpaceReserved="false" />
 
-        <EditTextPreference
+        <com.limelight.preferences.CustomEditTextPreference
             android:key="edit_diy_bitrate"
             android:defaultValue="20"
             android:dialogMessage="@string/dialog_manual_enter_bitrate"
@@ -137,7 +137,7 @@
             android:title="@string/title_manual_enter_bitrate"
             app:iconSpaceReserved="false" />
 
-        <EditTextPreference
+        <com.limelight.preferences.CustomEditTextPreference
             android:key="custom_refresh_rate"
             android:defaultValue="59.94"
             android:dialogMessage="@string/dialog_custom_refresh_rate"
@@ -152,7 +152,6 @@
             android:summary="@string/summary_checkbox_enforce_display_mode"
             android:title="@string/title_checkbox_enforce_display_mode"
             app:iconSpaceReserved="false" />
-
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_enable_hdr"
@@ -172,7 +171,7 @@
     <PreferenceCategory
         android:title="@string/category_audio_settings"
         app:iconSpaceReserved="false">
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="2"
             android:entries="@array/audio_config_names"
             android:entryValues="@array/audio_config_values"
@@ -226,7 +225,7 @@
             android:summary="@string/summary_checkbox_mouse_emulation"
             android:title="@string/title_checkbox_mouse_emulation"
             app:iconSpaceReserved="false" />
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="right"
             android:dependency="checkbox_mouse_emulation"
             android:entries="@array/analog_scrolling_names"
@@ -305,7 +304,7 @@
         android:key="category_input_settings"
         android:title="@string/category_input_settings"
         app:iconSpaceReserved="false">
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="0"
             android:entries="@array/mouse_mode_names"
             android:entryValues="@array/mouse_mode_values"
@@ -516,7 +515,7 @@
             android:title="@string/title_onscreen_keyboard_width"
             app:iconSpaceReserved="false"
             seekbar:step="10" />
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="center"
             android:entries="@array/onscreen_keyboard_align_modes"
             android:entryValues="@array/onscreen_keyboard_align_values"
@@ -719,7 +718,7 @@
             android:title="@string/title_checkbox_vibrate_osc"
             app:iconSpaceReserved="false" />
 
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="OSC_Keyboard"
             android:dependency="checkbox_enable_keyboard"
             android:entries="@array/keyboard_axi_names"
@@ -860,7 +859,7 @@
             android:summary="@string/summary_full_range"
             android:title="@string/title_full_range"
             app:iconSpaceReserved="false" />
-        <ListPreference
+        <com.limelight.preferences.CustomListPreference
             android:defaultValue="auto"
             android:entries="@array/video_format_names"
             android:entryValues="@array/video_format_values"

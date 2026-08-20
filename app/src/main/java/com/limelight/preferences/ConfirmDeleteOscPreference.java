@@ -1,25 +1,27 @@
 package com.limelight.preferences;
 
+import static com.limelight.binding.input.virtual_controller.VirtualControllerConfigurationLoader.OSC_PREFERENCE;
+
 import android.content.Context;
-import android.os.Bundle;
 import android.util.AttributeSet;
 import android.widget.Toast;
-
-import com.limelight.R;
-
-import static com.limelight.binding.input.virtual_controller.VirtualControllerConfigurationLoader.OSC_PREFERENCE;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.preference.DialogPreference;
-import androidx.preference.PreferenceDialogFragmentCompat;
 
+import com.limelight.R;
+import com.limelight.ui.AppDialog;
+
+/** OSC reset confirmation rendered by the application rather than a framework dialog. */
 public class ConfirmDeleteOscPreference extends DialogPreference {
-    public ConfirmDeleteOscPreference(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+    public ConfirmDeleteOscPreference(@NonNull Context context, @Nullable AttributeSet attrs,
+                                      int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
     }
 
-    public ConfirmDeleteOscPreference(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+    public ConfirmDeleteOscPreference(@NonNull Context context, @Nullable AttributeSet attrs,
+                                      int defStyleAttr) {
         super(context, attrs, defStyleAttr);
     }
 
@@ -31,21 +33,23 @@ public class ConfirmDeleteOscPreference extends DialogPreference {
         super(context);
     }
 
-    public static class DialogFragmentCompat extends PreferenceDialogFragmentCompat {
-        public static DialogFragmentCompat newInstance(String key) {
-            final DialogFragmentCompat fragment = new DialogFragmentCompat();
-            final Bundle bundle = new Bundle(1);
-            bundle.putString(ARG_KEY, key);
-            fragment.setArguments(bundle);
-            return fragment;
-        }
-
-        @Override
-        public void onDialogClosed(boolean positiveResult) {
-            if (positiveResult) {
-                getContext().getSharedPreferences(OSC_PREFERENCE, Context.MODE_PRIVATE).edit().clear().apply();
-                Toast.makeText(getContext(), R.string.toast_reset_osc_success, Toast.LENGTH_SHORT).show();
-            }
-        }
+    @Override
+    protected void onClick() {
+        AppDialog.builder(getContext())
+                .setTitle(getDialogTitle() != null ? getDialogTitle() : getTitle())
+                .setMessage(getDialogMessage())
+                .setNegativeButton(getNegativeButtonText() != null
+                                ? getNegativeButtonText() : getContext().getText(R.string.no),
+                        dialog -> true)
+                .setPositiveButton(getPositiveButtonText() != null
+                                ? getPositiveButtonText() : getContext().getText(R.string.yes),
+                        dialog -> {
+                            getContext().getSharedPreferences(OSC_PREFERENCE, Context.MODE_PRIVATE)
+                                    .edit().clear().apply();
+                            Toast.makeText(getContext(), R.string.toast_reset_osc_success,
+                                    Toast.LENGTH_SHORT).show();
+                            return true;
+                        })
+                .show();
     }
 }
