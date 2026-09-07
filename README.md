@@ -82,3 +82,6 @@ The main repo had stayed silent for 5 months, with nobody actually responding to
 
 Moonlight is the work of students at [Case Western](http://case.edu) and was
 started as a project at [MHacks](http://mhacks.org).
+
+
+With Mi-Fix from https://github.com/Viktsolovevwork278/moonlight-android-hevc-fix
