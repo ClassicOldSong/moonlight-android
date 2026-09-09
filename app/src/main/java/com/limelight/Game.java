@@ -143,6 +143,26 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
     public static Game instance;
 
+    // === HDR window color mode control ===
+    public static void updateHdrWindowMode(final boolean enable) {
+        try {
+            final Game inst = instance;
+            if (inst == null) return;
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                inst.runOnUiThread(() -> {
+                    try {
+                        inst.getWindow().setColorMode(enable
+                                ? ActivityInfo.COLOR_MODE_HDR
+                                : ActivityInfo.COLOR_MODE_DEFAULT);
+                        LimeLog.info("Display HDR mode: " + (enable ? "enabled" : "disabled"));
+                    } catch (Throwable t) {
+                        LimeLog.warning("HDR window mode switch failed: " + t);
+                    }
+                });
+            }
+        } catch (Throwable ignored) {}
+    }
+
     private int lastButtonState = 0;
 
     // Only 2 touches are supported
@@ -291,6 +311,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         void hideMenu();
         boolean isMenuOpen();
     }
+
+    //Samsung SemWindowManager
+    private static boolean isSamsungDevice() {
+        try { return "samsung".equalsIgnoreCase(android.os.Build.MANUFACTURER); }
+        catch (Throwable ignored) { return false; }
+    }
+
 
     public GameMenuCallbacks gameMenuCallbacks;
 
@@ -660,7 +687,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                         // We must use commit because the app will crash when we return from this function
                         tombstonePrefs.edit().putInt("CrashCount", tombstonePrefs.getInt("CrashCount", 0) + 1).commit();
-                        reportedCrash = true;
+                                 reportedCrash = true;
                     }
                 },
                 tombstonePrefs.getInt("CrashCount", 0),
@@ -670,7 +697,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 glPrefs.glRenderer,
                 this);
 
-// --- Force tight thresholds (prefConfig.forceTightThresholds) ---
+// --- Force tight thresholds (opzionale, via prefConfig.forceTightThresholds) ---
         try {
             boolean forceTight = false;
             if (prefConfig != null) {
@@ -681,30 +708,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     if (v instanceof Boolean) forceTight = (Boolean) v;
                 } catch (Throwable ignored) {}
             }
-            try { decoderRenderer.setForceTightThresholds(forceTight); } catch (Throwable ignored) {}
+            try { decoderRenderer.setForceTightThresholds(forceTight);
+        applyLatencyPolicy(decoderRenderer, prefConfig);} catch (Throwable ignored) {}
             if (forceTight) {
                 LimeLog.info("ForceTightThresholds enabled: using vsync-based thresholds on all devices");
             }
         } catch (Throwable ignored) {}
 
-// --- latency profile selection ---
-        try {
-            if (prefConfig != null && prefConfig.preferLowerDelays) {
-                // Intermediate: more responsive than Balanced but not 0 µs
-                decoderRenderer.setPreferLowerDelays(true);
-                decoderRenderer.setPreferLowerDelaysTimeoutUs(500);  // 0.5 ms
-                prefConfig.framePacing = PreferenceConfiguration.FRAME_PACING_BALANCED;
-                LimeLog.info("PreferLowerDelays: preferLowerDelays=true, timeout=500us, pacing=BALANCED");
-            } else {
-                // Balanced default
-                decoderRenderer.setPreferLowerDelays(false);
-                decoderRenderer.setPreferLowerDelaysTimeoutUs(2000); // 2 ms
-                prefConfig.framePacing = PreferenceConfiguration.FRAME_PACING_BALANCED;
-                LimeLog.info("Balanced: preferLowerDelays=false, timeout=2000us, pacing=BALANCED");
-            }
-        } catch (Throwable ignored) {}
 
-// Don't stream HDR if the decoder can't support it
+        // Don't stream HDR if the decoder can't support it
         if (willStreamHdr && !decoderRenderer.isHevcMain10Hdr10Supported() && !decoderRenderer.isAv1Main10Supported()) {
             willStreamHdr = false;
             Toast.makeText(this, "Decoder does not support HDR10 profile", Toast.LENGTH_LONG).show();
@@ -886,52 +898,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         overlayToggleButton = findViewById(R.id.overlayToggleZoomButton);
         setupOverlayToggleButton();
-
-        //fixed size + pacing without back-pressure on MTK
-        try {
-            View root = findViewById(android.R.id.content);
-            // Niente getIdentifier: troviamo la prima SurfaceView nel layout
-            SurfaceView streamSurfaceView = findFirstSurfaceViewFrom(root);
-
-            if (streamSurfaceView != null) {
-                // Avoid resizes/glitches that break the compositor
-                int vw = (prefConfig != null && prefConfig.width > 0) ? prefConfig.width : displayWidth;
-                int vh = (prefConfig != null && prefConfig.height > 0) ? prefConfig.height : displayHeight;
-                try { streamSurfaceView.getHolder().setFixedSize(vw, vh); } catch (Throwable ignored) {}
-                try { streamSurfaceView.setZOrderOnTop(false); } catch (Throwable ignored) {}
-                try { streamSurfaceView.setZOrderMediaOverlay(false); } catch (Throwable ignored) {}
-
-                // 2) setFrameRate via reflection (compat < 30)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                    float displayHz = 60f;
-                    try {
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                            displayHz = currentDisplay.getMode().getRefreshRate();
-                        } else {
-                            displayHz = currentDisplay.getRefreshRate();
-                        }
-                    } catch (Throwable ignored) {}
-
-                    float targetFps = (prefConfig != null && prefConfig.fps > 0) ? prefConfig.fps : displayHz;
-
-                    boolean isMTKDevice;
-                    try {
-                        String sum = (android.os.Build.MANUFACTURER + " " + android.os.Build.HARDWARE + " " + android.os.Build.BOARD)
-                                .toLowerCase(java.util.Locale.US);
-                        isMTKDevice = sum.contains("mtk") || sum.contains("mediatek");
-                    } catch (Throwable t) { isMTKDevice = false; }
-
-                    int compat = isMTKDevice
-                            ? Surface.FRAME_RATE_COMPATIBILITY_DEFAULT
-                            : Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE;
-
-                    try {
-                        java.lang.reflect.Method m = SurfaceView.class.getMethod("setFrameRate", float.class, int.class);
-                        m.invoke(streamSurfaceView, Math.min(targetFps, displayHz), compat);
-                    } catch (Throwable ignored) {}
-                }
-            }
-        } catch (Throwable ignored) {}
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -1002,7 +968,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (overlayToggleButton != null) {
             // Change background based on pan/zoom mode state
             overlayToggleButton.setBackgroundResource(isPanZoomMode ?
-                    R.drawable.floating_menu_button_active : R.drawable.floating_menu_button);
+                R.drawable.floating_menu_button_active : R.drawable.floating_menu_button);
             // No need for alpha changes since the color indicates the state
             overlayToggleButton.setAlpha(1.0f);
         }
@@ -1346,26 +1312,27 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     public void setMetaKeyCaptureState(boolean enabled) {
-        // This uses custom APIs present on some Samsung devices to allow capture of
-        // meta key events while streaming.
-        try {
-            Class<?> semWindowManager = Class.forName("com.samsung.android.view.SemWindowManager");
-            Method getInstanceMethod = semWindowManager.getMethod("getInstance");
-            Object manager = getInstanceMethod.invoke(null);
+        if (!isSamsungDevice()) return; // niente Samsung → niente reflection
 
-            if (manager != null) {
-                Class<?>[] parameterTypes = new Class<?>[2];
-                parameterTypes[0] = ComponentName.class;
-                parameterTypes[1] = boolean.class;
-                Method requestMetaKeyEventMethod = semWindowManager.getDeclaredMethod("requestMetaKeyEvent", parameterTypes);
-                requestMetaKeyEventMethod.invoke(manager, this.getComponentName(), enabled);
+        try {
+            Class<?> semWm = Class.forName("com.samsung.android.view.SemWindowManager");
+            Method getInstance = semWm.getMethod("getInstance");
+            Object mgr = getInstance.invoke(null);
+            if (mgr == null) return;
+
+            Method requestMeta;
+            try {
+
+                requestMeta = semWm.getMethod("requestMetaKeyEvent", ComponentName.class, boolean.class);
+            } catch (NoSuchMethodException e) {
+
+                requestMeta = semWm.getDeclaredMethod("requestMetaKeyEvent", ComponentName.class, boolean.class);
+                requestMeta.setAccessible(true);
             }
-            else {
-                LimeLog.warning("SemWindowManager.getInstance() returned null");
-            }
-        } catch (ClassNotFoundException | NoSuchMethodException | InvocationTargetException |
-                 IllegalAccessException e) {
-            e.printStackTrace();
+
+            requestMeta.invoke(mgr, getComponentName(), enabled);
+        } catch (Throwable ignored) {
+
         }
     }
 
@@ -1629,7 +1596,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_TELEVISION) ||
                 getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-                || isOnExternalDisplay()) {// TVs may take a few moments to switch refresh rates, and we can probably assume
+            || isOnExternalDisplay()) {// TVs may take a few moments to switch refresh rates, and we can probably assume
             // it will be eventually activated.
             // external displays cant be compared with displaymanager currents display refreshrate
             // TODO: Improve this
@@ -1877,7 +1844,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         // Grab/ungrab system keyboard shortcuts
-        setMetaKeyCaptureState(grab);
+        if (isSamsungDevice()) {
+            try { setMetaKeyCaptureState(grab); } catch (Throwable ignored) {}
+        }
 
         grabbedInput = grab;
     }
@@ -2903,11 +2872,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         // Press & Hold / Double-Tap & Hold for Selection or Drag & Drop
                         double positionDelta = Math.sqrt(
                                 Math.pow(event.getX() - lastTouchDownX, 2) +
-                                        Math.pow(event.getY() - lastTouchDownY, 2)
+                                Math.pow(event.getY() - lastTouchDownY, 2)
                         );
 
                         if (synthClickPending &&
-                                event.getEventTime() - synthTouchDownTime >= prefConfig.trackpadDragDropThreshold) {
+                            event.getEventTime() - synthTouchDownTime >= prefConfig.trackpadDragDropThreshold) {
                             if (positionDelta > 50) {
                                 pendingDrag = false;
                             } else if (pendingDrag) {
@@ -4168,9 +4137,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private void applyMouseMode(int mode) {
         switch (mode) {
             case 0: // Multi-touch
-                prefConfig.enableMultiTouchScreen = true;
-                prefConfig.touchscreenTrackpad = false;
-                break;
+            prefConfig.enableMultiTouchScreen = true;
+            prefConfig.touchscreenTrackpad = false;
+            break;
             case 1: // Normal mouse
             case 5: // Normal mouse with swapped buttons
                 prefConfig.enableMultiTouchScreen = false;
@@ -4361,4 +4330,43 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return null;
     }
 
+
+// Apply low-latency vs smooth policy to the decoder renderer
+// - LFR ON only for Max Smoothness (tollerante). Bypass on Balanced/CapFPS.
+// - Dequeue timeout: renderer decides per-profile (non-zero) when LFR is OFF.
+    private void applyLatencyPolicy(
+            com.limelight.binding.video.MediaCodecDecoderRenderer decoderRenderer,
+            com.limelight.preferences.PreferenceConfiguration prefConfig) {
+        if (decoderRenderer == null || prefConfig == null) return;
+
+        try {
+            final boolean userLfr = prefConfig.preferLowerDelays;
+            final int fp = prefConfig.framePacing;
+
+            final boolean lfrEffective = isLfrEffective(fp, userLfr);
+
+            decoderRenderer.setPreferLowerDelays(lfrEffective);
+            // LFR path uses 0 µs by default; managed path uses per-profile timeouts inside the renderer
+            decoderRenderer.setPreferLowerDelaysTimeoutUs(0);
+
+            decoderRenderer.setForceTightThresholds(prefConfig.forceTightThresholds);
+
+            try {
+                com.limelight.LimeLog.info("Latency policy -> LFR(eff)=" + lfrEffective +
+                        " (user=" + userLfr + ", fp=" + fp + "), tight=" + prefConfig.forceTightThresholds);
+            } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {}
+    }
+
+    private static boolean isLfrEffective(int fp, boolean userLfr) {
+        final boolean isBalanced =
+                (fp == PreferenceConfiguration.FRAME_PACING_BALANCED);
+        final boolean isCapFps =
+                (fp == PreferenceConfiguration.FRAME_PACING_CAP_FPS);
+        final boolean isMaxSmooth =
+                (fp == PreferenceConfiguration.FRAME_PACING_MAX_SMOOTHNESS);
+
+        // Bypass LFR on Balanced/CapFPS, allow it on Max Smoothness
+        return userLfr && !isBalanced && !isCapFps;
+    }
 }
