@@ -21,10 +21,12 @@ import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.preferences.PreferenceConfiguration;
 
-import java.io.File;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class UsbDriverService extends Service implements UsbDriverListener {
+public class UsbDriverService extends Service implements ControllerDriverListener {
+
+    private static final AtomicInteger NEXT_DEVICE_ID = new AtomicInteger(0);
 
     private static final String ACTION_USB_PERMISSION =
             "com.limelight.USB_PERMISSION";
@@ -38,9 +40,12 @@ public class UsbDriverService extends Service implements UsbDriverListener {
 
     private final ArrayList<AbstractController> controllers = new ArrayList<>();
 
-    private UsbDriverListener listener;
+    private ControllerDriverListener listener;
     private UsbDriverStateListener stateListener;
-    private int nextDeviceId;
+
+    public static int getNextDeviceId() {
+        return NEXT_DEVICE_ID.getAndIncrement();
+    }
 
     @Override
     public void reportControllerState(int controllerId, int buttonFlags, float leftStickX, float leftStickY,
@@ -56,6 +61,14 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         // Call through to the client's listener
         if (listener != null) {
             listener.reportControllerMotion(controllerId, motionType, motionX, motionY, motionZ);
+        }
+    }
+
+    @Override
+    public void reportBatteryState(int controllerId, byte batteryState, byte batteryPercentage) {
+        // Call through to the client's listener
+        if (listener != null) {
+            listener.reportBatteryState(controllerId, batteryState, batteryPercentage);
         }
     }
 
@@ -120,7 +133,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
     }
 
     public class UsbDriverBinder extends Binder {
-        public void setListener(UsbDriverListener listener) {
+        public void setListener(ControllerDriverListener listener) {
             UsbDriverService.this.listener = listener;
 
             // Report all controllerMap that already exist
@@ -194,16 +207,16 @@ public class UsbDriverService extends Service implements UsbDriverListener {
             AbstractController controller;
 
             if (XboxOneController.canClaimDevice(device)) {
-                controller = new XboxOneController(device, connection, nextDeviceId++, this);
+                controller = new XboxOneController(device, connection, getNextDeviceId(), this);
             }
             else if (Xbox360Controller.canClaimDevice(device)) {
-                controller = new Xbox360Controller(device, connection, nextDeviceId++, this);
+                controller = new Xbox360Controller(device, connection, getNextDeviceId(), this);
             }
             else if (Xbox360WirelessDongle.canClaimDevice(device)) {
-                controller = new Xbox360WirelessDongle(device, connection, nextDeviceId++, this);
+                controller = new Xbox360WirelessDongle(device, connection, getNextDeviceId(), this);
             }
             else if (ProConController.canClaimDevice(device)) {
-                controller = new ProConController(device, connection, nextDeviceId++, this);
+                controller = new ProConController(device, connection, getNextDeviceId(), this);
             }
             else {
                 // Unreachable

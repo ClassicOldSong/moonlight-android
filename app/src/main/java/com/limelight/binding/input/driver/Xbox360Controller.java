@@ -58,7 +58,7 @@ public class Xbox360Controller extends AbstractXboxController {
         return false;
     }
 
-    public Xbox360Controller(UsbDevice device, UsbDeviceConnection connection, int deviceId, UsbDriverListener listener) {
+    public Xbox360Controller(UsbDevice device, UsbDeviceConnection connection, int deviceId, ControllerDriverListener listener) {
         super(device, connection, deviceId, listener);
     }
 

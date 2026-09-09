@@ -23,7 +23,7 @@ public abstract class AbstractXboxController extends AbstractController {
 
     protected UsbEndpoint inEndpt, outEndpt;
 
-    public AbstractXboxController(UsbDevice device, UsbDeviceConnection connection, int deviceId, UsbDriverListener listener) {
+    public AbstractXboxController(UsbDevice device, UsbDeviceConnection connection, int deviceId, ControllerDriverListener listener) {
         super(deviceId, listener, device.getVendorId(), device.getProductId());
         this.device = device;
         this.connection = connection;

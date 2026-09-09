@@ -8,7 +8,7 @@ public abstract class AbstractController {
     private final int vendorId;
     private final int productId;
 
-    private UsbDriverListener listener;
+    private ControllerDriverListener listener;
 
     protected int buttonFlags, supportedButtonFlags;
     protected float leftTrigger, rightTrigger;
@@ -62,15 +62,31 @@ public abstract class AbstractController {
         listener.reportControllerMotion(deviceId, MoonBridge.LI_MOTION_TYPE_ACCEL, accelX, accelY, accelZ);
     }
 
+    protected void reportBatteryState(byte batteryState, byte batteryPercentage) {
+        listener.reportBatteryState(deviceId, batteryState, batteryPercentage);
+    }
+
     public abstract boolean start();
 
     public abstract void stop();
 
-    public AbstractController(int deviceId, UsbDriverListener listener, int vendorId, int productId) {
+    public AbstractController(int deviceId, ControllerDriverListener listener, int vendorId, int productId) {
         this.deviceId = deviceId;
         this.listener = listener;
         this.vendorId = vendorId;
         this.productId = productId;
+    }
+
+    public void setMotionEventState(byte motionType, short reportRateHz) {
+        if (((getCapabilities() & MoonBridge.LI_CCAP_GYRO) | (getCapabilities() & MoonBridge.LI_CCAP_ACCEL)) != 0) {
+            throw new IllegalStateException("Controllers with motion capabilities must override this method");
+        }
+    }
+
+    public void setControllerLED(byte r, byte g, byte b) {
+        if ((getCapabilities() & MoonBridge.LI_CCAP_RGB_LED) != 0) {
+            throw new IllegalStateException("Controllers with RGB LED capability must override this method");
+        }
     }
 
     public abstract void rumble(short lowFreqMotor, short highFreqMotor);
