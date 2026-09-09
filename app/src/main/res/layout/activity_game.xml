@@ -116,4 +116,20 @@
         android:visibility="gone"
         android:elevation="9999dp" />
 
+    <!-- OSC Profile Name Overlay -->
+    <TextView
+        android:id="@+id/oscProfileNameOverlay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginLeft="10dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="10dp"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:gravity="left"
+        android:visibility="gone"
+        android:elevation="9999dp" />
+
 </merge>

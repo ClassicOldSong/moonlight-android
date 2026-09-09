@@ -17,6 +17,7 @@ import android.view.MotionEvent;
 
 import com.limelight.LimeLog;
 import com.limelight.R;
+import com.limelight.binding.input.feedback.ButtonFeedbackManager;
 import com.limelight.preferences.PreferenceConfiguration;
 
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import java.util.List;
 public class DigitalPad extends VirtualControllerElement {
     public final static int DIGITAL_PAD_DIRECTION_NO_DIRECTION = 0;
     int direction = DIGITAL_PAD_DIRECTION_NO_DIRECTION;
+    int previousDirection = DIGITAL_PAD_DIRECTION_NO_DIRECTION;  // Track previous direction for feedback
     public final static int DIGITAL_PAD_DIRECTION_LEFT = 1;
     public final static int DIGITAL_PAD_DIRECTION_UP = 2;
     public final static int DIGITAL_PAD_DIRECTION_RIGHT = 4;
@@ -263,6 +265,37 @@ public class DigitalPad extends VirtualControllerElement {
 
     private void newDirectionCallback(int direction) {
         _DBG("direction: " + direction);
+
+        // Only perform feedback if the direction actually changed
+        if (direction != previousDirection) {
+            // Check if this is a cardinal direction (not a diagonal/corner)
+            boolean isCardinal = (direction == DIGITAL_PAD_DIRECTION_LEFT ||
+                                 direction == DIGITAL_PAD_DIRECTION_UP ||
+                                 direction == DIGITAL_PAD_DIRECTION_RIGHT ||
+                                 direction == DIGITAL_PAD_DIRECTION_DOWN);
+
+            // Only provide feedback for cardinal directions, not diagonals
+            try {
+                if (isCardinal) {
+                    // Perform haptic and audio feedback when direction changes (press)
+                    ButtonFeedbackManager.getInstance(getContext()).performClickFeedback();
+                }
+                // Perform vibration-only feedback when releasing to neutral (only if previous was cardinal)
+                else if (direction == DIGITAL_PAD_DIRECTION_NO_DIRECTION) {
+                    boolean previousWasCardinal = (previousDirection == DIGITAL_PAD_DIRECTION_LEFT ||
+                                                  previousDirection == DIGITAL_PAD_DIRECTION_UP ||
+                                                  previousDirection == DIGITAL_PAD_DIRECTION_RIGHT ||
+                                                  previousDirection == DIGITAL_PAD_DIRECTION_DOWN);
+                    if (previousWasCardinal) {
+                        ButtonFeedbackManager.getInstance(getContext()).performReleaseFeedback();
+                    }
+                }
+            } catch (Exception e) {
+                // Silently catch to prevent feedback from breaking button functionality
+            }
+
+            previousDirection = direction;
+        }
 
         // notify listeners
         for (DigitalPadListener listener : listeners) {

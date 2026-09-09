@@ -39,6 +39,7 @@ public abstract class VirtualControllerElement extends View {
     public static final int EID_RSB = 15;
     public static final int EID_GDB = 16;
     public static final int EID_TOUCHPAD = 65;
+    public static final int EID_FEEDBACK_INDICATOR = 66;
 
     protected VirtualController virtualController;
     protected final int elementId;
@@ -75,11 +76,32 @@ public abstract class VirtualControllerElement extends View {
         this.elementId = elementId;
     }
 
+    public int getElementId() {
+        return elementId;
+    }
+
     protected void moveElement(int pressed_x, int pressed_y, int x, int y) {
         int newPos_x = (int) getX() + x - pressed_x;
         int newPos_y = (int) getY() + y - pressed_y;
 
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) getLayoutParams();
+
+        // Apply snapping if enabled
+        if (virtualController.isSnappingEnabled()) {
+            int[] snapped = SnapHelper.applySnapping(
+                this,
+                newPos_x,
+                newPos_y,
+                getWidth(),
+                getHeight(),
+                virtualController.getDisplayMetrics(),
+                virtualController.getElements(),
+                true,  // snapToGrid
+                true   // snapToButtons
+            );
+            newPos_x = snapped[0];
+            newPos_y = snapped[1];
+        }
 
         layoutParams.leftMargin = newPos_x > 0 ? newPos_x : 0;
         layoutParams.topMargin = newPos_y > 0 ? newPos_y : 0;
@@ -95,8 +117,35 @@ public abstract class VirtualControllerElement extends View {
         int newHeight = height + (startSize_y - pressed_y);
         int newWidth = width + (startSize_x - pressed_x);
 
-        layoutParams.height = newHeight > 20 ? newHeight : 20;
-        layoutParams.width = newWidth > 20 ? newWidth : 20;
+        // Ensure minimum size
+        newHeight = newHeight > 20 ? newHeight : 20;
+        newWidth = newWidth > 20 ? newWidth : 20;
+
+        // Apply paired sizing if enabled - resize all buttons in the same subset
+        if (virtualController.isPairedSizingEnabled()) {
+            SnapHelper.ButtonSubset currentSubset = SnapHelper.getButtonSubset(this.elementId);
+
+            // Only apply to buttons that belong to a defined subset
+            if (currentSubset != SnapHelper.ButtonSubset.OTHER) {
+                // Resize all buttons in the same subset (including this one)
+                for (VirtualControllerElement element : virtualController.getElements()) {
+                    SnapHelper.ButtonSubset otherSubset = SnapHelper.getButtonSubset(element.elementId);
+                    if (otherSubset == currentSubset) {
+                        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) element.getLayoutParams();
+                        if (params != null) {
+                            params.width = newWidth;
+                            params.height = newHeight;
+                            element.requestLayout();
+                        }
+                    }
+                }
+                return; // Exit early since we've already updated all buttons
+            }
+        }
+
+        // If paired sizing not enabled or button not in a subset, just resize this button
+        layoutParams.height = newHeight;
+        layoutParams.width = newWidth;
 
         requestLayout();
     }

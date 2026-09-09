@@ -171,11 +171,17 @@ public class GameMenu implements Game.GameMenuCallbacks {
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_ctrl_v),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL, KeyboardTranslator.VK_V})));
 
+            options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_shift_s),
+                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_S})));
+
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_win),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN})));
 
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_d),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_D})));
+
+            options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_tab),
+                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_TAB})));
 
             options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_g),
                     () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_G})));
@@ -271,6 +277,158 @@ public class GameMenu implements Game.GameMenuCallbacks {
         showMenuDialog(getString(R.string.game_menu_advanced), options.toArray(new MenuOption[options.size()]));
     }
 
+    private void showOscMenu() {
+        List<MenuOption> options = new ArrayList<>();
+
+        // 1. Set Configuration Mode
+        options.add(new MenuOption(getString(R.string.game_menu_osc_set_config_mode), () -> {
+            hideMenu();
+            showOscModeMenu();
+        }));
+
+        // 2. Toggle OSC Visibility
+        options.add(new MenuOption(getString(R.string.game_menu_osc_toggle_visibility), true,
+                game::toggleVirtualController));
+
+        // 3. Toggle Cover Triggers Mode
+        options.add(new MenuOption(getString(R.string.game_menu_osc_toggle_cover_triggers), true,
+                game::toggleCoverAnalogTriggers));
+
+        // 4. Toggle Analog Trigger Click
+        options.add(new MenuOption(getString(R.string.game_menu_osc_toggle_trigger_click), true,
+                game::toggleAnalogTriggerClick));
+
+        // 5. Clear OSC Layout
+        options.add(new MenuOption(getString(R.string.game_menu_osc_clear_layout), true,
+                game::resetOscLayout));
+
+        // 6. Deposit Alternate Buttons submenu
+        options.add(new MenuOption(getString(R.string.game_menu_osc_deposit_buttons), () -> {
+            hideMenu();
+            showOscDepositButtonsMenu();
+        }));
+
+        // 7. OSC Profiles
+        options.add(new MenuOption(getString(R.string.game_menu_osc_profiles), () -> {
+            hideMenu();
+            showOscProfilesMenu();
+        }));
+
+        // 8. Cancel
+        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
+
+        showMenuDialog(getString(R.string.game_menu_osc_settings), options.toArray(new MenuOption[options.size()]));
+    }
+
+    private void showOscModeMenu() {
+        List<MenuOption> options = new ArrayList<>();
+
+        // OSC Configuration Modes
+        options.add(new MenuOption(getString(R.string.game_menu_osc_mode_active), true,
+                game::setOscModeActive));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_mode_move), true,
+                game::setOscModeMove));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_mode_resize), true,
+                game::setOscModeResize));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_mode_disable_enable), true,
+                game::setOscModeDisableEnable));
+
+        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
+
+        showMenuDialog(getString(R.string.game_menu_osc_set_mode), options.toArray(new MenuOption[options.size()]));
+    }
+
+    private void showOscDepositButtonsMenu() {
+        List<MenuOption> options = new ArrayList<>();
+
+        // Deposit button sets
+        options.add(new MenuOption(getString(R.string.game_menu_osc_deposit_alphabet), true,
+                game::depositAlphabetButtons));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_deposit_numbers), true,
+                game::depositNumberButtons));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_deposit_mouse), true,
+                game::depositMouseButtons));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_deposit_control), true,
+                game::depositControlButtons));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_deposit_function), true,
+                game::depositFunctionKeys));
+
+        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
+
+        showMenuDialog(getString(R.string.game_menu_osc_deposit_buttons), options.toArray(new MenuOption[options.size()]));
+    }
+
+    private void showOscProfilesMenu() {
+        com.limelight.LimeLog.info("GameMenu: showOscProfilesMenu() called");
+        List<MenuOption> options = new ArrayList<>();
+
+        // Add profile selector dropdown as first option
+        options.add(new MenuOption(getString(R.string.game_menu_osc_profile_select), true,
+                this::showProfileSelector));
+
+        // Add profile management options
+        options.add(new MenuOption(getString(R.string.game_menu_osc_profile_new),
+                game::createNewOscProfile));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_profile_manage),
+                game::openOscProfileManagement));
+
+        options.add(new MenuOption(getString(R.string.game_menu_osc_save_config), true,
+                game::saveCurrentOscConfiguration));
+
+        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
+
+        showMenuDialog(getString(R.string.game_menu_osc_profiles), options.toArray(new MenuOption[options.size()]));
+    }
+
+    private void showProfileSelector() {
+        // Load all profiles from OscProfilesManager
+        com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+        List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = profilesManager.getProfiles();
+        java.util.UUID activeId = profilesManager.getActiveId();
+
+        // Create array of profile names
+        String[] profileNames = new String[profiles.size()];
+        int selectedIndex = 0;
+        for (int i = 0; i < profiles.size(); i++) {
+            com.limelight.binding.input.virtual_controller.OscProfile profile = profiles.get(i);
+            profileNames[i] = profile.getName();
+            if (profile.getUuid().equals(activeId)) {
+                selectedIndex = i;
+            }
+        }
+
+        // Track selected profile
+        final int[] checkedItem = {selectedIndex};
+
+        // Create dialog with single choice list
+        int themeResId = game.getApplicationInfo().theme;
+        Context themedContext = new ContextThemeWrapper(dialogScreenContext, themeResId);
+
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(themedContext);
+        builder.setTitle(getString(R.string.game_menu_osc_profile_select))
+                .setSingleChoiceItems(profileNames, selectedIndex, (dialog, which) -> {
+                    checkedItem[0] = which;
+                })
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    if (checkedItem[0] >= 0 && checkedItem[0] < profiles.size()) {
+                        java.util.UUID profileId = profiles.get(checkedItem[0]).getUuid();
+                        game.switchOscProfile(profileId);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void showServerCmd(ArrayList<String> serverCmds) {
         List<MenuOption> options = new ArrayList<>();
 
@@ -327,6 +485,12 @@ public class GameMenu implements Game.GameMenuCallbacks {
 
         options.add(new MenuOption(getString(R.string.game_menu_advanced), true,
                 () -> showAdvancedMenu(device)));
+
+        // OSC Menu - positioned before Cancel as per fig4.png
+        options.add(new MenuOption(getString(R.string.game_menu_osc), () -> {
+            hideMenu();
+            showOscMenu();
+        }));
 
         options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
 

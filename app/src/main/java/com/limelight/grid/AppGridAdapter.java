@@ -31,6 +31,12 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
     private static final int SMALL_WIDTH_DP = 110;
     private static final int LARGE_WIDTH_DP = 170;
 
+    public enum SortMode {
+        LAST_PLAYED,          // Most recently played first
+        ALPHABETICAL_ASC,     // A-Z (default)
+        ALPHABETICAL_DESC     // Z-A
+    }
+
     private final ComputerDetails computer;
     private final String uniqueId;
     private final boolean showHiddenApps;
@@ -38,10 +44,13 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
     private CachedAppAssetLoader loader;
     private Set<Integer> hiddenAppIds = new HashSet<>();
     private ArrayList<AppView.AppObject> allApps = new ArrayList<>();
+    private SortMode currentSortMode = SortMode.ALPHABETICAL_ASC;
+    private Context context;
 
     public AppGridAdapter(Context context, PreferenceConfiguration prefs, ComputerDetails computer, String uniqueId, boolean showHiddenApps) {
         super(context, getLayoutIdForPreferences(prefs));
 
+        this.context = context;
         this.computer = computer;
         this.uniqueId = uniqueId;
         this.showHiddenApps = showHiddenApps;
@@ -122,19 +131,50 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
         loader.freeCacheMemory();
     }
 
-    private static void sortList(List<AppView.AppObject> list) {
+    private long getLastPlayedTimestamp(int appId) {
+        android.content.SharedPreferences prefs = context.getSharedPreferences("LastPlayed_" + uniqueId, Context.MODE_PRIVATE);
+        return prefs.getLong("app_" + appId, 0L);
+    }
+
+    private void sortList(List<AppView.AppObject> list) {
         Collections.sort(list, new Comparator<AppView.AppObject>() {
             @Override
             public int compare(AppView.AppObject lhs, AppView.AppObject rhs) {
-                int lIndex = lhs.app.getAppIndex();
-                int rIndex = rhs.app.getAppIndex();
-                if (lIndex == rIndex) {
-                    return lhs.app.getAppName().toLowerCase().compareTo(rhs.app.getAppName().toLowerCase());
-                } else {
-                    return lIndex - rIndex;
+                switch (currentSortMode) {
+                    case LAST_PLAYED:
+                        // Sort by last played timestamp (most recent first)
+                        long lhsTime = getLastPlayedTimestamp(lhs.app.getAppId());
+                        long rhsTime = getLastPlayedTimestamp(rhs.app.getAppId());
+                        if (lhsTime == rhsTime) {
+                            // If same timestamp (or both never played), sort alphabetically
+                            return lhs.app.getAppName().toLowerCase().compareTo(rhs.app.getAppName().toLowerCase());
+                        }
+                        return Long.compare(rhsTime, lhsTime); // Descending (most recent first)
+
+                    case ALPHABETICAL_DESC:
+                        return rhs.app.getAppName().toLowerCase().compareTo(lhs.app.getAppName().toLowerCase());
+
+                    case ALPHABETICAL_ASC:
+                    default:
+                        return lhs.app.getAppName().toLowerCase().compareTo(rhs.app.getAppName().toLowerCase());
                 }
             }
         });
+    }
+
+    public void setSortMode(SortMode mode) {
+        this.currentSortMode = mode;
+
+        // Re-sort both lists
+        sortList(allApps);
+        sortList(itemList);
+
+        // Notify that data changed
+        notifyDataSetChanged();
+    }
+
+    public SortMode getSortMode() {
+        return currentSortMode;
     }
 
     public void addApp(AppView.AppObject app) {

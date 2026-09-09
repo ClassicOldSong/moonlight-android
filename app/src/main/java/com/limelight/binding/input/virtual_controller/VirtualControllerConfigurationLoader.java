@@ -408,6 +408,16 @@ public class VirtualControllerConfigurationLoader {
             );
         }
 
+        // Add feedback indicator for cover screen triggers (if available)
+        // Position at top-left, wide and narrow
+        controller.addElement(
+                new com.limelight.binding.input.feedback.FeedbackIndicator(controller, context),
+                screenScale(4, height),  // x: grid 4
+                screenScale(4, height),  // y: grid 4
+                screenScale(20, height), // width: grid 20 (wide)
+                screenScale(5, height)   // height: grid 5 (narrow)
+        );
+
         controller.setOpacity(config.oscOpacity);
     }
 
@@ -428,20 +438,30 @@ public class VirtualControllerConfigurationLoader {
     }
 
     public static void loadFromPreferences(final VirtualController controller, final Context context) {
-        SharedPreferences pref = context.getSharedPreferences(OSC_PREFERENCE, Activity.MODE_PRIVATE);
+        // Try loading from profile manager first
+        OscProfilesManager profileManager = OscProfilesManager.getInstance();
+        OscProfile activeProfile = profileManager.getActive();
 
-        for (VirtualControllerElement element : controller.getElements()) {
-            String prefKey = ""+element.elementId;
+        if (activeProfile != null && activeProfile.getElementConfigs() != null && !activeProfile.getElementConfigs().isEmpty()) {
+            // Load from active profile
+            profileManager.loadActiveProfileToController(controller);
+        } else {
+            // Fallback to old SharedPreferences method for backwards compatibility
+            SharedPreferences pref = context.getSharedPreferences(OSC_PREFERENCE, Activity.MODE_PRIVATE);
 
-            String jsonConfig = pref.getString(prefKey, null);
-            if (jsonConfig != null) {
-                try {
-                    element.loadConfiguration(new JSONObject(jsonConfig));
-                } catch (JSONException e) {
-                    e.printStackTrace();
+            for (VirtualControllerElement element : controller.getElements()) {
+                String prefKey = ""+element.elementId;
 
-                    // Remove the corrupt element from the preferences
-                    pref.edit().remove(prefKey).apply();
+                String jsonConfig = pref.getString(prefKey, null);
+                if (jsonConfig != null) {
+                    try {
+                        element.loadConfiguration(new JSONObject(jsonConfig));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+
+                        // Remove the corrupt element from the preferences
+                        pref.edit().remove(prefKey).apply();
+                    }
                 }
             }
         }

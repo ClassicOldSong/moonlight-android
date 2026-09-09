@@ -59,6 +59,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 
@@ -158,6 +159,17 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         ImageButton addComputerButton = findViewById(R.id.manuallyAddPc);
         ImageButton helpButton = findViewById(R.id.helpButton);
         ExtendedFloatingActionButton profilesButton = findViewById(R.id.profilesButton);
+        TextView versionText = findViewById(R.id.versionText);
+
+        // Set version number (if view exists)
+        if (versionText != null) {
+            try {
+                String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                versionText.setText("v" + versionName);
+            } catch (Exception e) {
+                versionText.setText("v?.?.?");
+            }
+        }
 
         settingsButton.setOnClickListener(new OnClickListener() {
             @Override

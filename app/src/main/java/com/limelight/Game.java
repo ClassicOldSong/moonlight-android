@@ -22,6 +22,7 @@ import com.limelight.binding.input.evdev.EvdevListener;
 import com.limelight.binding.input.touch.TouchContext;
 import com.limelight.binding.input.touch.TrackpadContext;
 import com.limelight.binding.input.virtual_controller.VirtualController;
+import com.limelight.binding.input.virtual_controller.VirtualControllerElement;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
 import com.limelight.binding.video.CrashListener;
@@ -84,6 +85,7 @@ import android.os.IBinder;
 import android.os.PersistableBundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.util.DisplayMetrics;
 import android.util.Rational;
 import android.view.Display;
 import android.view.Gravity;
@@ -140,7 +142,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         OnGenericMotionListener, OnTouchListener, NvConnectionListener, EvdevListener,
         OnSystemUiVisibilityChangeListener, GameGestures, StreamContainer.InputCallbacks,
         ExternalControllerView.InputCallbacks,
-        PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
+        PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener,
+        com.limelight.binding.input.cover.CoverScreenListener {
     public static Game instance;
 
     private int lastButtonState = 0;
@@ -175,6 +178,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private KeyBoardController keyBoardController;
 
     private KeyBoardLayoutController keyBoardLayoutController;
+
+    private com.limelight.binding.input.cover.CoverScreenManager coverScreenManager;
 
     private PreferenceConfiguration prefConfig;
     private SharedPreferences tombstonePrefs;
@@ -229,6 +234,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private TextView performanceOverlayLite;
 
     private TextView performanceOverlayBig;
+
+    private TextView oscProfileNameOverlay;
 
     private MediaCodecDecoderRenderer decoderRenderer;
     private boolean reportedCrash;
@@ -353,6 +360,29 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Read the stream preferences
         prefConfig = PreferenceConfiguration.readPreferences(this);
         tombstonePrefs = Game.this.getSharedPreferences("DecoderTombstone", 0);
+
+        // Load OSC profiles
+        LimeLog.info("Game: onCreate() - Loading OSC profiles...");
+        boolean profilesLoaded = com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance().load(this);
+        LimeLog.info("Game: onCreate() - OSC profiles loaded: " + profilesLoaded);
+
+        // Initialize app-specific OSC profile manager
+        com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance().initialize(this);
+
+        // Initialize app-specific stream profile manager and apply per-game resolution/FPS overrides
+        com.limelight.profiles.AppStreamProfileManager.getInstance().initialize(this);
+        
+        // Read appUUID early to check for per-game stream profiles
+        String earlyAppUUID = getIntent().getStringExtra(EXTRA_APP_UUID);
+        String earlyAppName = getIntent().getStringExtra(EXTRA_APP_NAME);
+        if (earlyAppUUID != null && !earlyAppUUID.isEmpty()) {
+            com.limelight.profiles.GameStreamProfile streamProfile = 
+                    com.limelight.profiles.AppStreamProfileManager.getInstance().getProfileForApp(earlyAppUUID);
+            if (streamProfile != null && streamProfile.hasAnyOverride()) {
+                LimeLog.info("Game: Applying per-game stream profile for " + earlyAppName + ": " + streamProfile);
+                com.limelight.profiles.AppStreamProfileManager.applyProfileToConfig(prefConfig, streamProfile, null);
+            }
+        }
 
         if (prefConfig.fullScreen) {
             // Full-screen
@@ -523,6 +553,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         performanceOverlayBig = findViewById(R.id.performanceOverlayBig);
 
+        oscProfileNameOverlay = findViewById(R.id.oscProfileNameOverlay);
+
         inputCaptureProvider = InputCaptureManager.getInputCaptureProvider(this, this);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -576,6 +608,42 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         byte[] derCertData = Game.this.getIntent().getByteArrayExtra(EXTRA_SERVER_CERT);
 
         app = new NvApp(appName != null ? appName : "app", appUUID, appId, appSupportsHdr);
+
+        // Load app-specific default OSC profile if one is set
+        if (appUUID != null && !appUUID.isEmpty()) {
+            com.limelight.binding.input.virtual_controller.AppOscProfileManager appOscManager =
+                    com.limelight.binding.input.virtual_controller.AppOscProfileManager.getInstance();
+            java.util.UUID defaultProfileUUID = appOscManager.getDefaultProfileForApp(appUUID);
+
+            if (defaultProfileUUID != null) {
+                LimeLog.info("Game: Loading default OSC profile for app " + appName + ": " + defaultProfileUUID);
+                com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                        com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+                // Check if the profile still exists
+                com.limelight.binding.input.virtual_controller.OscProfile profile =
+                        profilesManager.getProfiles().stream()
+                                .filter(p -> p.getUuid().equals(defaultProfileUUID))
+                                .findFirst()
+                                .orElse(null);
+
+                if (profile != null) {
+                    profilesManager.setActive(defaultProfileUUID);
+                    LimeLog.info("Game: Switched to default OSC profile: " + profile.getName());
+
+                    // Properly load the profile layout including deposited buttons
+                    if (virtualController != null) {
+                        virtualController.refreshLayout();              // 1. Clear and create default buttons
+                        restoreDepositedButtons();                      // 2. Create deposited buttons at default positions
+                        profilesManager.loadActiveProfileToController(virtualController); // 3. Apply saved configs to ALL buttons
+                    }
+                } else {
+                    LimeLog.warning("Game: Default OSC profile not found, using current active profile");
+                }
+            } else {
+                LimeLog.info("Game: No default OSC profile set for app " + appName + ", using current active profile");
+            }
+        }
 
         try {
             if (derCertData != null) {
@@ -809,6 +877,26 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         controllerHandler = new ControllerHandler(this, conn, this, prefConfig);
         keyboardTranslator = new KeyboardTranslator(prefConfig);
 
+        // Initialize cover screen manager for foldable devices
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            coverScreenManager = new com.limelight.binding.input.cover.CoverScreenManager(this, controllerHandler);
+            getLifecycle().addObserver(coverScreenManager);
+            coverScreenManager.setListener(this);  // Set Game as listener
+            coverScreenManager.initialize();
+
+            // Set up mode synchronization listener for cover screen
+            coverScreenManager.setModeChangeListener(new com.limelight.binding.input.cover.CoverScreenModeChangeListener() {
+                @Override
+                public void onCoverModeChanged(com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode mode) {
+                    // Synchronize main screen OSC to match cover screen mode
+                    if (virtualController != null) {
+                        VirtualController.ControllerMode oscMode = coverModeToOscMode(mode);
+                        virtualController.setControllerMode(oscMode, false); // false = don't notify listener (avoid loop)
+                    }
+                }
+            });
+        }
+
         InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
         inputManager.registerInputDeviceListener(keyboardTranslator, null);
 
@@ -843,6 +931,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 initVirtualController();
             }
         }
+
+        // Note: FeedbackIndicator is initialized via CoverScreenListener.onCoverScreenActivated()
+        // when the cover screen session starts
 
         //特殊按键屏幕布局
         if(prefConfig.enableKeyboard){
@@ -1100,8 +1191,82 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     private void initVirtualController(){
         virtualController = new VirtualController(controllerHandler, (FrameLayout)rootView, this);
-        virtualController.refreshLayout();
+        virtualController.refreshLayout();              // 1. Clear and create default buttons
+        restoreDepositedButtons();                      // 2. Create deposited buttons at default positions
+
+        // 3. Load saved configs from active profile to apply positions/sizes to ALL buttons
+        com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance()
+                .loadActiveProfileToController(virtualController);
+
         virtualController.show();
+
+        // Set up keyboard input listener
+        virtualController.setKeyboardInputListener(new VirtualController.KeyboardInputListener() {
+            @Override
+            public void onKeyboardInput(short keyCode, byte keyAction, byte modifiers) {
+                if (conn != null) {
+                    conn.sendKeyboardInput(keyCode, keyAction, modifiers, (byte) 0);
+                }
+            }
+        });
+
+        // Set up mode synchronization listener for main screen OSC
+        virtualController.setModeChangeListener(new VirtualController.ModeChangeListener() {
+            @Override
+            public void onModeChanged(VirtualController.ControllerMode mode) {
+                // Synchronize cover screen if available
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && coverScreenManager != null) {
+                    // If entering configuration mode and cover screen is available but not active, activate it
+                    if (mode != VirtualController.ControllerMode.Active &&
+                        coverScreenManager.isCoverScreenAvailable() &&
+                        !coverScreenManager.isCoverScreenActive()) {
+                        LimeLog.info("Game: Activating cover screen for configuration mode");
+                        coverScreenManager.presentOnCoverScreen();
+                    }
+
+                    // Synchronize cover screen to match main screen OSC mode
+                    com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode coverMode = oscModeToCoverMode(mode);
+                    coverScreenManager.setConfigurationMode(coverMode, false); // false = don't notify listener (avoid loop)
+                }
+
+                // Update profile name overlay visibility
+                updateProfileNameOverlay(mode);
+            }
+        });
+
+        // Set up profile switch listener to restore deposited buttons
+        virtualController.setProfileSwitchListener(new VirtualController.ProfileSwitchListener() {
+            @Override
+            public void onProfileSwitched() {
+                restoreDepositedButtons();
+            }
+        });
+    }
+
+    private void initFeedbackIndicator(){
+        // FeedbackIndicator is now managed by VirtualController
+        // If OSC is not enabled, create a minimal virtual controller just for the indicator
+        if (virtualController == null) {
+            virtualController = new VirtualController(controllerHandler, (FrameLayout)rootView, this);
+            // Don't call refreshLayout() - manually add only the feedback indicator
+            DisplayMetrics screen = getResources().getDisplayMetrics();
+            int height = screen.heightPixels;
+
+            virtualController.addElement(
+                    new com.limelight.binding.input.feedback.FeedbackIndicator(virtualController, this),
+                    screenScale(4, height),  // x: grid 4
+                    screenScale(4, height),  // y: grid 4
+                    screenScale(20, height), // width: grid 20
+                    screenScale(5, height)   // height: grid 5
+            );
+            virtualController.show();
+        }
+        // If virtualController already exists (OSC enabled), the indicator is already part of it
+    }
+
+    private int screenScale(int gridCoordinate, int screenHeight) {
+        // Convert grid coordinate to pixels (128x72 grid at 16:9)
+        return (int)(gridCoordinate * screenHeight / 72.0f);
     }
 
     private void initkeyBoardLayoutController(){
@@ -1139,6 +1304,1023 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return;
         }
         prefConfig.onscreenController= virtualController.switchShowHide() != 0;
+    }
+
+    // OSC Mode Control Methods
+    public void setOscModeActive() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+        virtualController.setControllerMode(VirtualController.ControllerMode.Active, true);
+    }
+
+    public void setOscModeMove() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+        virtualController.setControllerMode(VirtualController.ControllerMode.MoveButtons, true);
+    }
+
+    public void setOscModeResize() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+        virtualController.setControllerMode(VirtualController.ControllerMode.ResizeButtons, true);
+    }
+
+    public void setOscModeDisableEnable() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+        virtualController.setControllerMode(VirtualController.ControllerMode.DisableEnableButtons, true);
+    }
+
+    // OSC Profile Management Methods
+    public void switchOscProfile(java.util.UUID profileId) {
+        com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+        // No longer auto-save before switching - user must manually save
+        // This prevents accidentally overwriting profile data
+
+        // Switch to new profile
+        profilesManager.setActive(profileId);
+
+        // Load new profile
+        if (virtualController != null) {
+            virtualController.refreshLayout();              // 1. Clear and create default buttons
+            restoreDepositedButtons();                      // 2. Create deposited buttons at default positions
+            profilesManager.loadActiveProfileToController(virtualController); // 3. Apply saved configs to ALL buttons
+        }
+
+        // Reload cover screen configuration if active
+        if (coverScreenManager != null && coverScreenManager.isCoverScreenActive()) {
+            coverScreenManager.reloadConfiguration();       // Reset to defaults and load new profile
+        }
+
+        String profileName = profilesManager.getActiveName();
+        Toast.makeText(this, getString(R.string.game_menu_osc_profile_switched, profileName),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    public void createNewOscProfile() {
+        // Show dialog to enter profile name
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle(R.string.game_menu_osc_profile_name_prompt);
+
+        final android.widget.EditText input = new android.widget.EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        builder.setView(input);
+
+        builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+            String profileName = input.getText().toString().trim();
+            if (!profileName.isEmpty()) {
+                com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                        com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+                // Create new profile
+                java.util.UUID uuid = java.util.UUID.randomUUID();
+                long now = System.currentTimeMillis();
+                com.limelight.binding.input.virtual_controller.OscProfile newProfile =
+                        new com.limelight.binding.input.virtual_controller.OscProfile(
+                                uuid, profileName, now, now, new java.util.LinkedHashMap<>());
+
+                profilesManager.add(newProfile);
+                switchOscProfile(uuid);
+
+                Toast.makeText(this, getString(R.string.game_menu_osc_profile_created, profileName),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.show();
+    }
+
+    public void openOscProfileManagement() {
+        showOscProfileManagementDialog();
+    }
+
+    public void toggleCoverAnalogTriggers() {
+        if (coverScreenManager != null) {
+            boolean isAnalog = coverScreenManager.toggleAnalogTriggers();
+            String mode = isAnalog ? "Analog (Slide)" : "Digital (Tap)";
+            Toast.makeText(this, "Cover Triggers: " + mode, Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Cover screen not active", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void toggleAnalogTriggerClick() {
+        SharedPreferences prefs = getSharedPreferences("GameSettings", MODE_PRIVATE);
+        boolean currentlyEnabled = prefs.getBoolean("analog_trigger_click_enabled", true);
+        boolean newState = !currentlyEnabled;
+        prefs.edit().putBoolean("analog_trigger_click_enabled", newState).apply();
+
+        String state = newState ? "Enabled" : "Disabled";
+        Toast.makeText(this, "Analog Trigger Click: " + state, Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateProfileNameOverlay(VirtualController.ControllerMode mode) {
+        if (oscProfileNameOverlay == null) {
+            return;
+        }
+
+        // Show profile name in configuration modes, hide in Active mode
+        if (mode == VirtualController.ControllerMode.Active) {
+            oscProfileNameOverlay.setVisibility(View.GONE);
+        } else {
+            // Get active profile name
+            com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                    com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+            String profileName = profilesManager.getActiveName();
+            oscProfileNameOverlay.setText("Profile: " + profileName);
+            oscProfileNameOverlay.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void resetOscLayout() {
+        // Show confirmation dialog
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle(R.string.dialog_title_reset_osc);
+        builder.setMessage(R.string.dialog_text_reset_osc);
+
+        builder.setPositiveButton(R.string.yes, (dialog, which) -> {
+            // Clear the OSC shared preferences
+            getSharedPreferences(com.limelight.binding.input.virtual_controller.VirtualControllerConfigurationLoader.OSC_PREFERENCE,
+                    Context.MODE_PRIVATE).edit().clear().apply();
+
+            // Clear deposited button sets from the active profile
+            com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                    com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+            com.limelight.binding.input.virtual_controller.OscProfile activeProfile = profilesManager.getActive();
+            if (activeProfile != null) {
+                activeProfile.getDepositedButtonSets().clear();
+                activeProfile.getElementConfigs().clear();
+                profilesManager.update(activeProfile);
+                profilesManager.save(this);
+            }
+
+            // Reinitialize the virtual controller to show default layout
+            if (virtualController != null) {
+                virtualController.refreshLayout();
+            }
+
+            Toast.makeText(this, R.string.toast_reset_osc_success, Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNegativeButton(R.string.no, null);
+        builder.show();
+    }
+
+    // Deposit Alternate Buttons Methods
+    // Element ID ranges for deposited buttons
+    private static final int EID_ALPHABET_START = 1000; // A-Z: 1000-1025
+    private static final int EID_NUMBERS_START = 1100;  // 0-9: 1100-1109
+    private static final int EID_MOUSE_START = 1200;    // Mouse buttons: 1200+
+    private static final int EID_CONTROL_START = 1300;  // Control keys: 1300+
+    private static final int EID_FUNCTION_START = 1400; // Function keys: 1400+
+
+    public void depositAlphabetButtons() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+
+        // Check if alphabet buttons are already deposited
+        boolean alreadyDeposited = false;
+        for (VirtualControllerElement element : virtualController.getElements()) {
+            if (element.getElementId() >= EID_ALPHABET_START && element.getElementId() < EID_ALPHABET_START + 26) {
+                alreadyDeposited = true;
+                break;
+            }
+        }
+
+        if (alreadyDeposited) {
+            // Reset to default layout
+            Toast.makeText(this, "Resetting Alphabet buttons to default layout", Toast.LENGTH_SHORT).show();
+            // TODO: Implement reset logic
+            return;
+        }
+
+        // Deposit alphabet buttons (A-Z) in QWERTY layout
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+        int screenWidth = screen.widthPixels;
+
+        // Button size (in grid units, 128x72 grid)
+        int buttonWidth = 4;  // Grid units (half of original 7)
+        int buttonHeight = 4;  // Grid units (half of original 8)
+        int pixelButtonWidth = screenScale(buttonWidth, screenHeight);
+        int pixelButtonHeight = screenScale(buttonHeight, screenHeight);
+
+        // QWERTY layout positions (row, column in grid)
+        String[] qwertyRows = {"QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"};
+        int[] rowYPositions = {50, 54, 58}; // Grid Y positions (closer together due to smaller buttons)
+        int[] rowXStarts = {10, 12, 16};     // Grid X start positions (offset for centering)
+
+        int buttonIndex = 0;
+        for (int row = 0; row < qwertyRows.length; row++) {
+            String rowLetters = qwertyRows[row];
+            int gridX = rowXStarts[row];
+            int gridY = rowYPositions[row];
+
+            for (int col = 0; col < rowLetters.length(); col++) {
+                char letter = rowLetters.charAt(col);
+                int keyCode = com.limelight.binding.input.KeyboardTranslator.VK_A + (letter - 'A');
+
+                int elementId = EID_ALPHABET_START + (letter - 'A');
+                com.limelight.binding.input.virtual_controller.KeyboardButton button =
+                        new com.limelight.binding.input.virtual_controller.KeyboardButton(
+                                virtualController,
+                                elementId,
+                                0, // layer
+                                this,
+                                (short) keyCode,
+                                (byte) 0, // no modifiers
+                                String.valueOf(letter)
+                        );
+
+                int pixelX = screenScale(gridX + (col * (buttonWidth + 1)), screenHeight);
+                int pixelY = screenScale(gridY, screenHeight);
+
+                virtualController.addElement(button, pixelX, pixelY, pixelButtonWidth, pixelButtonHeight);
+            }
+        }
+
+        Toast.makeText(this, "Alphabet buttons (A-Z) deposited!", Toast.LENGTH_SHORT).show();
+    }
+
+    public void depositNumberButtons() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+
+        // Check if number buttons are already deposited
+        boolean alreadyDeposited = false;
+        for (VirtualControllerElement element : virtualController.getElements()) {
+            if (element.getElementId() >= EID_NUMBERS_START && element.getElementId() < EID_NUMBERS_START + 10) {
+                alreadyDeposited = true;
+                break;
+            }
+        }
+
+        if (alreadyDeposited) {
+            // Reset to default layout
+            Toast.makeText(this, "Resetting Number buttons to default layout", Toast.LENGTH_SHORT).show();
+            // TODO: Implement reset logic
+            return;
+        }
+
+        // Deposit number buttons (0-9) in a single row
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        // Button size (in grid units, 128x72 grid)
+        int buttonWidth = 4;
+        int buttonHeight = 4;
+        int pixelButtonWidth = screenScale(buttonWidth, screenHeight);
+        int pixelButtonHeight = screenScale(buttonHeight, screenHeight);
+
+        // Layout: 1 2 3 4 5 6 7 8 9 0 (standard number row)
+        String numbers = "1234567890";
+        int gridY = 45; // Position above alphabet
+        int gridXStart = 10; // Start position
+
+        for (int i = 0; i < numbers.length(); i++) {
+            char digit = numbers.charAt(i);
+            int keyCode = com.limelight.binding.input.KeyboardTranslator.VK_0 + (digit - '0');
+
+            int elementId = EID_NUMBERS_START + i;
+            com.limelight.binding.input.virtual_controller.KeyboardButton button =
+                    new com.limelight.binding.input.virtual_controller.KeyboardButton(
+                            virtualController,
+                            elementId,
+                            0, // layer
+                            this,
+                            (short) keyCode,
+                            (byte) 0, // no modifiers
+                            String.valueOf(digit)
+                    );
+
+            int pixelX = screenScale(gridXStart + (i * (buttonWidth + 1)), screenHeight);
+            int pixelY = screenScale(gridY, screenHeight);
+
+            virtualController.addElement(button, pixelX, pixelY, pixelButtonWidth, pixelButtonHeight);
+        }
+
+        Toast.makeText(this, "Number buttons (0-9) deposited!", Toast.LENGTH_SHORT).show();
+    }
+
+    public void depositMouseButtons() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+
+        // Check if mouse buttons are already deposited
+        boolean alreadyDeposited = false;
+        for (VirtualControllerElement element : virtualController.getElements()) {
+            if (element.getElementId() >= EID_MOUSE_START && element.getElementId() < EID_MOUSE_START + 5) {
+                alreadyDeposited = true;
+                break;
+            }
+        }
+
+        if (alreadyDeposited) {
+            // Reset to default layout
+            Toast.makeText(this, "Resetting Mouse buttons to default layout", Toast.LENGTH_SHORT).show();
+            // TODO: Implement reset logic
+            return;
+        }
+
+        // Deposit mouse buttons (Left, Middle, Right, X1, X2)
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        // Button size (in grid units, 128x72 grid)
+        int buttonWidth = 6;  // Slightly wider for text labels
+        int buttonHeight = 4;
+        int pixelButtonWidth = screenScale(buttonWidth, screenHeight);
+        int pixelButtonHeight = screenScale(buttonHeight, screenHeight);
+
+        // Mouse button definitions
+        byte[] mouseButtons = {
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_LEFT,
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_MIDDLE,
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_RIGHT,
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_X1,
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_X2
+        };
+        String[] labels = {"L", "M", "R", "X1", "X2"};
+
+        int gridY = 40; // Position above numbers
+        int gridXStart = 20; // Start position
+
+        for (int i = 0; i < mouseButtons.length; i++) {
+            int elementId = EID_MOUSE_START + i;
+            com.limelight.binding.input.virtual_controller.MouseButton button =
+                    new com.limelight.binding.input.virtual_controller.MouseButton(
+                            virtualController,
+                            elementId,
+                            0, // layer
+                            this,
+                            mouseButtons[i],
+                            labels[i]
+                    );
+
+            // Set up mouse button listener to send to connection
+            button.setMouseButtonListener(new com.limelight.binding.input.virtual_controller.MouseButton.MouseButtonListener() {
+                @Override
+                public void onMouseButtonDown(byte mouseButton) {
+                    if (conn != null) {
+                        conn.sendMouseButtonDown(mouseButton);
+                    }
+                }
+
+                @Override
+                public void onMouseButtonUp(byte mouseButton) {
+                    if (conn != null) {
+                        conn.sendMouseButtonUp(mouseButton);
+                    }
+                }
+            });
+
+            int pixelX = screenScale(gridXStart + (i * (buttonWidth + 1)), screenHeight);
+            int pixelY = screenScale(gridY, screenHeight);
+
+            virtualController.addElement(button, pixelX, pixelY, pixelButtonWidth, pixelButtonHeight);
+        }
+
+        Toast.makeText(this, "Mouse control buttons deposited!", Toast.LENGTH_SHORT).show();
+    }
+
+    public void depositControlButtons() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+
+        // Check if control buttons are already deposited
+        boolean alreadyDeposited = false;
+        for (VirtualControllerElement element : virtualController.getElements()) {
+            if (element.getElementId() >= EID_CONTROL_START && element.getElementId() < EID_CONTROL_START + 80) {
+                alreadyDeposited = true;
+                break;
+            }
+        }
+
+        if (alreadyDeposited) {
+            // Reset to default layout
+            Toast.makeText(this, "Resetting Control buttons to default layout", Toast.LENGTH_SHORT).show();
+            // TODO: Implement reset logic
+            return;
+        }
+
+        // Deposit control key buttons
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        // Button size (in grid units, 128x72 grid)
+        int buttonWidth = 5;
+        int buttonHeight = 4;
+        int pixelButtonWidth = screenScale(buttonWidth, screenHeight);
+        int pixelButtonHeight = screenScale(buttonHeight, screenHeight);
+
+        // Control key definitions: [keyCode, label, gridX, gridY, elementIdOffset, width, height]
+        Object[][] controlKeys = {
+                // Row 1: Special keys
+                {com.limelight.binding.input.KeyboardTranslator.VK_ESCAPE, "Esc", 10, 25, 0, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_TAB, "Tab", 16, 25, 1, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_BACK_SPACE, "Bksp", 22, 25, 2, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_RETURN, "Ent", 28, 25, 3, buttonWidth, buttonHeight},
+
+                // Row 2: Modifiers
+                {com.limelight.binding.input.KeyboardTranslator.VK_LSHIFT, "Shift", 10, 30, 4, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_LCONTROL, "Ctrl", 16, 30, 5, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_LMENU, "Alt", 22, 30, 6, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_SPACE, "Space", 28, 30, 7, buttonWidth, buttonHeight},
+
+                // Row 3: Arrow keys + Tilde
+                {com.limelight.binding.input.KeyboardTranslator.VK_LEFT, "←", 10, 35, 8, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_UP, "↑", 16, 35, 9, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_RIGHT, "→", 22, 35, 10, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_BACK_QUOTE, "~", 28, 35, 11, buttonWidth, buttonHeight},  // Tilde/Grave
+
+                // Row 4: Down arrow + Windows
+                {com.limelight.binding.input.KeyboardTranslator.VK_DOWN, "↓", 16, 40, 12, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_LWIN, "Win", 28, 40, 13, buttonWidth, buttonHeight},  // Windows/Start Menu
+        };
+
+        int elementIndex = 0;
+        for (Object[] keyDef : controlKeys) {
+            int keyCode = (int) keyDef[0];
+            String label = (String) keyDef[1];
+            int gridX = (int) keyDef[2];
+            int gridY = (int) keyDef[3];
+            int idOffset = (int) keyDef[4];
+            int btnWidth = (int) keyDef[5];
+            int btnHeight = (int) keyDef[6];
+
+            int elementId = EID_CONTROL_START + idOffset;
+            com.limelight.binding.input.virtual_controller.KeyboardButton button =
+                    new com.limelight.binding.input.virtual_controller.KeyboardButton(
+                            virtualController,
+                            elementId,
+                            0, // layer
+                            this,
+                            (short) keyCode,
+                            (byte) 0, // no modifiers (these ARE the modifiers)
+                            label
+                    );
+
+            int pixelX = screenScale(gridX, screenHeight);
+            int pixelY = screenScale(gridY, screenHeight);
+            int pixelBtnWidth = screenScale(btnWidth, screenHeight);
+            int pixelBtnHeight = screenScale(btnHeight, screenHeight);
+
+            virtualController.addElement(button, pixelX, pixelY, pixelBtnWidth, pixelBtnHeight);
+        }
+
+        Toast.makeText(this, "Control key buttons deposited!", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Restore deposited buttons from the active profile (called after refreshLayout)
+     */
+    private void restoreDepositedButtons() {
+        com.limelight.binding.input.virtual_controller.OscProfilesManager manager =
+                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+        java.util.Set<String> depositedSets = manager.getActiveDepositedButtonSets();
+        if (depositedSets == null || depositedSets.isEmpty()) {
+            return;
+        }
+
+        // Deposit each button set silently (without toasts)
+        for (String setName : depositedSets) {
+            switch (setName) {
+                case "alphabet":
+                    depositAlphabetButtonsSilent();
+                    break;
+                case "numbers":
+                    depositNumberButtonsSilent();
+                    break;
+                case "mouse":
+                    depositMouseButtonsSilent();
+                    break;
+                case "control":
+                    depositControlButtonsSilent();
+                    break;
+                case "function":
+                    depositFunctionKeysSilent();
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Silent versions of deposit methods (no toasts, no duplicate checking)
+     * Used when restoring from profile
+     */
+    private void depositAlphabetButtonsSilent() {
+        if (virtualController == null) return;
+
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        int buttonWidth = 4;
+        int buttonHeight = 4;
+        int pixelButtonWidth = screenScale(buttonWidth, screenHeight);
+        int pixelButtonHeight = screenScale(buttonHeight, screenHeight);
+
+        String[] qwertyRows = {"QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"};
+        int[] rowYPositions = {50, 54, 58};
+        int[] rowXStarts = {10, 12, 16};
+
+        for (int row = 0; row < qwertyRows.length; row++) {
+            String rowLetters = qwertyRows[row];
+            int gridX = rowXStarts[row];
+            int gridY = rowYPositions[row];
+
+            for (int col = 0; col < rowLetters.length(); col++) {
+                char letter = rowLetters.charAt(col);
+                int keyCode = com.limelight.binding.input.KeyboardTranslator.VK_A + (letter - 'A');
+
+                int elementId = EID_ALPHABET_START + (letter - 'A');
+                com.limelight.binding.input.virtual_controller.KeyboardButton button =
+                        new com.limelight.binding.input.virtual_controller.KeyboardButton(
+                                virtualController,
+                                elementId,
+                                0,
+                                this,
+                                (short) keyCode,
+                                (byte) 0,
+                                String.valueOf(letter)
+                        );
+
+                int pixelX = screenScale(gridX + (col * (buttonWidth + 1)), screenHeight);
+                int pixelY = screenScale(gridY, screenHeight);
+
+                virtualController.addElement(button, pixelX, pixelY, pixelButtonWidth, pixelButtonHeight);
+            }
+        }
+    }
+
+    private void depositNumberButtonsSilent() {
+        if (virtualController == null) return;
+
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        int buttonWidth = 4;
+        int buttonHeight = 4;
+        int pixelButtonWidth = screenScale(buttonWidth, screenHeight);
+        int pixelButtonHeight = screenScale(buttonHeight, screenHeight);
+
+        String numbers = "1234567890";
+        int gridY = 45;
+        int gridXStart = 10;
+
+        for (int i = 0; i < numbers.length(); i++) {
+            char digit = numbers.charAt(i);
+            int keyCode = com.limelight.binding.input.KeyboardTranslator.VK_0 + (digit - '0');
+
+            int elementId = EID_NUMBERS_START + i;
+            com.limelight.binding.input.virtual_controller.KeyboardButton button =
+                    new com.limelight.binding.input.virtual_controller.KeyboardButton(
+                            virtualController,
+                            elementId,
+                            0,
+                            this,
+                            (short) keyCode,
+                            (byte) 0,
+                            String.valueOf(digit)
+                    );
+
+            int pixelX = screenScale(gridXStart + (i * (buttonWidth + 1)), screenHeight);
+            int pixelY = screenScale(gridY, screenHeight);
+
+            virtualController.addElement(button, pixelX, pixelY, pixelButtonWidth, pixelButtonHeight);
+        }
+    }
+
+    private void depositMouseButtonsSilent() {
+        if (virtualController == null) return;
+
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        int buttonWidth = 6;
+        int buttonHeight = 4;
+        int pixelButtonWidth = screenScale(buttonWidth, screenHeight);
+        int pixelButtonHeight = screenScale(buttonHeight, screenHeight);
+
+        byte[] mouseButtons = {
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_LEFT,
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_MIDDLE,
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_RIGHT,
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_X1,
+                com.limelight.nvstream.input.MouseButtonPacket.BUTTON_X2
+        };
+        String[] labels = {"L", "M", "R", "X1", "X2"};
+
+        int gridY = 40;
+        int gridXStart = 20;
+
+        for (int i = 0; i < mouseButtons.length; i++) {
+            int elementId = EID_MOUSE_START + i;
+            com.limelight.binding.input.virtual_controller.MouseButton button =
+                    new com.limelight.binding.input.virtual_controller.MouseButton(
+                            virtualController,
+                            elementId,
+                            0,
+                            this,
+                            mouseButtons[i],
+                            labels[i]
+                    );
+
+            button.setMouseButtonListener(new com.limelight.binding.input.virtual_controller.MouseButton.MouseButtonListener() {
+                @Override
+                public void onMouseButtonDown(byte mouseButton) {
+                    if (conn != null) {
+                        conn.sendMouseButtonDown(mouseButton);
+                    }
+                }
+
+                @Override
+                public void onMouseButtonUp(byte mouseButton) {
+                    if (conn != null) {
+                        conn.sendMouseButtonUp(mouseButton);
+                    }
+                }
+            });
+
+            int pixelX = screenScale(gridXStart + (i * (buttonWidth + 1)), screenHeight);
+            int pixelY = screenScale(gridY, screenHeight);
+
+            virtualController.addElement(button, pixelX, pixelY, pixelButtonWidth, pixelButtonHeight);
+        }
+    }
+
+    private void depositControlButtonsSilent() {
+        if (virtualController == null) return;
+
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        int buttonWidth = 5;
+        int buttonHeight = 4;
+        int pixelButtonWidth = screenScale(buttonWidth, screenHeight);
+        int pixelButtonHeight = screenScale(buttonHeight, screenHeight);
+
+        // Control key definitions: [keyCode, label, gridX, gridY, elementIdOffset, width, height]
+        Object[][] controlKeys = {
+                // Row 1: Special keys
+                {com.limelight.binding.input.KeyboardTranslator.VK_ESCAPE, "Esc", 10, 25, 0, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_TAB, "Tab", 16, 25, 1, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_BACK_SPACE, "Bksp", 22, 25, 2, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_RETURN, "Ent", 28, 25, 3, buttonWidth, buttonHeight},
+
+                // Row 2: Modifiers
+                {com.limelight.binding.input.KeyboardTranslator.VK_LSHIFT, "Shift", 10, 30, 4, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_LCONTROL, "Ctrl", 16, 30, 5, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_LMENU, "Alt", 22, 30, 6, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_SPACE, "Space", 28, 30, 7, buttonWidth, buttonHeight},
+
+                // Row 3: Arrow keys + Tilde
+                {com.limelight.binding.input.KeyboardTranslator.VK_LEFT, "←", 10, 35, 8, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_UP, "↑", 16, 35, 9, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_RIGHT, "→", 22, 35, 10, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_BACK_QUOTE, "~", 28, 35, 11, buttonWidth, buttonHeight},  // Tilde/Grave
+
+                // Row 4: Down arrow + Windows
+                {com.limelight.binding.input.KeyboardTranslator.VK_DOWN, "↓", 16, 40, 12, buttonWidth, buttonHeight},
+                {com.limelight.binding.input.KeyboardTranslator.VK_LWIN, "Win", 28, 40, 13, buttonWidth, buttonHeight},  // Windows/Start Menu
+        };
+
+        for (Object[] keyDef : controlKeys) {
+            int keyCode = (int) keyDef[0];
+            String label = (String) keyDef[1];
+            int gridX = (int) keyDef[2];
+            int gridY = (int) keyDef[3];
+            int idOffset = (int) keyDef[4];
+            int btnWidth = (int) keyDef[5];
+            int btnHeight = (int) keyDef[6];
+
+            int elementId = EID_CONTROL_START + idOffset;
+            com.limelight.binding.input.virtual_controller.KeyboardButton button =
+                    new com.limelight.binding.input.virtual_controller.KeyboardButton(
+                            virtualController,
+                            elementId,
+                            0,
+                            this,
+                            (short) keyCode,
+                            (byte) 0,
+                            label
+                    );
+
+            int pixelX = screenScale(gridX, screenHeight);
+            int pixelY = screenScale(gridY, screenHeight);
+            int pixelBtnWidth = screenScale(btnWidth, screenHeight);
+            int pixelBtnHeight = screenScale(btnHeight, screenHeight);
+
+            virtualController.addElement(button, pixelX, pixelY, pixelBtnWidth, pixelBtnHeight);
+        }
+    }
+
+    public void depositFunctionKeys() {
+        if (virtualController == null) {
+            initVirtualController();
+        }
+
+        // Check if function keys are already deposited
+        boolean alreadyDeposited = false;
+        for (VirtualControllerElement element : virtualController.getElements()) {
+            if (element.getElementId() >= EID_FUNCTION_START && element.getElementId() < EID_FUNCTION_START + 20) {
+                alreadyDeposited = true;
+                break;
+            }
+        }
+
+        if (alreadyDeposited) {
+            // Reset to default layout
+            Toast.makeText(this, "Resetting Function keys to default layout", Toast.LENGTH_SHORT).show();
+            // TODO: Implement reset logic
+            return;
+        }
+
+        // Deposit function key buttons
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        // Button size for function keys (smaller)
+        int fKeyWidth = 4;
+        int fKeyHeight = 4;
+        int pixelFKeyWidth = screenScale(fKeyWidth, screenHeight);
+        int pixelFKeyHeight = screenScale(fKeyHeight, screenHeight);
+
+        // Function key definitions: [keyCode, label, gridX, gridY, elementIdOffset, width, height]
+        Object[][] functionKeys = {
+                // Row 1: Function keys F1-F6
+                {112, "F1", 10, 16, 0, fKeyWidth, fKeyHeight},    // VK_F1
+                {113, "F2", 15, 16, 1, fKeyWidth, fKeyHeight},    // VK_F2
+                {114, "F3", 20, 16, 2, fKeyWidth, fKeyHeight},    // VK_F3
+                {115, "F4", 25, 16, 3, fKeyWidth, fKeyHeight},    // VK_F4
+                {116, "F5", 30, 16, 4, fKeyWidth, fKeyHeight},    // VK_F5
+                {117, "F6", 35, 16, 5, fKeyWidth, fKeyHeight},    // VK_F6
+
+                // Row 2: Function keys F7-F12
+                {118, "F7", 10, 20, 6, fKeyWidth, fKeyHeight},    // VK_F7
+                {119, "F8", 15, 20, 7, fKeyWidth, fKeyHeight},    // VK_F8
+                {120, "F9", 20, 20, 8, fKeyWidth, fKeyHeight},    // VK_F9
+                {121, "F10", 25, 20, 9, fKeyWidth, fKeyHeight},   // VK_F10
+                {122, "F11", 30, 20, 10, fKeyWidth, fKeyHeight},  // VK_F11
+                {123, "F12", 35, 20, 11, fKeyWidth, fKeyHeight},  // VK_F12
+        };
+
+        for (Object[] keyDef : functionKeys) {
+            int keyCode = (int) keyDef[0];
+            String label = (String) keyDef[1];
+            int gridX = (int) keyDef[2];
+            int gridY = (int) keyDef[3];
+            int idOffset = (int) keyDef[4];
+            int btnWidth = (int) keyDef[5];
+            int btnHeight = (int) keyDef[6];
+
+            int elementId = EID_FUNCTION_START + idOffset;
+            com.limelight.binding.input.virtual_controller.KeyboardButton button =
+                    new com.limelight.binding.input.virtual_controller.KeyboardButton(
+                            virtualController,
+                            elementId,
+                            0, // layer
+                            this,
+                            (short) keyCode,
+                            (byte) 0, // no modifiers
+                            label
+                    );
+
+            int pixelX = screenScale(gridX, screenHeight);
+            int pixelY = screenScale(gridY, screenHeight);
+            int pixelBtnWidth = screenScale(btnWidth, screenHeight);
+            int pixelBtnHeight = screenScale(btnHeight, screenHeight);
+
+            virtualController.addElement(button, pixelX, pixelY, pixelBtnWidth, pixelBtnHeight);
+        }
+
+        Toast.makeText(this, "Function key buttons deposited!", Toast.LENGTH_SHORT).show();
+    }
+
+    private void depositFunctionKeysSilent() {
+        if (virtualController == null) return;
+
+        DisplayMetrics screen = getResources().getDisplayMetrics();
+        int screenHeight = screen.heightPixels;
+
+        // Button size for function keys (smaller)
+        int fKeyWidth = 4;
+        int fKeyHeight = 4;
+        int pixelFKeyWidth = screenScale(fKeyWidth, screenHeight);
+        int pixelFKeyHeight = screenScale(fKeyHeight, screenHeight);
+
+        // Function key definitions: [keyCode, label, gridX, gridY, elementIdOffset, width, height]
+        Object[][] functionKeys = {
+                // Row 1: Function keys F1-F6
+                {112, "F1", 10, 16, 0, fKeyWidth, fKeyHeight},    // VK_F1
+                {113, "F2", 15, 16, 1, fKeyWidth, fKeyHeight},    // VK_F2
+                {114, "F3", 20, 16, 2, fKeyWidth, fKeyHeight},    // VK_F3
+                {115, "F4", 25, 16, 3, fKeyWidth, fKeyHeight},    // VK_F4
+                {116, "F5", 30, 16, 4, fKeyWidth, fKeyHeight},    // VK_F5
+                {117, "F6", 35, 16, 5, fKeyWidth, fKeyHeight},    // VK_F6
+
+                // Row 2: Function keys F7-F12
+                {118, "F7", 10, 20, 6, fKeyWidth, fKeyHeight},    // VK_F7
+                {119, "F8", 15, 20, 7, fKeyWidth, fKeyHeight},    // VK_F8
+                {120, "F9", 20, 20, 8, fKeyWidth, fKeyHeight},    // VK_F9
+                {121, "F10", 25, 20, 9, fKeyWidth, fKeyHeight},   // VK_F10
+                {122, "F11", 30, 20, 10, fKeyWidth, fKeyHeight},  // VK_F11
+                {123, "F12", 35, 20, 11, fKeyWidth, fKeyHeight},  // VK_F12
+        };
+
+        for (Object[] keyDef : functionKeys) {
+            int keyCode = (int) keyDef[0];
+            String label = (String) keyDef[1];
+            int gridX = (int) keyDef[2];
+            int gridY = (int) keyDef[3];
+            int idOffset = (int) keyDef[4];
+            int btnWidth = (int) keyDef[5];
+            int btnHeight = (int) keyDef[6];
+
+            int elementId = EID_FUNCTION_START + idOffset;
+            com.limelight.binding.input.virtual_controller.KeyboardButton button =
+                    new com.limelight.binding.input.virtual_controller.KeyboardButton(
+                            virtualController,
+                            elementId,
+                            0,
+                            this,
+                            (short) keyCode,
+                            (byte) 0,
+                            label
+                    );
+
+            int pixelX = screenScale(gridX, screenHeight);
+            int pixelY = screenScale(gridY, screenHeight);
+            int pixelBtnWidth = screenScale(btnWidth, screenHeight);
+            int pixelBtnHeight = screenScale(btnHeight, screenHeight);
+
+            virtualController.addElement(button, pixelX, pixelY, pixelBtnWidth, pixelBtnHeight);
+        }
+    }
+
+    private void showOscProfileManagementDialog() {
+        com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+        List<com.limelight.binding.input.virtual_controller.OscProfile> profiles = profilesManager.getProfiles();
+        java.util.UUID activeId = profilesManager.getActiveId();
+
+        String[] profileNames = new String[profiles.size()];
+        for (int i = 0; i < profiles.size(); i++) {
+            com.limelight.binding.input.virtual_controller.OscProfile profile = profiles.get(i);
+            boolean isActive = profile.getUuid().equals(activeId);
+            profileNames[i] = isActive ? "✓ " + profile.getName() : profile.getName();
+        }
+
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle(R.string.game_menu_osc_profiles);
+
+        builder.setItems(profileNames, (dialog, which) -> {
+            com.limelight.binding.input.virtual_controller.OscProfile selectedProfile = profiles.get(which);
+            showProfileOptionsDialog(selectedProfile);
+        });
+
+        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.show();
+    }
+
+    public void saveCurrentOscConfiguration() {
+        com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+        // Save main screen OSC
+        if (virtualController != null) {
+            // Save to old location for backwards compatibility
+            com.limelight.binding.input.virtual_controller.VirtualControllerConfigurationLoader.saveProfile(virtualController, this);
+            // Save to profile system
+            profilesManager.saveCurrentConfigToActiveProfile(virtualController);
+        }
+
+        Toast.makeText(this, "Configuration saved to " + profilesManager.getActiveName(), Toast.LENGTH_SHORT).show();
+    }
+
+    private void showProfileOptionsDialog(final com.limelight.binding.input.virtual_controller.OscProfile profile) {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle(profile.getName());
+
+        String[] options = {"Switch to This Profile", "Rename", "Delete"};
+
+        builder.setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0: // Switch
+                    switchOscProfile(profile.getUuid());
+                    break;
+                case 1: // Rename
+                    renameProfile(profile);
+                    break;
+                case 2: // Delete
+                    deleteProfile(profile);
+                    break;
+            }
+        });
+
+        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.show();
+    }
+
+    private void renameProfile(final com.limelight.binding.input.virtual_controller.OscProfile profile) {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle(R.string.game_menu_osc_profile_name_prompt);
+
+        final android.widget.EditText input = new android.widget.EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        input.setText(profile.getName());
+        builder.setView(input);
+
+        builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+            String newName = input.getText().toString().trim();
+            if (!newName.isEmpty()) {
+                com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                        com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+                profile.setName(newName);
+                profilesManager.update(profile);
+
+                Toast.makeText(this, "Profile renamed to: " + newName, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.show();
+    }
+
+    private void deleteProfile(final com.limelight.binding.input.virtual_controller.OscProfile profile) {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("Delete Profile");
+        builder.setMessage(getString(R.string.game_menu_osc_profile_delete_confirm, profile.getName()));
+
+        builder.setPositiveButton(android.R.string.yes, (dialog, which) -> {
+            com.limelight.binding.input.virtual_controller.OscProfilesManager profilesManager =
+                    com.limelight.binding.input.virtual_controller.OscProfilesManager.getInstance();
+
+            profilesManager.delete(profile.getUuid());
+
+            Toast.makeText(this, "Profile deleted: " + profile.getName(), Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNegativeButton(android.R.string.no, null);
+        builder.show();
+    }
+
+    private com.limelight.binding.input.cover.CoverOscConfiguration getCoverOscConfiguration() {
+        // Use reflection to access coverOscConfig from CoverScreenManager
+        try {
+            if (coverScreenManager != null) {
+                java.lang.reflect.Field field = coverScreenManager.getClass().getDeclaredField("coverOscConfig");
+                field.setAccessible(true);
+                return (com.limelight.binding.input.cover.CoverOscConfiguration) field.get(coverScreenManager);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    // Helper methods to convert between OSC and Cover screen configuration modes
+    private VirtualController.ControllerMode coverModeToOscMode(com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode coverMode) {
+        switch (coverMode) {
+            case ACTIVE:
+                return VirtualController.ControllerMode.Active;
+            case MOVE:
+                return VirtualController.ControllerMode.MoveButtons;
+            case RESIZE:
+                return VirtualController.ControllerMode.ResizeButtons;
+            case DISABLE_ENABLE:
+                return VirtualController.ControllerMode.DisableEnableButtons;
+            default:
+                return VirtualController.ControllerMode.Active;
+        }
+    }
+
+    private com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode oscModeToCoverMode(VirtualController.ControllerMode oscMode) {
+        switch (oscMode) {
+            case Active:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.ACTIVE;
+            case MoveButtons:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.MOVE;
+            case ResizeButtons:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.RESIZE;
+            case DisableEnableButtons:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.DISABLE_ENABLE;
+            default:
+                return com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode.ACTIVE;
+        }
     }
 
     private void setPreferredOrientationForActivity() {
@@ -1710,6 +2892,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (controllerHandler != null) {
             controllerHandler.destroy();
         }
+        if (coverScreenManager != null) {
+            coverScreenManager.cleanup();
+        }
         if (keyboardTranslator != null) {
             InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
             inputManager.unregisterInputDeviceListener(keyboardTranslator);
@@ -1764,9 +2949,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         SpinnerDialog.closeDialogs(this);
         Dialog.closeDialogs();
 
+        // DO NOT auto-save profile here - it can save transitional/incomplete states
+        // (e.g., during profile switching when buttons are cleared but not yet restored).
+        // User must explicitly save via "Save Current Config" menu option.
+        // This prevents profile data corruption.
         if (virtualController != null) {
             virtualController.hide();
         }
+
         if (keyBoardController != null) {
             keyBoardController.hide();
         }
@@ -2051,6 +3241,28 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         int deviceId = event.getDeviceId();
         if (prefConfig.ignoreSynthEvents && deviceId <= 0) {
             return false;
+        }
+
+        // Handle Volume Down to toggle snapping in Move mode
+        if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_DOWN &&
+                virtualController != null &&
+                virtualController.getControllerMode() == VirtualController.ControllerMode.MoveButtons) {
+            virtualController.toggleSnapping();
+            return true;
+        }
+
+        // Handle Volume Up to toggle paired sizing in Resize mode
+        if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP &&
+                virtualController != null &&
+                virtualController.getControllerMode() == VirtualController.ControllerMode.ResizeButtons) {
+            virtualController.togglePairedSizing();
+
+            // Also toggle for cover screen if available
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && coverScreenManager != null) {
+                coverScreenManager.togglePairedSizing();
+            }
+
+            return true;
         }
 
         // Handle a synthetic back button event that some Android OS versions
@@ -3458,6 +4670,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             controllerHandler.stop();
 
+            // Dismiss cover screen when connection stops to prevent unresponsive buttons
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && coverScreenManager != null) {
+                coverScreenManager.dismissCoverScreen();
+            }
+
             // Update GameManager state to indicate we're no longer in game
             UiHelper.notifyStreamEnded(this);
 
@@ -3686,6 +4903,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 connected = true;
                 connecting = false;
                 updatePipAutoEnter();
+
+                // Re-present cover screen when new stream starts
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && coverScreenManager != null) {
+                    coverScreenManager.presentOnCoverScreen();
+                }
 
                 // Hide the mouse cursor now after a short delay.
                 // Doing it before dismissing the spinner seems to be undone
@@ -4359,6 +5581,48 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
         return null;
+    }
+
+    // CoverScreenListener interface implementation
+
+    @Override
+    public void onCoverScreenActivated() {
+        LimeLog.info("Game: Cover screen activated, initializing feedback indicator");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                initFeedbackIndicator();
+
+                // Sync current main screen OSC mode to cover screen
+                if (virtualController != null && coverScreenManager != null) {
+                    VirtualController.ControllerMode currentMode = virtualController.getControllerMode();
+                    com.limelight.binding.input.cover.CoverOscConfiguration.ConfigMode coverMode = oscModeToCoverMode(currentMode);
+                    coverScreenManager.setConfigurationMode(coverMode, false); // false = don't notify listener (avoid loop)
+                    LimeLog.info("Game: Synced cover screen mode to " + coverMode + " from main screen mode " + currentMode);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onCoverScreenDeactivated() {
+        LimeLog.info("Game: Cover screen deactivated");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                // FeedbackIndicator is now managed by VirtualController
+                // Just disable it if cover screen goes away
+                if (virtualController != null) {
+                    for (VirtualControllerElement element : virtualController.getElements()) {
+                        if (element.getElementId() == VirtualControllerElement.EID_FEEDBACK_INDICATOR) {
+                            element.enabled = false;
+                            element.invalidate();
+                            break;
+                        }
+                    }
+                }
+            }
+        });
     }
 
 }

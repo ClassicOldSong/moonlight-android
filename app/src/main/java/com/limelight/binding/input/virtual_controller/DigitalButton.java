@@ -12,6 +12,7 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.view.MotionEvent;
 
+import com.limelight.binding.input.feedback.ButtonFeedbackManager;
 import com.limelight.preferences.PreferenceConfiguration;
 
 import java.util.ArrayList;
@@ -198,6 +199,14 @@ public class DigitalButton extends VirtualControllerElement {
 
     private void onClickCallback() {
         _DBG("clicked");
+
+        // Perform haptic and audio feedback
+        try {
+            ButtonFeedbackManager.getInstance(getContext()).performClickFeedback();
+        } catch (Exception e) {
+            // Silently catch to prevent feedback from breaking button functionality
+        }
+
         // notify listeners
         for (DigitalButtonListener listener : listeners) {
             listener.onClick();
@@ -217,6 +226,14 @@ public class DigitalButton extends VirtualControllerElement {
 
     private void onReleaseCallback() {
         _DBG("released");
+
+        // Perform haptic feedback (vibration only, no click sound)
+        try {
+            ButtonFeedbackManager.getInstance(getContext()).performReleaseFeedback();
+        } catch (Exception e) {
+            // Silently catch to prevent feedback from breaking button functionality
+        }
+
         // notify listeners
         for (DigitalButtonListener listener : listeners) {
             listener.onRelease();

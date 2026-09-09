@@ -205,6 +205,9 @@
             <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
             <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
 
+            <!-- Foldable device support for cover screen virtual controller -->
+            <meta-data android:name="android.allow_multiple_resumed_activities" android:value="true" />
+
             <!-- Special metadata for NVIDIA Shield devices to prevent input buffering
                  and most importantly, opt out of mouse acceleration while streaming -->
             <meta-data
