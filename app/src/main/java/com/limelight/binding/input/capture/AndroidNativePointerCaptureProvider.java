@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.hardware.input.InputManager;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.View;
@@ -17,6 +18,10 @@ import android.view.View;
 public class AndroidNativePointerCaptureProvider extends AndroidPointerIconCaptureProvider implements InputManager.InputDeviceListener {
     private final InputManager inputManager;
     private final View targetView;
+    private final Handler captureHandler = new Handler(Looper.getMainLooper());
+    private final Runnable recaptureRunnable = this::requestPointerCaptureIfReady;
+    private boolean inputDeviceListenerRegistered;
+    private boolean destroyed;
 
     public AndroidNativePointerCaptureProvider(Activity activity, View targetView) {
         super(activity, targetView);
@@ -26,6 +31,20 @@ public class AndroidNativePointerCaptureProvider extends AndroidPointerIconCaptu
 
     public static boolean isCaptureProviderSupported() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O;
+    }
+
+    private void registerInputDeviceListenerIfNeeded() {
+        if (!destroyed && inputManager != null && !inputDeviceListenerRegistered) {
+            inputManager.registerInputDeviceListener(this, null);
+            inputDeviceListenerRegistered = true;
+        }
+    }
+
+    private void unregisterInputDeviceListenerIfNeeded() {
+        if (inputManager != null && inputDeviceListenerRegistered) {
+            inputManager.unregisterInputDeviceListener(this);
+            inputDeviceListenerRegistered = false;
+        }
     }
 
     // We only capture the pointer if we have a compatible InputDevice
@@ -61,15 +80,53 @@ public class AndroidNativePointerCaptureProvider extends AndroidPointerIconCaptu
         return false;
     }
 
+    static boolean isCaptureActive(boolean captureEnabled,
+                                   boolean cursorVisible,
+                                   boolean attachedToWindow,
+                                   boolean hasWindowFocus,
+                                   boolean hasPointerCapture) {
+        return captureEnabled
+                && !cursorVisible
+                && attachedToWindow
+                && hasWindowFocus
+                && hasPointerCapture;
+    }
+
+    @Override
+    public boolean isCapturingActive() {
+        return !destroyed && isCaptureActive(
+                isCapturing,
+                isCursorVisible,
+                targetView.isAttachedToWindow(),
+                targetView.hasWindowFocus(),
+                targetView.hasPointerCapture());
+    }
+
+    private void requestPointerCaptureIfReady() {
+        if (destroyed || !isCapturing || isCursorVisible
+                || !targetView.isAttachedToWindow()
+                || !targetView.hasWindowFocus()
+                || targetView.hasPointerCapture()) {
+            return;
+        }
+
+        if (hasCaptureCompatibleInputDevice()) {
+            targetView.requestPointerCapture();
+        }
+    }
+
     @Override
     public void showCursor() {
+        captureHandler.removeCallbacks(recaptureRunnable);
         super.showCursor();
 
         // It is important to unregister the listener *before* releasing pointer capture,
         // because releasing pointer capture can cause an onInputDeviceChanged() callback
         // for devices with a touchpad (like a DS4 controller).
-        inputManager.unregisterInputDeviceListener(this);
-        targetView.releasePointerCapture();
+        unregisterInputDeviceListenerIfNeeded();
+        if (targetView.hasPointerCapture()) {
+            targetView.releasePointerCapture();
+        }
     }
 
     @Override
@@ -77,16 +134,28 @@ public class AndroidNativePointerCaptureProvider extends AndroidPointerIconCaptu
         super.hideCursor();
 
         // Listen for device events to enable/disable capture
-        inputManager.registerInputDeviceListener(this, null);
+        registerInputDeviceListenerIfNeeded();
 
         // Capture now if we have a capture-capable device
-        if (hasCaptureCompatibleInputDevice()) {
-            targetView.requestPointerCapture();
+        requestPointerCaptureIfReady();
+    }
+
+    @Override
+    public void destroy() {
+        destroyed = true;
+        isCapturing = false;
+        captureHandler.removeCallbacks(recaptureRunnable);
+        unregisterInputDeviceListenerIfNeeded();
+        if (targetView.hasPointerCapture()) {
+            targetView.releasePointerCapture();
         }
+        super.destroy();
     }
 
     @Override
     public void onWindowFocusChanged(boolean focusActive) {
+        captureHandler.removeCallbacks(recaptureRunnable);
+
         // NB: We have to check cursor visibility here because Android pointer capture
         // doesn't support capturing the cursor while it's visible. Enabling pointer
         // capture implicitly hides the cursor.
@@ -98,15 +167,7 @@ public class AndroidNativePointerCaptureProvider extends AndroidPointerIconCaptu
         // we have to delay a bit before requesting capture because otherwise
         // we'll hit the "requestPointerCapture called for a window that has no focus"
         // error and it will not actually capture the cursor.
-        Handler h = new Handler();
-        h.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (hasCaptureCompatibleInputDevice()) {
-                    targetView.requestPointerCapture();
-                }
-            }
-        }, 500);
+        captureHandler.postDelayed(recaptureRunnable, 500);
     }
 
     @Override
@@ -144,9 +205,7 @@ public class AndroidNativePointerCaptureProvider extends AndroidPointerIconCaptu
     @Override
     public void onInputDeviceAdded(int deviceId) {
         // Check if we've added a capture-compatible device
-        if (!targetView.hasPointerCapture() && hasCaptureCompatibleInputDevice()) {
-            targetView.requestPointerCapture();
-        }
+        requestPointerCaptureIfReady();
     }
 
     @Override

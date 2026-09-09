@@ -796,11 +796,15 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     @Override
     public int setup(int format, int width, int height, int redrawRate) {
-        this.targetFps = (redrawRate > 0 ? redrawRate : 60);
+        int normalizedRedrawRate = Math.round(normalizeSurfaceFrameRate(redrawRate));
+        if (normalizedRedrawRate <= 0) {
+            normalizedRedrawRate = 60;
+        }
+        this.targetFps = normalizedRedrawRate;
         this.initialWidth = invertResolution ? height : width;
         this.initialHeight = invertResolution ? width : height;
         this.videoFormat = format;
-        this.refreshRate = redrawRate;
+        this.refreshRate = normalizedRedrawRate;
 
         return initializeDecoder(false);
     }
@@ -2409,14 +2413,23 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     }
 
 
+    static float normalizeSurfaceFrameRate(int frameRate) {
+        if (frameRate > 1000) {
+            return frameRate / 1000f;
+        }
+
+        return frameRate;
+    }
+
     private void applySurfaceFrameRate(android.view.Surface surface, int targetFps) {
         if (surface == null) return;
         try {
             // API 30+ supports Surface.setFrameRate; for older, attempt View-based call elsewhere.
             if (android.os.Build.VERSION.SDK_INT >= 30) {
-                surface.setFrameRate((float) targetFps,
+                float surfaceFrameRate = normalizeSurfaceFrameRate(targetFps);
+                surface.setFrameRate(surfaceFrameRate,
                         android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
-                LimeLog.info("Applied Surface frame rate: " + targetFps + " Hz");
+                LimeLog.info("Applied Surface frame rate: " + surfaceFrameRate + " Hz");
             }
         } catch (Throwable t) {
             // best-effort
