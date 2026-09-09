@@ -209,7 +209,9 @@
     <string name="title_checkbox_usb_bind_all">Remplacer le support natif des manettes Xbox</string>
     <string name="summary_checkbox_usb_bind_all">Utilise le pilote USB d\'Artemis pour toutes les manettes prises en charge, même si le support natif des manettes Xbox/Nintendo Pro est présent</string>
     <string name="title_checkbox_mouse_emulation">Émulation de la souris via la manette</string>
-    <string name="summary_checkbox_mouse_emulation">Appuyez longuement sur le bouton Start pour basculer la manette en mode souris</string>
+    <string name="summary_checkbox_mouse_emulation">Appui long sur Start pour activer/désactiver. Remplace entièrement la manette : A/Y/B = boutons souris, croix directionnelle = défilement, sticks = curseur</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Sensibilité de l\'émulation souris</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Vitesse du curseur lors du contrôle de la souris avec un stick analogique</string>
     <string name="title_checkbox_flip_face_buttons">Inverser les boutons de façade</string>
     <string name="summary_checkbox_flip_face_buttons">Échange les boutons A/B et X/Y pour les manettes et les commandes à l\'écran</string>
     <string name="title_checkbox_gamepad_touchpad_as_mouse">Toujours contrôler la souris avec le pavé tactile</string>
@@ -344,6 +346,8 @@
     <string name="game_menu_switch_touch_sensitivity_model">Changer la sensibilité tactile</string>
     <string name="game_menu_toggle_mouse_on">Activer l\'émulation de la souris par la manette</string>
     <string name="game_menu_toggle_mouse_off">Désactiver l\'émulation de la souris par la manette</string>
+    <string name="mouse_emulation_on">Émulation de la souris : ON</string>
+    <string name="mouse_emulation_off">Émulation de la souris : OFF</string>
     <string name="game_menu_disconnect">Déconnecter</string>
     <string name="game_menu_cancel">Annuler</string>
     <string name="game_menu_task_manager">Ouvrir le gestionnaire des tâches</string>
@@ -365,7 +369,7 @@
     <string name="game_menu_send_keys_ctrl_alt_shift_f12">Ctrl+Alt+Shift+F12 (Changer de moniteur)</string>
 
     <string name="title_analog_scrolling">Utiliser un stick analogique pour faire défiler</string>
-    <string name="summary_analog_scrolling">Sélectionnez un stick analogique à utiliser pour faire défiler lors de l\'émulation de la souris</string>
+    <string name="summary_analog_scrolling">Sélectionnez un stick analogique pour faire défiler et pour le clic molette lors de l\'émulation de la souris</string>
     <string name="analogscroll_none">Aucun (les deux sticks déplacent la souris)</string>
     <string name="analogscroll_right">Stick analogique droit</string>
     <string name="analogscroll_left">Stick analogique gauche</string>

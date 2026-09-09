@@ -235,7 +235,9 @@
     <string name="title_checkbox_usb_bind_all">Override native Xbox gamepad support</string>
     <string name="summary_checkbox_usb_bind_all">Use Artemis\'s USB driver for all supported gamepads, even if native Xbox/Nintendo Pro controller support is present</string>
     <string name="title_checkbox_mouse_emulation">Mouse emulation via gamepad</string>
-    <string name="summary_checkbox_mouse_emulation">Long-press the Start button to toggle between gamepad and mouse mode</string>
+    <string name="summary_checkbox_mouse_emulation">Long-press Start to toggle. Replaces the gamepad entirely: A/Y/B = mouse buttons, D-pad = scroll, analog sticks = cursor</string>
+    <string name="title_seekbar_mouse_emulation_sensitivity">Mouse emulation sensitivity</string>
+    <string name="summary_seekbar_mouse_emulation_sensitivity">Cursor speed when controlling the mouse with an analog stick</string>
     <string name="title_checkbox_remember_mouse_mode">Remember mouse mode</string>
     <string name="summary_checkbox_remember_mouse_mode">Remember mouse mode selected during stream. When disabled, mouse mode changed during stream will be temporary.</string>
     <string name="title_checkbox_flip_face_buttons">Flip face buttons</string>
@@ -383,6 +385,8 @@
 
     <string name="game_menu_toggle_mouse_on">Enable Controller Mouse Emulation</string>
     <string name="game_menu_toggle_mouse_off">Disable Controller Mouse Emulation</string>
+    <string name="mouse_emulation_on">Mouse emulation is: ON</string>
+    <string name="mouse_emulation_off">Mouse emulation is: OFF</string>
     <string name="game_menu_disconnect">Disconnect</string>
     <string name="game_menu_cancel">Cancel</string>
     <string name="game_menu_task_manager">Open Task Manager</string>
@@ -408,7 +412,7 @@
     <string name="pan_zoom_mode_disabled">Pan/Zoom Mode Disabled</string>
 
     <string name="title_analog_scrolling">Use an analog stick to scroll</string>
-    <string name="summary_analog_scrolling">Select an analog stick to scroll when in mouse emulation mode</string>
+    <string name="summary_analog_scrolling">Select an analog stick to scroll and middle click when in mouse emulation mode</string>
     <string name="analogscroll_none">None (both sticks move the mouse)</string>
     <string name="analogscroll_right">Right analog stick</string>
     <string name="analogscroll_left">Left analog stick</string>

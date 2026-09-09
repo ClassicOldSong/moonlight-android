@@ -73,6 +73,7 @@ public class PreferenceConfiguration {
     private static final String ENABLE_PERF_LOGGING = "checkbox_enable_perf_logging";
     private static final String BIND_ALL_USB_STRING = "checkbox_usb_bind_all";
     private static final String MOUSE_EMULATION_STRING = "checkbox_mouse_emulation";
+    private static final String SEEKBAR_MOUSE_EMULATION_SENSITIVITY = "seekbar_mouse_emulation_sensitivity";
     private static final String REMEMBER_MOUSE_MODE_PREF_STRING = "checkbox_remember_mouse_mode";
     private static final String ANALOG_SCROLLING_PREF_STRING = "analog_scrolling";
     private static final String MOUSE_NAV_BUTTONS_STRING = "checkbox_mouse_nav_buttons";
@@ -169,6 +170,7 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_ENABLE_PERF_LOGGING = false;
     private static final boolean DEFAULT_BIND_ALL_USB = false;
     private static final boolean DEFAULT_MOUSE_EMULATION = true;
+    private static final int DEFAULT_MOUSE_EMULATION_SENSITIVITY = 100;
     private static final boolean DEFAULT_REMEMBER_MOUSE_MODE = false;
     private static final String DEFAULT_ANALOG_STICK_FOR_SCROLLING = "right";
     private static final boolean DEFAULT_MOUSE_NAV_BUTTONS = false;
@@ -357,6 +359,7 @@ public class PreferenceConfiguration {
 
     public boolean bindAllUsb;
     public boolean mouseEmulation;
+    public int mouseEmulationSensitivity;
     public AnalogStickForScrolling analogStickForScrolling;
     public boolean mouseNavButtons;
     public boolean rememberMouseMode;
@@ -929,6 +932,7 @@ private static int getFramePacingValue(Context context) {
         config.enablePerfOverlayBottom = prefs.getBoolean("checkbox_enable_perf_overlay_bottom",DEFAULT_PERF_OVERLAY_BOTTOM);
         config.bindAllUsb = prefs.getBoolean(BIND_ALL_USB_STRING, DEFAULT_BIND_ALL_USB);
         config.mouseEmulation = prefs.getBoolean(MOUSE_EMULATION_STRING, DEFAULT_MOUSE_EMULATION);
+        config.mouseEmulationSensitivity = prefs.getInt(SEEKBAR_MOUSE_EMULATION_SENSITIVITY, DEFAULT_MOUSE_EMULATION_SENSITIVITY);
         config.mouseNavButtons = prefs.getBoolean(MOUSE_NAV_BUTTONS_STRING, DEFAULT_MOUSE_NAV_BUTTONS);
         config.rememberMouseMode = prefs.getBoolean(REMEMBER_MOUSE_MODE_PREF_STRING, DEFAULT_REMEMBER_MOUSE_MODE);
         config.unlockFps = prefs.getBoolean(UNLOCK_FPS_STRING, DEFAULT_UNLOCK_FPS);

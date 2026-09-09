@@ -41,7 +41,6 @@ import com.limelight.binding.input.driver.UsbDriverListener;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.input.ControllerPacket;
-import com.limelight.nvstream.input.MouseButtonPacket;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.ui.GameGestures;
@@ -117,7 +116,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private final NvConnection conn;
     private final Activity activityContext;
     private final double stickDeadzone;
-    private final InputDeviceContext defaultContext = new InputDeviceContext();
+    private final InputDeviceContext defaultContext;
     private final GameGestures gestures;
     private final InputManager inputManager;
     private final Vibrator deviceVibrator;
@@ -182,6 +181,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         this.stickDeadzone = (double)deadzonePercentage / 100.0;
 
         // Initialize the default context for events with no device
+        this.defaultContext = new InputDeviceContext();
         defaultContext.leftStickXAxis = MotionEvent.AXIS_X;
         defaultContext.leftStickYAxis = MotionEvent.AXIS_Y;
         defaultContext.leftStickDeadzoneRadius = (float) stickDeadzone;
@@ -1232,7 +1232,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             GenericControllerContext context = inputDeviceContexts.valueAt(i);
             if (context.assignedControllerNumber &&
                     context.controllerNumber == controllerNumber &&
-                    context.mouseEmulationActive == originalContext.mouseEmulationActive) {
+                    context.mouseEmulation.isActive() == originalContext.mouseEmulation.isActive()) {
                 inputMap |= context.inputMap;
                 leftTrigger |= maxByMagnitude(leftTrigger, context.leftTrigger);
                 rightTrigger |= maxByMagnitude(rightTrigger, context.rightTrigger);
@@ -1246,7 +1246,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             GenericControllerContext context = usbDeviceContexts.valueAt(i);
             if (context.assignedControllerNumber &&
                     context.controllerNumber == controllerNumber &&
-                    context.mouseEmulationActive == originalContext.mouseEmulationActive) {
+                    context.mouseEmulation.isActive() == originalContext.mouseEmulation.isActive()) {
                 inputMap |= context.inputMap;
                 leftTrigger |= maxByMagnitude(leftTrigger, context.leftTrigger);
                 rightTrigger |= maxByMagnitude(rightTrigger, context.rightTrigger);
@@ -1266,86 +1266,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             rightStickY |= maxByMagnitude(rightStickY, defaultContext.rightStickY);
         }
 
-        if (originalContext.mouseEmulationActive) {
-            int changedMask = inputMap ^  originalContext.mouseEmulationLastInputMap;
-
-            boolean aDown = (inputMap & ControllerPacket.A_FLAG) != 0;
-            boolean bDown = (inputMap & ControllerPacket.B_FLAG) != 0;
-
-            boolean xDown = (inputMap & ControllerPacket.X_FLAG) != 0;
-            boolean yDown = (inputMap & ControllerPacket.Y_FLAG) != 0;
-
-            originalContext.mouseEmulationLastInputMap = inputMap;
-
-            // Set the flag for the fixed pixel mouse movement while X_FLAG button is pressed
-            if((changedMask & ControllerPacket.X_FLAG) != 0)
-            {
-                // Set true when pressed
-                if( xDown ) {
-                    originalContext.mouseEmulationXDown = true;
-                }
-                // Set false when released
-                else
-                {
-                    originalContext.mouseEmulationXDown = false;
-                }
-            }
-
-            if((changedMask & ControllerPacket.Y_FLAG) != 0)
-            {
-                if( yDown )
-                {
-                    // Double the pixel multiplier every button press
-                    originalContext.mouseEmulationPixelMultiplier *= 2;
-                    if( originalContext.mouseEmulationPixelMultiplier > 255 )
-                    {
-                        // Reset the multiplier back to 1 if it gets too big
-                        originalContext.mouseEmulationPixelMultiplier = 1;
-                    }
-                }
-                else {
-                    // Do nothing as this is when the button is released; Holding the button will not continuously increase the pixel multiplier
-                }
-            }
-            if ((changedMask & ControllerPacket.A_FLAG) != 0) {
-                if (aDown) {
-                    conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
-                }
-                else {
-                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
-                }
-            }
-            if ((changedMask & ControllerPacket.B_FLAG) != 0) {
-                if (bDown) {
-                    conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_RIGHT);
-                }
-                else {
-                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
-                }
-            }
-            if ((changedMask & ControllerPacket.UP_FLAG) != 0) {
-                if ((inputMap & ControllerPacket.UP_FLAG) != 0) {
-                    conn.sendMouseScroll((byte) 1);
-                }
-            }
-            if ((changedMask & ControllerPacket.DOWN_FLAG) != 0) {
-                if ((inputMap & ControllerPacket.DOWN_FLAG) != 0) {
-                    conn.sendMouseScroll((byte) -1);
-                }
-            }
-            if ((changedMask & ControllerPacket.RIGHT_FLAG) != 0) {
-                if ((inputMap & ControllerPacket.RIGHT_FLAG) != 0) {
-                    conn.sendMouseHScroll((byte) 1);
-                }
-            }
-            if ((changedMask & ControllerPacket.LEFT_FLAG) != 0) {
-                if ((inputMap & ControllerPacket.LEFT_FLAG) != 0) {
-                    conn.sendMouseHScroll((byte) -1);
-                }
-            }
-
-            conn.sendControllerInput(controllerNumber, getActiveControllerMask(),
-                    (short)0, (byte)0, (byte)0, (short)0, (short)0, (short)0, (short)0);
+        if (originalContext.mouseEmulation.isActive()) {
+            originalContext.mouseEmulation.handleButtonInput(inputMap, controllerNumber, getActiveControllerMask());
         }
         else {
             conn.sendControllerInput(controllerNumber, getActiveControllerMask(),
@@ -1953,43 +1875,6 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         return true;
     }
 
-    private Vector2d convertRawStickAxisToPixelMovement(short stickX, short stickY) {
-        Vector2d vector = new Vector2d();
-        vector.initialize(stickX, stickY);
-        vector.scalarMultiply(1 / 32766.0f);
-        vector.scalarMultiply(4);
-        if (vector.getMagnitude() > 0) {
-            // Move faster as the stick is pressed further from center
-            vector.scalarMultiply(Math.pow(vector.getMagnitude(), 2));
-        }
-        return vector;
-    }
-
-    private void sendEmulatedMouseMove(short x, short y, boolean mouseEmulationXDown, int mouseEmulationPixelMultiplier) {
-        Vector2d vector = convertRawStickAxisToPixelMovement(x, y);
-        if (vector.getMagnitude() >= 1) {
-
-            // Used a fixed amount of mouse movement while the X button is pressed
-            if(mouseEmulationXDown == true )
-            {
-                // convert the vector number to -1 if negative and +1 if positive and then send the mouse movement in pixels
-                conn.sendMouseMove((short)(Integer.signum((int)vector.getX()) * mouseEmulationPixelMultiplier) , (short)(Integer.signum((int)-vector.getY()) * mouseEmulationPixelMultiplier) );
-            }
-            else {
-                // If X button is not pressed, base the movement on how much the stick is moved from the center
-                conn.sendMouseMove((short) vector.getX(), (short) -vector.getY());
-            }
-        }
-    }
-
-    private void sendEmulatedMouseScroll(short x, short y) {
-        Vector2d vector = convertRawStickAxisToPixelMovement(x, y);
-        if (vector.getMagnitude() >= 1) {
-            conn.sendMouseHighResScroll((short)vector.getY());
-            conn.sendMouseHighResHScroll((short)vector.getX());
-        }
-    }
-
     @TargetApi(31)
     private boolean hasDualAmplitudeControlledRumbleVibrators(VibratorManager vm) {
         int[] vibratorIds = vm.getVibratorIds();
@@ -2510,7 +2395,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                     context.backMenuPending = false;
                     gestures.showGameMenu(context);
                 } else if (prefConfig.mouseEmulation) {
-                    context.toggleMouseEmulation();
+                    context.mouseEmulation.toggle();
                 }
             }
             context.inputMap &= ~ControllerPacket.PLAY_FLAG;
@@ -3028,87 +2913,51 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         usbDeviceContexts.put(controller.getControllerId(), context);
     }
 
-    class GenericControllerContext implements GameInputDevice{
-        public int id;
-        public boolean external;
+    class GenericControllerContext implements GameInputDevice, MouseEmulationHandler.StickValueProvider {
+        int id;
+        boolean external;
 
-        public int vendorId;
-        public int productId;
+        int vendorId;
+        int productId;
 
-        public float leftStickDeadzoneRadius;
-        public float rightStickDeadzoneRadius;
-        public float triggerDeadzone;
+        float leftStickDeadzoneRadius;
+        float rightStickDeadzoneRadius;
+        float triggerDeadzone;
 
-        public boolean assignedControllerNumber;
-        public boolean reservedControllerNumber;
-        public short controllerNumber;
+        boolean assignedControllerNumber;
+        boolean reservedControllerNumber;
+        short controllerNumber;
 
-        public int inputMap = 0;
-        public byte leftTrigger = 0x00;
-        public byte rightTrigger = 0x00;
-        public short rightStickX = 0x0000;
-        public short rightStickY = 0x0000;
-        public short leftStickX = 0x0000;
-        public short leftStickY = 0x0000;
+        int inputMap = 0;
+        byte leftTrigger = 0x00;
+        byte rightTrigger = 0x00;
+        short rightStickX = 0x0000;
+        short rightStickY = 0x0000;
+        short leftStickX = 0x0000;
+        short leftStickY = 0x0000;
 
-        public boolean mouseEmulationActive;
-        public boolean mouseEmulationXDown = false;
-        public int mouseEmulationPixelMultiplier = 1;
+        final MouseEmulationHandler mouseEmulation = new MouseEmulationHandler(
+                conn, prefConfig, mainThreadHandler, activityContext, this);
 
-        public int mouseEmulationLastInputMap;
-        public final int mouseEmulationReportPeriod = 50;
+        @Override
+        public short getLeftStickX() { return leftStickX; }
 
-        public final Runnable mouseEmulationRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (!mouseEmulationActive) {
-                    return;
-                }
+        @Override
+        public short getLeftStickY() { return leftStickY; }
 
-                // Send mouse events from analog sticks
-                if (prefConfig.analogStickForScrolling == PreferenceConfiguration.AnalogStickForScrolling.RIGHT) {
+        @Override
+        public short getRightStickX() { return rightStickX; }
 
-                    // Changed absolute value
-                    sendEmulatedMouseMove(leftStickX, leftStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
-                    sendEmulatedMouseScroll(rightStickX, rightStickY);
-                }
-                else if (prefConfig.analogStickForScrolling == PreferenceConfiguration.AnalogStickForScrolling.LEFT) {
-                    sendEmulatedMouseMove(rightStickX, rightStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
-                    sendEmulatedMouseScroll(leftStickX, leftStickY);
-                }
-                else {
-                    sendEmulatedMouseMove(leftStickX, leftStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
-                    sendEmulatedMouseMove(rightStickX, rightStickY, mouseEmulationXDown, mouseEmulationPixelMultiplier);
-                }
-
-                // Requeue the callback
-                mainThreadHandler.postDelayed(this, mouseEmulationReportPeriod);
-            }
-        };
+        @Override
+        public short getRightStickY() { return rightStickY; }
 
         @Override
         public List<GameMenu.MenuOption> getGameMenuOptions() {
-            List<GameMenu.MenuOption> options = new ArrayList<>();
-            options.add(new GameMenu.MenuOption(activityContext.getString(mouseEmulationActive ?
-                    R.string.game_menu_toggle_mouse_off : R.string.game_menu_toggle_mouse_on),
-                    true, () -> toggleMouseEmulation()));
-
-            return options;
-        }
-
-        public void toggleMouseEmulation() {
-            mainThreadHandler.removeCallbacks(mouseEmulationRunnable);
-            mouseEmulationActive = !mouseEmulationActive;
-            Toast.makeText(activityContext, "Mouse emulation is: " + (mouseEmulationActive ? "ON" : "OFF"), Toast.LENGTH_SHORT).show();
-
-            if (mouseEmulationActive) {
-                mainThreadHandler.postDelayed(mouseEmulationRunnable, mouseEmulationReportPeriod);
-            }
+            return mouseEmulation.getMenuOptions();
         }
 
         public void destroy() {
-            mouseEmulationActive = false;
-            mainThreadHandler.removeCallbacks(mouseEmulationRunnable);
+            mouseEmulation.destroy();
         }
 
         public void sendControllerArrival() {}
