@@ -1484,7 +1484,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 // On non-4K streams, we force the resolution to never change unless it's above
                 // 60 FPS, which may require a resolution reduction due to HDMI bandwidth limitations,
                 // or it's a native resolution stream.
-                if (prefConfig.width < 3840 && prefConfig.fps <= 60 && !isNativeResolutionStream) {
+                // Also preserve the current resolution if it already exactly matches the stream.
+                if (prefConfig.fps <= 60 &&
+                        ((prefConfig.width < 3840 && !isNativeResolutionStream) ||
+                        (currentDisplay.getMode().getPhysicalWidth() == prefConfig.width &&
+                                currentDisplay.getMode().getPhysicalHeight() == prefConfig.height))) {
                     if (currentDisplay.getMode().getPhysicalWidth() != candidate.getPhysicalWidth() ||
                             currentDisplay.getMode().getPhysicalHeight() != candidate.getPhysicalHeight()) {
                         continue;
