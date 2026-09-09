@@ -500,8 +500,8 @@
     <string name="summary_checkbox_gamepad_enable_battery_report">Отправлять информацию о заряде батареи геймпада, если это возможно.\nОтключение может помочь при редких фризах ввода (тач/трекпад/стилус/мышь).</string>
     <string name="title_checkbox_enforce_display_mode">Принудительный режим дисплея</string>
     <string name="summary_checkbox_enforce_display_mode">Принудительно использовать оптимальный режим отображения.\nТребуется в некоторых системах (например, ColorOS) для корректной установки частоты/разрешения.\nНе включайте на ChromeCast 4K может вызвать ошибки.</string>
-    <string name="title_checkbox_ultra_low_latency">Сверхнизкая задержка (экспериментально)</string>
-    <string name="summary_checkbox_ultra_low_latency">Эффективно только на SD8Gen2 / 8(s)Gen3 / 8Elite</string>
+    <string name="title_checkbox_ultra_low_latency">Оптимизации сверхнизкой задержки от производителя (экспериментально)</string>
+    <string name="summary_checkbox_ultra_low_latency">Стандартный режим низкой задержки Android включается автоматически, если поддерживается. Этот параметр добавляет оптимизации декодера от производителя, проверяемые по возможностям.</string>
     <string name="summary_checkbox_forceTightThresholds">Более строгие пороги вертикальной синхронизации для снижения задержки; может увеличить количество сбоев.</string>
     <string name="title_checkbox_use_virtual_display">Использовать виртуальный дисплей</string>
     <string name="summary_checkbox_use_virtual_display">Использовать виртуальный дисплей по умолчанию.\nВиртуальный дисплей автоматически подбирает клиентское разрешение и частоту, обеспечивая плавный стрим.\nТребует Apollo на хосте.</string>

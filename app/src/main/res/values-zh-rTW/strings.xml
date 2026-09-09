@@ -604,8 +604,8 @@
 	<string name="title_checkbox_enforce_display_mode">強制顯示模式</string>
 	<string name="summary_checkbox_enforce_display_mode">強制 Surface 使用最佳顯示模式。\n部分系統（如 ColorOS）需要此選項才能正確設定更新率/解析度。\n請勿在 ChromeCast 4K 上啟用，可能導致問題。</string>
 
-	<string name="title_checkbox_ultra_low_latency">超低延遲（實驗性）</string>
-	<string name="summary_checkbox_ultra_low_latency">僅對 SD8Gen2/8(s)Gen3/8Elite 與 MTK 裝置有效。</string>
+	<string name="title_checkbox_ultra_low_latency">廠商超低延遲最佳化（實驗性）</string>
+	<string name="summary_checkbox_ultra_low_latency">支援時會自動啟用 Android 標準低延遲。此選項會加入經能力檢查的廠商解碼器最佳化。</string>
 
 	<string name="title_checkbox_forceTightThresholds">緊密 VSync（實驗性）</string>
 	<string name="summary_checkbox_forceTightThresholds">更緊的 VSync 門檻以降低延遲；可能增加掉幀。</string>
