@@ -539,6 +539,8 @@
     <string name="summary_checkbox_force_qwerty">Force use QWERTY keyboard layout.\nRequired by GFE.\nTurn off if you want to use a different keyboard layout.</string>
     <string name="title_checkbox_back_as_meta">Back button as Meta</string>
     <string name="summary_back_as_meta">Send Meta(Win) key on physical back button press.</string>
+    <string name="title_checkbox_right_alt_as_meta">Right Alt as Command (Mac)</string>
+    <string name="summary_right_alt_as_meta">Remap Right Alt to the Command key for Mac streaming. Any Right Alt+key combo becomes Command+key. Left Alt is unaffected.</string>
     <string name="title_back_as_guide">Back button as Guide</string>
     <string name="summary_back_as_guide">Send Guide(PS/HOME) button press when Back button is pressed on controllers.</string>
     <string name="title_checkbox_ignore_synth_events">Ignore synthetic events</string>
@@ -726,6 +728,18 @@
     <string name="title_low_latency_frame_balance">LFR (Experimental)</string>
     <string name="summary_low_latency_frame_balance">Minimizes delay by dropping queued frames.</string>
     <string name="category_perf_monitor_settings">Performance Monitor</string>
+    <string name="category_perf_charts">Performance Charts</string>
+    <string name="desc_chart_latency">Network latency chart</string>
+    <string name="desc_chart_decode">Decode time chart</string>
+    <string name="desc_chart_fps">FPS chart</string>
+    <string name="title_enable_perf_charts">Enable Performance Charts</string>
+    <string name="summary_enable_perf_charts">Display performance charts in the game overlay</string>
+    <string name="title_perf_chart_latency">Chart: Network Latency</string>
+    <string name="summary_perf_chart_latency">Chart of average network latency (ms)</string>
+    <string name="title_perf_chart_decode">Chart: Decode Time</string>
+    <string name="summary_perf_chart_decode">Chart of frame decode time (ms)</string>
+    <string name="title_perf_chart_fps">Chart: FPS</string>
+    <string name="summary_perf_chart_fps">Chart of incoming/rendered frames per second</string>
 
     <string name="title_checkbox_full_screen">Enable Full Screen</string>
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>

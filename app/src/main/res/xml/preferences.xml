@@ -464,6 +464,12 @@
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"
+            android:key="checkbox_right_alt_as_meta"
+            android:summary="@string/summary_right_alt_as_meta"
+            android:title="@string/title_checkbox_right_alt_as_meta"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
             android:key="checkbox_back_as_guide"
             android:summary="@string/summary_back_as_guide"
             android:title="@string/title_back_as_guide"

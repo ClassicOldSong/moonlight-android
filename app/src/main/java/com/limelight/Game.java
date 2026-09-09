@@ -1904,6 +1904,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
         else if (androidKeyCode == KeyEvent.KEYCODE_ALT_LEFT ||
                 androidKeyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
+            if (prefConfig.rightAltAsMeta && androidKeyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
+                // Remap Right Alt → Command (VK_LWIN) for Mac streaming
+                if (down) {
+                    modifierFlags |= KeyboardPacket.MODIFIER_META;
+                } else {
+                    modifierFlags &= ~KeyboardPacket.MODIFIER_META;
+                }
+                conn.sendKeyboardInput((short) KeyboardTranslator.VK_LWIN,
+                        down ? KeyboardPacket.KEY_DOWN : KeyboardPacket.KEY_UP,
+                        (byte) modifierFlags, (byte) 0);
+                return true;
+            }
             modifierMask = KeyboardPacket.MODIFIER_ALT;
         }
         else if (androidKeyCode == KeyEvent.KEYCODE_META_LEFT ||
@@ -2009,7 +2021,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             modifier |= KeyboardPacket.MODIFIER_CTRL;
         }
         if (event.isAltPressed()) {
-            modifier |= KeyboardPacket.MODIFIER_ALT;
+            // When Right Alt is remapped to Meta, only treat Alt as held if Left Alt is specifically pressed
+            if (!prefConfig.rightAltAsMeta || (event.getMetaState() & KeyEvent.META_ALT_LEFT_ON) != 0) {
+                modifier |= KeyboardPacket.MODIFIER_ALT;
+            }
         }
         if (event.isMetaPressed()) {
             modifier |= KeyboardPacket.MODIFIER_META;
