@@ -53,6 +53,20 @@
         <item>51</item>
         <item>71</item>
     </string-array>
+    <string-array name="audio_output_mode_names">
+        <item>@string/audio_output_mode_pcm</item>
+        <item>@string/audio_output_mode_ac3_auto</item>
+        <item>@string/audio_output_mode_ac3_force</item>
+        <item>@string/audio_output_mode_eac3_auto</item>
+        <item>@string/audio_output_mode_eac3_force</item>
+    </string-array>
+    <string-array name="audio_output_mode_values" translatable="false">
+        <item>pcm</item>
+        <item>ac3_auto</item>
+        <item>ac3_force</item>
+        <item>eac3_auto</item>
+        <item>eac3_force</item>
+    </string-array>
 
     <!-- Don't forget to update locales_config.xml when you modify this! -->
     <string-array name="language_names" translatable="false">

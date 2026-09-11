@@ -223,6 +223,14 @@
         android:title="@string/category_audio_settings"
         app:iconSpaceReserved="false">
         <ListPreference
+            android:defaultValue="pcm"
+            android:entries="@array/audio_output_mode_names"
+            android:entryValues="@array/audio_output_mode_values"
+            android:key="list_audio_output_mode"
+            android:summary="@string/summary_audio_output_mode"
+            android:title="@string/title_audio_output_mode"
+            app:iconSpaceReserved="false" />
+        <ListPreference
             android:defaultValue="2"
             android:entries="@array/audio_config_names"
             android:entryValues="@array/audio_config_values"

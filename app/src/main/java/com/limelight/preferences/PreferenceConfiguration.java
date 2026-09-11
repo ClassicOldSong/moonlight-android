@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.view.Display;
 
+import com.limelight.binding.audio.AudioOutputMode;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.profiles.ProfilesManager;
 
@@ -60,6 +61,7 @@ public class PreferenceConfiguration {
     private static final String SMALL_ICONS_PREF_STRING = "checkbox_small_icon_mode";
     private static final String MULTI_CONTROLLER_PREF_STRING = "checkbox_multi_controller";
     static final String AUDIO_CONFIG_PREF_STRING = "list_audio_config";
+    public static final String AUDIO_OUTPUT_MODE_PREF_STRING = "list_audio_output_mode";
     private static final String USB_DRIVER_PREF_SRING = "checkbox_usb_driver";
     private static final String VIDEO_FORMAT_PREF_STRING = "video_format";
     private static final String ONSCREEN_CONTROLLER_PREF_STRING = "checkbox_show_onscreen_controls";
@@ -368,6 +370,7 @@ public class PreferenceConfiguration {
     public int vibrateFallbackToDeviceStrength;
     public boolean touchscreenTrackpad;
     public MoonBridge.AudioConfiguration audioConfiguration;
+    public AudioOutputMode audioOutputMode;
     public int framePacing;
     public boolean absoluteMouseMode;
     public boolean enableAudioFx;
@@ -855,6 +858,8 @@ private static int getFramePacingValue(Context context) {
         else /* if (audioConfig.equals("2")) */ {
             config.audioConfiguration = MoonBridge.AUDIO_CONFIGURATION_STEREO;
         }
+        config.audioOutputMode = AudioOutputMode.fromPreference(
+                prefs.getString(AUDIO_OUTPUT_MODE_PREF_STRING, "pcm"));
 
         config.videoScaleMode = getVideoScaleMode(context);
 
