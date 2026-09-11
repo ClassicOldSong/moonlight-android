@@ -4198,7 +4198,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             } else if (mode == 3) {
                 touchContextMap[i] = new RelativeTouchContext(conn, i, REFERENCE_HORIZ_RES, REFERENCE_VERT_RES, streamContainer, prefConfig);
             } else {
-                touchContextMap[i] = new TrackpadContext(conn, i);
+                // Mode 2: Natural trackpad — pass sensitivity from Virtual Trackpad Settings
+                touchContextMap[i] = new TrackpadContext(conn, i, false,
+                    prefConfig.touchPadSensitivity, prefConfig.touchPadYSensitity);
             }
         }
 
@@ -4224,6 +4226,23 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     //切换触控灵敏度开关
     public void switchTouchSensitivity(){
         prefConfig.enableTouchSensitivity = !prefConfig.enableTouchSensitivity;
+        String status = prefConfig.enableTouchSensitivity ? "ON" : "OFF";
+        Toast.makeText(this, "Touch Sensitivity: " + status, Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Inject a keyboard key event with proper modifier tracking.
+     * Used by ControllerHandler for X→Ctrl / Y→Esc remapping
+     * to match the virtual keyboard's modifier handling.
+     */
+    public void injectKey(short keyCode, byte modifierMask, boolean down) {
+        if (down) {
+            modifierFlags |= modifierMask;
+        } else {
+            modifierFlags &= ~modifierMask;
+        }
+        byte direction = down ? KeyboardPacket.KEY_DOWN : KeyboardPacket.KEY_UP;
+        conn.sendKeyboardInput(keyCode, direction, getModifierState(), (byte)0);
     }
 
     public void disconnect() {

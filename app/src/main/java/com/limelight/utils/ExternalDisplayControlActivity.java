@@ -13,6 +13,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.display.DisplayManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
@@ -57,6 +58,7 @@ import com.limelight.ui.ExternalControllerView;
 public class ExternalDisplayControlActivity extends AppCompatActivity implements View.OnKeyListener, KeyBoardLayoutController.ViewCallbacks {
 
     public static String EXTRA_LAUNCH_INTENT = "launchIntent";
+    public static String EXTRA_LAUNCH_DISPLAY_ID = "launchDisplayId";
 
     @SuppressLint("StaticFieldLeak")
     public static ExternalDisplayControlActivity instance;
@@ -74,6 +76,7 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     private Runnable dimScreenRunnable;
     private float originalBrightness = -1f; // -1 = use system default
     private static final int INACTIVITY_TIMEOUT_MS = 10_000;
+    private static final String PREF_NOTIFICATION_REQUESTED = "notification_permission_requested";
 
 
     private static final String NOTIFICATION_CHANNEL_ID = "secondary_screen_active_channel_id";
@@ -122,22 +125,44 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
             if (gameIntent == null) {
                 finish();
             } else {
-                Display secondaryDisplay = getSecondaryDisplay(this);
-                if (secondaryDisplay != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // For dual internal screen devices, Game's EXTRA_DISPLAY_ID is already set
+                // to the larger display; honor it instead of using getSecondaryDisplay()
+                int launchDisplayId = getIntent().getIntExtra(EXTRA_LAUNCH_DISPLAY_ID, -1);
+                boolean isDualInternal = launchDisplayId != -1;
+
+                if (isDualInternal && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // Dual internal screen: launch Game on the display specified in EXTRA_DISPLAY_ID
+                    int gameDisplayId = gameIntent.getIntExtra(Game.EXTRA_DISPLAY_ID, -1);
+                    if (gameDisplayId == -1) gameDisplayId = Display.DEFAULT_DISPLAY;
                     ActivityOptions options = ActivityOptions.makeBasic();
-                    options.setLaunchDisplayId(secondaryDisplay.getDisplayId());
+                    options.setLaunchDisplayId(gameDisplayId);
+                    DisplayManager dm = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+                    Display targetDisplay = dm.getDisplay(gameDisplayId);
                     Toast.makeText(this,
                             getString(R.string.external_display_info,
-                                    secondaryDisplay.getMode().getPhysicalWidth(),
-                                    secondaryDisplay.getMode().getPhysicalHeight(),
-                                    secondaryDisplay.getMode().getRefreshRate()),
+                                    targetDisplay != null ? targetDisplay.getMode().getPhysicalWidth() : 0,
+                                    targetDisplay != null ? targetDisplay.getMode().getPhysicalHeight() : 0,
+                                    targetDisplay != null ? targetDisplay.getMode().getRefreshRate() : 0),
                             Toast.LENGTH_LONG).show();
-
                     startActivity(gameIntent, options.toBundle());
                 } else {
-                    LimeLog.warning(getString(R.string.no_external_display));
-                    startActivity(gameIntent);
-                    finish();
+                    Display secondaryDisplay = getSecondaryDisplay(this);
+                    if (secondaryDisplay != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        ActivityOptions options = ActivityOptions.makeBasic();
+                        options.setLaunchDisplayId(secondaryDisplay.getDisplayId());
+                        Toast.makeText(this,
+                                getString(R.string.external_display_info,
+                                        secondaryDisplay.getMode().getPhysicalWidth(),
+                                        secondaryDisplay.getMode().getPhysicalHeight(),
+                                        secondaryDisplay.getMode().getRefreshRate()),
+                                Toast.LENGTH_LONG).show();
+
+                        startActivity(gameIntent, options.toBundle());
+                    } else {
+                        LimeLog.warning(getString(R.string.no_external_display));
+                        startActivity(gameIntent);
+                        finish();
+                    }
                 }
             }
         }
@@ -179,7 +204,6 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
         createProgrammaticUI();
         checkNotificationPermission();
         initTouchEventHandling();
-        setupInactivityTimeoutForBrightness();
         requestFocusToGameActivity(false);
     }
 
@@ -263,9 +287,7 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     }
 
     private void handleUserActivity() {
-        // Restore brightness if dimmed
-        restoreBrightnessIfNeeded();
-        resetInactivityTimer();
+        // Screen dimming disabled - keep screen always bright
     }
 
     private void resetInactivityTimer() {
@@ -516,7 +538,13 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     private void checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERMISSION_REQUEST_CODE);
+                android.content.SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+                boolean alreadyRequested = prefs.getBoolean(PREF_NOTIFICATION_REQUESTED, false);
+                // Only ask once ever. After the first request (granted or denied), never ask again.
+                if (!alreadyRequested) {
+                    prefs.edit().putBoolean(PREF_NOTIFICATION_REQUESTED, true).apply();
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERMISSION_REQUEST_CODE);
+                }
                 return;
             }
         }

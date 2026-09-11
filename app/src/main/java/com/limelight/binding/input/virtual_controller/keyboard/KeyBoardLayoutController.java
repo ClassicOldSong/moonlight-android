@@ -331,7 +331,7 @@ public class KeyBoardLayoutController {
         } else {
             DisplayMetrics screen = context.getResources().getDisplayMetrics();
             width = screen.widthPixels;
-            height = (int) (screen.heightPixels * 0.5);
+            height = (int) (screen.heightPixels * (prefConfig.keyboardHeightPercent / 100.0));
         }
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
         params.gravity = Gravity.BOTTOM;

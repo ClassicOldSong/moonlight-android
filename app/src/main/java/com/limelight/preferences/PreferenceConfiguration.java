@@ -322,6 +322,9 @@ public class PreferenceConfiguration {
 
     public int touchPadYSensitity;
 
+    //摇杆鼠标灵敏度
+    public int stickMouseSensitivity;
+
     //多点触控模式
     public boolean enableMultiTouchScreen;
 
@@ -357,6 +360,9 @@ public class PreferenceConfiguration {
 
     public boolean bindAllUsb;
     public boolean mouseEmulation;
+    public boolean remapXToCtrl;
+    public boolean remapYToEsc;
+    public int keyboardHeightPercent;
     public AnalogStickForScrolling analogStickForScrolling;
     public boolean mouseNavButtons;
     public boolean rememberMouseMode;
@@ -929,6 +935,9 @@ private static int getFramePacingValue(Context context) {
         config.enablePerfOverlayBottom = prefs.getBoolean("checkbox_enable_perf_overlay_bottom",DEFAULT_PERF_OVERLAY_BOTTOM);
         config.bindAllUsb = prefs.getBoolean(BIND_ALL_USB_STRING, DEFAULT_BIND_ALL_USB);
         config.mouseEmulation = prefs.getBoolean(MOUSE_EMULATION_STRING, DEFAULT_MOUSE_EMULATION);
+        config.remapXToCtrl = prefs.getBoolean("checkbox_remap_x_to_ctrl", false);
+        config.remapYToEsc = prefs.getBoolean("checkbox_remap_y_to_esc", false);
+        config.keyboardHeightPercent = prefs.getInt("seekbar_keyboard_height_percent", 80);
         config.mouseNavButtons = prefs.getBoolean(MOUSE_NAV_BUTTONS_STRING, DEFAULT_MOUSE_NAV_BUTTONS);
         config.rememberMouseMode = prefs.getBoolean(REMEMBER_MOUSE_MODE_PREF_STRING, DEFAULT_REMEMBER_MOUSE_MODE);
         config.unlockFps = prefs.getBoolean(UNLOCK_FPS_STRING, DEFAULT_UNLOCK_FPS);
@@ -998,6 +1007,8 @@ private static int getFramePacingValue(Context context) {
         config.touchPadSensitivity=prefs.getInt("seekbar_touchpad_sensitivity_opacity",100);
 
         config.touchPadYSensitity=prefs.getInt("seekbar_touchpad_sensitivity_y_opacity",100);
+
+        config.stickMouseSensitivity = prefs.getInt("seekbar_stick_mouse_sensitivity", 100);
 
         config.trackpadSensitivityX = prefs.getInt(SEEKBAR_TRACKPAD_SENSITIVITY_X, DEFAULT_TRACKPAD_SENSITIVITY_X);
         config.trackpadSensitivityY = prefs.getInt(SEEKBAR_TRACKPAD_SENSITIVITY_Y, DEFAULT_TRACKPAD_SENSITIVITY_Y);
