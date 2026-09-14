@@ -26,6 +26,7 @@ import com.limelight.ui.AdapterFragment;
 import com.limelight.ui.AdapterFragmentCallbacks;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.HelpLauncher;
+import com.limelight.utils.KeyboardAccessibilityHelper;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
@@ -76,6 +77,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     private ShortcutHelper shortcutHelper;
     private ComputerManagerService.ComputerManagerBinder managerBinder;
     private boolean freezeUpdates, runningPolling, inForeground, completeOnCreateCalled;
+    private boolean keyboardA11yPromptShown = false;
     private ComputerDetails.AddressTuple pendingPairingAddress;
     private String pendingPairingPin, pendingPairingPassphrase;
     private final ServiceConnection serviceConnection = new ServiceConnection() {
@@ -378,6 +380,44 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
 
         inForeground = true;
         startComputerUpdates();
+
+        maybePromptForKeyboardAccessibility();
+    }
+
+    private void maybePromptForKeyboardAccessibility() {
+        if (keyboardA11yPromptShown || isFinishing() || isDestroyed()) {
+            return;
+        }
+        PreferenceConfiguration prefConfig = PreferenceConfiguration.readPreferences(this);
+        if (prefConfig.suppressKeyboardA11yPrompt) {
+            return;
+        }
+        if (!KeyboardAccessibilityHelper.hasPhysicalKeyboard(this)) {
+            return;
+        }
+        if (KeyboardAccessibilityHelper.isKeyboardServiceEnabled(this)) {
+            return;
+        }
+
+        keyboardA11yPromptShown = true;
+
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        b.setTitle(R.string.keyboard_a11y_prompt_title);
+        b.setMessage(R.string.keyboard_a11y_prompt_message);
+        b.setPositiveButton(R.string.keyboard_a11y_prompt_open_settings, (dialog, which) -> {
+            KeyboardAccessibilityHelper.openAccessibilitySettings(PcView.this);
+        });
+        b.setNeutralButton(R.string.keyboard_a11y_prompt_app_details, (dialog, which) -> {
+            KeyboardAccessibilityHelper.openAppDetails(PcView.this);
+        });
+        b.setNegativeButton(R.string.keyboard_a11y_prompt_dont_show_again, (dialog, which) -> {
+            PreferenceManager.getDefaultSharedPreferences(PcView.this)
+                    .edit()
+                    .putBoolean("checkbox_suppress_keyboard_a11y_prompt", true)
+                    .apply();
+        });
+        b.setCancelable(true);
+        b.show();
     }
 
     @Override

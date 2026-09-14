@@ -248,4 +248,14 @@
     <string name="pacing_latency">Preferovat nejnižší zpoždění</string>
     <string name="title_enable_commit_text">Povolit vstup commit-textu (swipe/hlas)</string>
     <string name="summary_enable_commit_text">Předává vícestránkový text z softwarových klávesnic (psaní gesty, návrhy, diktování). Může narušit hry, které vyžadují jednotlivé stisky kláves.</string>
+
+    <string name="keyboard_a11y_prompt_title">Přeposílat systémové klávesové zkratky do PC?</string>
+    <string name="keyboard_a11y_prompt_message">Android zachycuje klávesové zkratky jako Alt+Tab, Alt+Esc a klávesu Win dříve, než se dostanou k hostiteli. Pro jejich přeposílání povolte \"Artemis Physical keyboard\" v Nastavení přístupnosti.\n\nPokud přepínač nezůstane zapnutý, otevřete stránku informací o aplikaci a povolte omezená nastavení, poté se vraťte do Přístupnosti.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Nastavení přístupnosti</string>
+    <string name="keyboard_a11y_prompt_app_details">Informace o aplikaci</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Příště nezobrazovat</string>
+    <string name="title_keyboard_a11y_settings">Přeposílat systémové klávesové zkratky</string>
+    <string name="summary_keyboard_a11y_settings">Otevřít Nastavení přístupnosti pro povolení služby klávesnice Artemis. Vyžadováno pro přeposílání Alt+Tab, Alt+Esc, klávesy Win a dalších systémových zkratek do hostitelského PC.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Nedotazovat se na povolení služby klávesnice</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Skrýt výzvu, která se zobrazí při streamování s fyzickou klávesnicí, když je služba přístupnosti vypnutá.</string>
 </resources>

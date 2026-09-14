@@ -209,4 +209,14 @@
     <string name="perf_overlay_streamdetails">Videostrøm: %1$s %2$.2f BPS</string>
     <string name="title_enable_commit_text">Aktiver commit-tekst-input (sveip/stemme)</string>
     <string name="summary_enable_commit_text">Sender tekst med flere tegn fra skjermtastaturet (gesture-skriving, forslag, stemmediktat). Kan skape problemer i spill som krever tast-for-tast-inndata.</string>
+
+    <string name="keyboard_a11y_prompt_title">Videresend systemsnarveier til PC-en?</string>
+    <string name="keyboard_a11y_prompt_message">Android fanger opp snarveier som Alt+Tab, Alt+Esc og Win-tasten før de når verten. For å videresende dem må du aktivere \"Artemis Physical keyboard\" i Tilgjengelighetsinnstillinger.\n\nHvis bryteren ikke forblir på, åpne app-informasjonssiden og tillat begrensede innstillinger, og gå deretter tilbake til Tilgjengelighet.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Tilgjengelighetsinnstillinger</string>
+    <string name="keyboard_a11y_prompt_app_details">Appinfo</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Ikke vis igjen</string>
+    <string name="title_keyboard_a11y_settings">Videresend systemtastatursnarveier</string>
+    <string name="summary_keyboard_a11y_settings">Åpne Tilgjengelighetsinnstillinger for å aktivere Artemis-tastaturtjenesten. Kreves for å videresende Alt+Tab, Alt+Esc, Win-tasten og andre systemsnarveier til verts-PC-en.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Ikke spør om å aktivere tastaturtjenesten</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Skjuler meldingen som vises ved strømming med fysisk tastatur når Tilgjengelighet-tjenesten er deaktivert.</string>
 </resources>

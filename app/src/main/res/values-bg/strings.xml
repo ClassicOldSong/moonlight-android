@@ -142,4 +142,14 @@
     <!-- commit-text feature -->
     <string name="title_enable_commit_text">Разреши изпращане на текст на блокове (жестово/гласово въвеждане)</string>
     <string name="summary_enable_commit_text">Изпраща текст от софтуерната клавиатура наведнъж (жестово писане, предложения, гласово диктуване). Възможно е да не работи с игри, които разчитат на по-символно въвеждане.</string>
+
+    <string name="keyboard_a11y_prompt_title">Препращане на системните клавишни комбинации към компютъра?</string>
+    <string name="keyboard_a11y_prompt_message">Android прихваща клавишни комбинации като Alt+Tab, Alt+Esc и клавиша Win, преди да достигнат до хоста. За да ги препратите, активирайте \"Artemis Physical keyboard\" в Настройки за достъпност.\n\nАко превключвателят не остава включен, отворете страницата с информация за приложението и разрешете ограничените настройки, след което се върнете в Достъпност.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Настройки за достъпност</string>
+    <string name="keyboard_a11y_prompt_app_details">Информация за приложението</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Не показвай повече</string>
+    <string name="title_keyboard_a11y_settings">Препращане на системните клавишни комбинации</string>
+    <string name="summary_keyboard_a11y_settings">Отворете Настройки за достъпност, за да активирате услугата за клавиатура Artemis. Необходимо за препращане на Alt+Tab, Alt+Esc, клавиша Win и други системни комбинации към компютъра хост.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Не питай за активиране на услугата за клавиатура</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Скрива подканата, която се показва при поточно предаване с физическа клавиатура, докато услугата за достъпност е изключена.</string>
 </resources>

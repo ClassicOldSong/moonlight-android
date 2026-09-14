@@ -273,4 +273,14 @@
     <string name="title_analog_scrolling">Använd en analog spak för att bläddra</string>
     <string name="title_enable_commit_text">Aktivera commit-textinmatning (svep/röst)</string>
     <string name="summary_enable_commit_text">Vidarebefordra text i flera tecken från mjuka tangentbord (gestinmatning, förslag, röstdiktering). Kan störa spel som kräver tangent för tangent.</string>
+
+    <string name="keyboard_a11y_prompt_title">Vidarebefordra systemgenvägar till datorn?</string>
+    <string name="keyboard_a11y_prompt_message">Android fångar upp genvägar som Alt+Tab, Alt+Esc och Win-tangenten innan de når värden. För att vidarebefordra dem, aktivera \"Artemis Physical keyboard\" i tillgänglighetsinställningarna.\n\nOm reglaget inte förblir aktiverat, öppna sidan med appinformation och tillåt begränsade inställningar, återgå sedan till Tillgänglighet.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Tillgänglighetsinställningar</string>
+    <string name="keyboard_a11y_prompt_app_details">Appinfo</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Visa inte igen</string>
+    <string name="title_keyboard_a11y_settings">Vidarebefordra systemtangentbordsgenvägar</string>
+    <string name="summary_keyboard_a11y_settings">Öppna Tillgänglighetsinställningar för att aktivera Artemis-tangentbordstjänsten. Krävs för att vidarebefordra Alt+Tab, Alt+Esc, Win-tangenten och andra systemgenvägar till värddatorn.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Fråga inte om att aktivera tangentbordstjänsten</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Döljer meddelandet som visas vid streaming med fysiskt tangentbord medan Tillgänglighetstjänsten är inaktiverad.</string>
 </resources>

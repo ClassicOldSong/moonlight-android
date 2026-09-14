@@ -260,4 +260,14 @@
     <string name="pacing_latency">A legalacsonyabb késleltetés előnyben részesítése</string>
     <string name="title_enable_commit_text">Commit-szöveg bevitel engedélyezése (húzás/hang)</string>
     <string name="summary_enable_commit_text">A képernyő-billentyűzetek többkarakteres szövegét (gesztusos gépelés, predikciók, hangalapú diktálás) továbbítja. Megzavarhatja azokat a játékokat, amelyek egyes gombnyomásokra támaszkodnak.</string>
+
+    <string name="keyboard_a11y_prompt_title">Rendszerszintű billentyűparancsok továbbítása a PC-re?</string>
+    <string name="keyboard_a11y_prompt_message">Az Android elfogja az olyan billentyűparancsokat, mint az Alt+Tab, Alt+Esc és a Win billentyű, mielőtt elérnék a hostot. A továbbításukhoz engedélyezze az \"Artemis Physical keyboard\" lehetőséget a Kisegítő lehetőségek beállításaiban.\n\nHa a kapcsoló nem marad bekapcsolva, nyissa meg az alkalmazás adatlapját, és engedélyezze a korlátozott beállításokat, majd térjen vissza a Kisegítő lehetőségekhez.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Kisegítő lehetőségek</string>
+    <string name="keyboard_a11y_prompt_app_details">Alkalmazásadatok</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Ne jelenjen meg többé</string>
+    <string name="title_keyboard_a11y_settings">Rendszerszintű billentyűparancsok továbbítása</string>
+    <string name="summary_keyboard_a11y_settings">A Kisegítő lehetőségek megnyitása az Artemis billentyűzetszolgáltatás engedélyezéséhez. Szükséges az Alt+Tab, Alt+Esc, Win billentyű és egyéb rendszerszintű parancsok host PC-re továbbításához.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Ne kérdezzen rá a billentyűzetszolgáltatás engedélyezésére</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Elrejti azt a kérést, amely fizikai billentyűzettel történő streamelés közben jelenik meg, ha a Kisegítő lehetőségek szolgáltatása ki van kapcsolva.</string>
 </resources>

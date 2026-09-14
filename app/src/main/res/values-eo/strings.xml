@@ -36,4 +36,14 @@
     <string name="unpairing">Malparigante…</string>
     <string name="applist_connect_msg">Konektante al komputilo…</string>
     <string name="pcview_menu_unpair_pc">Malparigi</string>
+
+    <string name="keyboard_a11y_prompt_title">Ĉu plusendi sistemajn klavkombinojn al la komputilo?</string>
+    <string name="keyboard_a11y_prompt_message">Android kaptas klavkombinojn kiel Alt+Tab, Alt+Esc kaj la Win-klavon antaŭ ol ili atingas la gastiganton. Por plusendi ilin, ŝaltu \"Artemis Physical keyboard\" en agordoj de Alirebleco.\n\nSe la ŝaltilo ne restas aktivita, malfermu la paĝon kun informoj pri la aplikaĵo kaj permesu limigitajn agordojn, poste revenu al Alirebleco.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Agordoj de Alirebleco</string>
+    <string name="keyboard_a11y_prompt_app_details">Informoj pri aplikaĵo</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Ne montri denove</string>
+    <string name="title_keyboard_a11y_settings">Plusendi sistemajn klavkombinojn</string>
+    <string name="summary_keyboard_a11y_settings">Malfermi agordojn de Alirebleco por ŝalti la klavarservon Artemis. Bezonata por plusendi Alt+Tab, Alt+Esc, la Win-klavon kaj aliajn sistemajn klavkombinojn al la gastiganta komputilo.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Ne demandi pri ŝaltado de klavarservo</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Kaŝas la demandon kiu aperas ĉe rivereto kun fizika klavaro dum la servo Alirebleco estas malŝaltita.</string>
 </resources>

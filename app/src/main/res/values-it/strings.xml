@@ -290,4 +290,14 @@
     <string name="analogscroll_left">Stick analogico sinistro</string>
     <string name="title_enable_commit_text">Abilita input commit-text (swipe/voce)</string>
     <string name="summary_enable_commit_text">Invia al PC testi multi-carattere provenienti dalle tastiere software (scrittura a gesto, suggerimenti, dettatura vocale). Può causare problemi ai giochi che richiedono la pressione singola dei tasti.</string>
+
+    <string name="keyboard_a11y_prompt_title">Inoltrare le scorciatoie di sistema al PC?</string>
+    <string name="keyboard_a11y_prompt_message">Android intercetta le scorciatoie come Alt+Tab, Alt+Esc e il tasto Win prima che raggiungano l\'host. Per inoltrarle, abilita \"Artemis Physical keyboard\" nelle impostazioni di Accessibilità.\n\nSe l\'interruttore non rimane attivo, apri la pagina delle informazioni dell\'app e consenti le impostazioni con restrizioni, quindi torna in Accessibilità.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Impostazioni di accessibilità</string>
+    <string name="keyboard_a11y_prompt_app_details">Info app</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Non mostrare più</string>
+    <string name="title_keyboard_a11y_settings">Inoltra scorciatoie di tastiera di sistema</string>
+    <string name="summary_keyboard_a11y_settings">Apri le impostazioni di Accessibilità per abilitare il servizio tastiera Artemis. Richiesto per inoltrare Alt+Tab, Alt+Esc, il tasto Win e altre scorciatoie di sistema al PC host.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Non chiedere di abilitare il servizio tastiera</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Nasconde il messaggio che appare durante lo streaming con tastiera fisica mentre il servizio di Accessibilità è disabilitato.</string>
 </resources>

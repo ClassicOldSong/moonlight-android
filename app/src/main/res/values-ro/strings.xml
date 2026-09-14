@@ -179,4 +179,14 @@
     <string name="audioconf_51surround">Sunet Surround 5.1</string>
     <string name="audioconf_71surround">Sunet Surround 7.1</string>
     <string name="videoformat_hevcalways">Folosește HEVC mereu (se poate bloca)</string>
+
+    <string name="keyboard_a11y_prompt_title">Redirecționezi scurtăturile de sistem către PC?</string>
+    <string name="keyboard_a11y_prompt_message">Android interceptează scurtături precum Alt+Tab, Alt+Esc și tasta Win înainte să ajungă la gazdă. Pentru a le redirecționa, activează \"Artemis Physical keyboard\" în setările de Accesibilitate.\n\nDacă comutatorul nu rămâne activat, deschide pagina cu informații despre aplicație și permite setările restricționate, apoi revino la Accesibilitate.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Setări de accesibilitate</string>
+    <string name="keyboard_a11y_prompt_app_details">Informații aplicație</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Nu mai afișa</string>
+    <string name="title_keyboard_a11y_settings">Redirecționează scurtăturile de tastatură de sistem</string>
+    <string name="summary_keyboard_a11y_settings">Deschide setările de Accesibilitate pentru a activa serviciul de tastatură Artemis. Necesar pentru a redirecționa Alt+Tab, Alt+Esc, tasta Win și alte scurtături de sistem către PC-ul gazdă.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Nu întreba pentru activarea serviciului de tastatură</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Ascunde mesajul afișat la difuzarea cu tastatură fizică atunci când serviciul de Accesibilitate este dezactivat.</string>
 </resources>

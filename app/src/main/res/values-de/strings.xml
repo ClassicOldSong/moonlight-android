@@ -310,4 +310,14 @@
 
     <string name="title_edit_profile">Profil bearbeiten</string>
 
+
+    <string name="keyboard_a11y_prompt_title">Systemtastenkürzel an den PC weiterleiten?</string>
+    <string name="keyboard_a11y_prompt_message">Android fängt Tastenkürzel wie Alt+Tab, Alt+Esc und die Win-Taste ab, bevor sie den Host erreichen. Um sie weiterzuleiten, aktivieren Sie \"Artemis Physical keyboard\" in den Bedienungshilfen-Einstellungen.\n\nFalls der Schalter nicht aktiviert bleibt, öffnen Sie die App-Info-Seite und erlauben Sie eingeschränkte Einstellungen, kehren Sie dann zu den Bedienungshilfen zurück.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Bedienungshilfen-Einstellungen</string>
+    <string name="keyboard_a11y_prompt_app_details">App-Info</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Nicht mehr anzeigen</string>
+    <string name="title_keyboard_a11y_settings">Systemtastenkürzel weiterleiten</string>
+    <string name="summary_keyboard_a11y_settings">Bedienungshilfen-Einstellungen öffnen, um den Artemis-Tastaturdienst zu aktivieren. Erforderlich, um Alt+Tab, Alt+Esc, die Win-Taste und andere Systemtastenkürzel an den Host-PC weiterzuleiten.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Nicht nach Aktivierung des Tastaturdienstes fragen</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Blendet die Aufforderung aus, die beim Streamen mit physischer Tastatur erscheint, während der Bedienungshilfen-Dienst deaktiviert ist.</string>
 </resources>

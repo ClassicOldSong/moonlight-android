@@ -73,6 +73,63 @@ The main repo had stayed silent for 5 months, with nobody actually responding to
 * In moonlight-android/, create a file called ‘local.properties’. Add an ‘ndk.dir=’ property to the local.properties file and set it equal to your NDK directory.
 * Build the APK using Android Studio or gradle
 
+## Troubleshooting
+
+### Physical keyboard shortcuts (Alt+Tab, Win key, etc.) don't reach the host PC
+
+Android intercepts certain keyboard shortcuts (Alt+Tab, Alt+Esc, Win, Ctrl+Esc, etc.) at the system level — they never reach the streaming session by default. Artemis ships with a small Accessibility service (`Artemis Physical keyboard`) whose only job is to forward those events to the host while you're streaming. You only need this if you stream with a physical keyboard.
+
+Artemis will prompt you to enable this service the first time it detects a physical keyboard at app start. If you dismissed the prompt or want to enable it manually, there's also a button in **Settings → Input Settings → Forward system keyboard shortcuts**.
+
+#### 1. Normal path
+
+1. Open **Settings → Accessibility** on the device.
+2. Find **Artemis Physical keyboard** in the list of installed services.
+3. Toggle it on. Confirm the system warning about full device control.
+
+#### 2. If the toggle won't stay on
+
+On Android 13+, services in apps installed via sideload / ADB / Obtainium are blocked by **Restricted settings**. The toggle will appear to flip on, then quietly turn off again.
+
+To unblock:
+
+1. Open **Settings → Apps → Artemis** (the app's info page).
+2. Tap the **⋮ (overflow menu)** in the top-right corner.
+3. Choose **Allow restricted settings** (or **Restricted settings** → confirm).
+4. Go back to **Accessibility** and toggle Artemis Physical keyboard on.
+
+#### 3. If "Allow restricted settings" doesn't appear (some OEMs hide it)
+
+Some custom Android skins (notably ZUI on Lenovo tablets) hide the **Allow restricted settings** entry entirely. Use ADB as a fallback:
+
+1. Enable **Developer options → USB debugging** on the device.
+2. Connect the device to a PC with `adb` installed and run:
+
+```bash
+# 1. Bypass the restricted-settings block for Artemis
+adb shell appops set com.limelight.noir ACCESS_RESTRICTED_SETTINGS allow
+
+# 2. Capture the current list of enabled accessibility services (do not lose this)
+adb shell settings get secure enabled_accessibility_services
+
+# 3. Append our service to that list (replace <existing> with the value from step 2;
+#    keep the colons separating each service)
+adb shell settings put secure enabled_accessibility_services "<existing>:com.limelight.noir/com.limelight.KeyboardAccessibilityService"
+
+# 4. Toggle accessibility off/on so the service actually binds
+adb shell settings put secure accessibility_enabled 0
+adb shell settings put secure accessibility_enabled 1
+
+# 5. Verify the service is bound (look for "Artemis Physical keyboard" with capabilities=9)
+adb shell dumpsys accessibility | grep "label="
+```
+
+If you're using the debug build, replace `com.limelight.noir` with `com.limelight.noirdebug`.
+
+#### Why is this needed?
+
+Android does not provide a public API for an app to capture system-level keyboard shortcuts at the activity level. The only sanctioned way to intercept events like Alt+Tab before SystemUI consumes them is via an Accessibility service with `FLAG_REQUEST_FILTER_KEY_EVENTS`. Artemis uses this purely to forward keys to the host while a stream is active — it does not read on-screen text, monitor your input outside of streaming, or collect any data.
+
 ## Authors
 
 * [Cameron Gutman](https://github.com/cgutman)  

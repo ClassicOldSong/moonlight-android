@@ -1,2 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources></resources>
+<resources>
+    <string name="keyboard_a11y_prompt_title">میانبرهای سیستم به رایانه ارسال شود؟</string>
+    <string name="keyboard_a11y_prompt_message">‏Android میانبرهایی مانند Alt+Tab، Alt+Esc و کلید Win را پیش از رسیدن به میزبان رهگیری می‌کند. برای ارسال آن‌ها، \"Artemis Physical keyboard\" را در تنظیمات دسترس‌پذیری فعال کنید.\n\nاگر کلید فعال باقی نمی‌ماند، صفحه اطلاعات برنامه را باز کنید و تنظیمات محدودشده را اجازه دهید، سپس به دسترس‌پذیری بازگردید.</string>
+    <string name="keyboard_a11y_prompt_open_settings">تنظیمات دسترس‌پذیری</string>
+    <string name="keyboard_a11y_prompt_app_details">اطلاعات برنامه</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">دوباره نشان نده</string>
+    <string name="title_keyboard_a11y_settings">ارسال میانبرهای صفحه‌کلید سیستم</string>
+    <string name="summary_keyboard_a11y_settings">برای فعال‌سازی سرویس صفحه‌کلید Artemis، تنظیمات دسترس‌پذیری را باز کنید. برای ارسال Alt+Tab، Alt+Esc، کلید Win و سایر میانبرهای سیستم به رایانه میزبان لازم است.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">برای فعال‌سازی سرویس صفحه‌کلید پرسش نشود</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">پیامی را که هنگام پخش با صفحه‌کلید فیزیکی در حالی که سرویس دسترس‌پذیری غیرفعال است نمایش داده می‌شود، پنهان می‌کند.</string>
+</resources>

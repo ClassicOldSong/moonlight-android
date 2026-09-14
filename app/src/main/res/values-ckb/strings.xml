@@ -1,2 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources></resources>
+<resources>
+    <string name="keyboard_a11y_prompt_title">قەدبڕەکانی سیستەم بۆ PC بنێردرێن؟</string>
+    <string name="keyboard_a11y_prompt_message">‏Android قەدبڕەکان وەک Alt+Tab، Alt+Esc و دوگمەی Win دەگرێتەوە پێش ئەوەی بگەن بە میوانخانە. بۆ ناردنیان، \"Artemis Physical keyboard\" چالاک بکە لە ڕێکخستنەکانی دەستڕاگەیشتن.\n\nئەگەر دوگمەکە چالاک نەمێنێتەوە، پەڕەی زانیاری ئەپەکە بکەرەوە و ڕێگە بدە بە ڕێکخستنە سنووردارەکان، پاشان بگەڕێرەوە بۆ دەستڕاگەیشتن.</string>
+    <string name="keyboard_a11y_prompt_open_settings">ڕێکخستنەکانی دەستڕاگەیشتن</string>
+    <string name="keyboard_a11y_prompt_app_details">زانیاری ئەپ</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">دیسان نیشانی مەدە</string>
+    <string name="title_keyboard_a11y_settings">قەدبڕەکانی تەختەکلیلی سیستەم بنێرە</string>
+    <string name="summary_keyboard_a11y_settings">ڕێکخستنەکانی دەستڕاگەیشتن بکەرەوە بۆ چالاککردنی خزمەتگوزاری تەختەکلیلی Artemis. پێویستە بۆ ناردنی Alt+Tab، Alt+Esc، دوگمەی Win و قەدبڕەکانی تری سیستەم بۆ PC ـی میوانخانە.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">داوای چالاککردنی خزمەتگوزاری تەختەکلیل مەکە</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">ئەو پەیامە دەشاردرێتەوە کە دەردەکەوێت لە کاتی پەخشکردن بە تەختەکلیلی فیزیکی کاتێک خزمەتگوزاری دەستڕاگەیشتن ناچالاکە.</string>
+</resources>

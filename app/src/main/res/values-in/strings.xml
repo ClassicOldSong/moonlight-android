@@ -212,4 +212,14 @@
     <string name="error_code_prefix">Kode galat:</string>
     <string name="title_enable_commit_text">Aktifkan input commit-text (geser/suara)</string>
     <string name="summary_enable_commit_text">Meneruskan teks multi-karakter dari papan ketik lunak (gestur geser, prediksi, dikte suara). Mungkin menyebabkan masalah pada gim yang bergantung pada input per tombol.</string>
+
+    <string name="keyboard_a11y_prompt_title">Teruskan pintasan sistem ke PC?</string>
+    <string name="keyboard_a11y_prompt_message">Android mencegat pintasan seperti Alt+Tab, Alt+Esc, dan tombol Win sebelum mencapai host. Untuk meneruskannya, aktifkan \"Artemis Physical keyboard\" di pengaturan Aksesibilitas.\n\nJika tombol tidak tetap aktif, buka halaman info aplikasi dan izinkan pengaturan yang dibatasi, lalu kembali ke Aksesibilitas.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Pengaturan aksesibilitas</string>
+    <string name="keyboard_a11y_prompt_app_details">Info aplikasi</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">Jangan tampilkan lagi</string>
+    <string name="title_keyboard_a11y_settings">Teruskan pintasan keyboard sistem</string>
+    <string name="summary_keyboard_a11y_settings">Buka pengaturan Aksesibilitas untuk mengaktifkan layanan keyboard Artemis. Diperlukan untuk meneruskan Alt+Tab, Alt+Esc, tombol Win, dan pintasan sistem lainnya ke PC host.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">Jangan tanyakan untuk mengaktifkan layanan keyboard</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Sembunyikan permintaan yang muncul saat streaming dengan keyboard fisik sementara layanan Aksesibilitas dinonaktifkan.</string>
 </resources>

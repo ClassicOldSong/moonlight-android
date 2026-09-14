@@ -294,4 +294,14 @@
     <string name="title_checkbox_remember_zoom_pan">Recordar zoom y desplazamiento</string>
     <string name="summary_checkbox_remember_zoom_pan">Guarda la posición de zoom y desplazamiento entre sesiones.</string>
     <string name="title_edit_profile">Editar perfil</string>
+
+    <string name="keyboard_a11y_prompt_title">¿Reenviar atajos del sistema al PC?</string>
+    <string name="keyboard_a11y_prompt_message">Android intercepta atajos como Alt+Tab, Alt+Esc y la tecla Win antes de que lleguen al host. Para reenviarlos, activa \"Artemis Physical keyboard\" en los ajustes de Accesibilidad.\n\nSi el interruptor no permanece activado, abre la página de información de la aplicación y permite los ajustes restringidos, luego vuelve a Accesibilidad.</string>
+    <string name="keyboard_a11y_prompt_open_settings">Ajustes de accesibilidad</string>
+    <string name="keyboard_a11y_prompt_app_details">Información de la aplicación</string>
+    <string name="keyboard_a11y_prompt_dont_show_again">No mostrar de nuevo</string>
+    <string name="title_keyboard_a11y_settings">Reenviar atajos de teclado del sistema</string>
+    <string name="summary_keyboard_a11y_settings">Abrir Ajustes de accesibilidad para activar el servicio de teclado Artemis. Necesario para reenviar Alt+Tab, Alt+Esc, la tecla Win y otros atajos del sistema al PC host.</string>
+    <string name="title_suppress_keyboard_a11y_prompt">No preguntar para activar el servicio de teclado</string>
+    <string name="summary_suppress_keyboard_a11y_prompt">Oculta el aviso que aparece al transmitir con teclado físico mientras el servicio de Accesibilidad está desactivado.</string>
 </resources>
