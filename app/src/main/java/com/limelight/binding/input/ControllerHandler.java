@@ -1399,7 +1399,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         // kernel changes (adding hid-nintendo) in Android 11. If we're
         // on anything newer than Pie, just use the built-in mapping.
         if ((context.vendorId == 0x057e && context.productId == 0x2009 && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) || // Switch Pro controller
-                (context.vendorId == 0x0f0d && context.productId == 0x00c1)) { // HORIPAD for Switch
+                (context.vendorId == 0x0f0d && context.productId == 0x00c1) || // HORIPAD for Switch
+                (context.vendorId == 0 && context.productId == 0 && "Lic Pro Controller".equals(context.name))) { //PowerA Pro controller 
             switch (event.getScanCode()) {
                 case 0x130://304
                     return KeyEvent.KEYCODE_BUTTON_A;
