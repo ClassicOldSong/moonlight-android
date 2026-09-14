@@ -373,6 +373,11 @@
             android:summary="@string/summary_touchscreen_mode"
             android:title="@string/title_touchscreen_mode"
             app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_right_stick_vector_configure"
+            android:title="@string/mouse_mode_right_stick_vector"
+            android:summary="@string/summary_right_stick_vector_configure" />
         
         <CheckBoxPreference
             android:defaultValue="false"

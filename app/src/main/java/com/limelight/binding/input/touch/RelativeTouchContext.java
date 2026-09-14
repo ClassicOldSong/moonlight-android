@@ -9,10 +9,11 @@ import com.limelight.nvstream.input.MouseButtonPacket;
 import com.limelight.preferences.PreferenceConfiguration;
 
 public class RelativeTouchContext implements TouchContext {
-    private int lastTouchX = 0;
-    private int lastTouchY = 0;
-    private int originalTouchX = 0;
-    private int originalTouchY = 0;
+    // [修改] 座標變數改為 float 以保持精度
+    private float lastTouchX = 0;
+    private float lastTouchY = 0;
+    private float originalTouchX = 0;
+    private float originalTouchY = 0;
     private long originalTouchTime = 0;
     private boolean cancelled;
     private boolean confirmedMove;
@@ -110,10 +111,11 @@ public class RelativeTouchContext implements TouchContext {
         return actionIndex;
     }
 
-    private boolean isWithinTapBounds(int touchX, int touchY)
+    // [修改] 參數改為 float
+    private boolean isWithinTapBounds(float touchX, float touchY)
     {
-        int xDelta = Math.abs(touchX - originalTouchX);
-        int yDelta = Math.abs(touchY - originalTouchY);
+        float xDelta = Math.abs(touchX - originalTouchX);
+        float yDelta = Math.abs(touchY - originalTouchY);
         return xDelta <= TAP_MOVEMENT_THRESHOLD &&
                 yDelta <= TAP_MOVEMENT_THRESHOLD;
     }
@@ -145,8 +147,9 @@ public class RelativeTouchContext implements TouchContext {
         }
     }
 
+    // [修改] 參數改為 float
     @Override
-    public boolean touchDownEvent(int eventX, int eventY, long eventTime, boolean isNewFinger)
+    public boolean touchDownEvent(float eventX, float eventY, long eventTime, boolean isNewFinger)
     {
         // Get the view dimensions to scale inputs on this touch
         xFactor = referenceWidth / (double)targetView.getWidth();
@@ -170,8 +173,9 @@ public class RelativeTouchContext implements TouchContext {
         return true;
     }
 
+    // [修改] 參數改為 float
     @Override
-    public void touchUpEvent(int eventX, int eventY, long eventTime)
+    public void touchUpEvent(float eventX, float eventY, long eventTime)
     {
         if (cancelled) {
             return;
@@ -208,7 +212,8 @@ public class RelativeTouchContext implements TouchContext {
         handler.removeCallbacks(dragTimerRunnable);
     }
 
-    private void checkForConfirmedMove(int eventX, int eventY) {
+    // [修改] 參數改為 float
+    private void checkForConfirmedMove(float eventX, float eventY) {
         // If we've already confirmed something, get out now
         if (confirmedMove || confirmedDrag) {
             return;
@@ -237,8 +242,9 @@ public class RelativeTouchContext implements TouchContext {
         confirmedScroll = (actionIndex == 0 && pointerCount == 2 && confirmedMove);
     }
 
+    // [修改] 參數改為 float
     @Override
-    public boolean touchMoveEvent(int eventX, int eventY, long eventTime)
+    public boolean touchMoveEvent(float eventX, float eventY, long eventTime)
     {
         if (cancelled) {
             return true;
@@ -251,12 +257,14 @@ public class RelativeTouchContext implements TouchContext {
 
             // We only send moves and drags for the primary touch point
             if (actionIndex == 0) {
-                int deltaX = eventX - lastTouchX;
-                int deltaY = eventY - lastTouchY;
+                // [修改] 使用 float 計算 delta
+                float deltaX = eventX - lastTouchX;
+                float deltaY = eventY - lastTouchY;
 
                 // Scale the deltas based on the factors passed to our constructor
-                deltaX = (int) Math.round((double) Math.abs(deltaX) * xFactor);
-                deltaY = (int) Math.round((double) Math.abs(deltaY) * yFactor);
+                // [修改] 保持內部 float 精度直到送出
+                deltaX = (float) (Math.abs(deltaX) * xFactor);
+                deltaY = (float) (Math.abs(deltaY) * yFactor);
 
                 // Fix up the signs
                 if (eventX < lastTouchX) {
@@ -286,10 +294,11 @@ public class RelativeTouchContext implements TouchContext {
                 // If the scaling factor ended up rounding deltas to zero, wait until they are
                 // non-zero to update lastTouch that way devices that report small touch events often
                 // will work correctly
-                if (deltaX != 0) {
+                // [修改] 使用轉型後的整數值來判斷是否更新 lastTouch，模擬原本的行為，避免累積極小誤差導致漂移
+                if ((int)deltaX != 0) {
                     lastTouchX = eventX;
                 }
-                if (deltaY != 0) {
+                if ((int)deltaY != 0) {
                     lastTouchY = eventY;
                 }
             }

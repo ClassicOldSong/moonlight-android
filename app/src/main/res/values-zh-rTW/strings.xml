@@ -370,7 +370,7 @@
 	<string name="game_menu_toggle_keyboard">顯示軟體鍵盤</string>
 	<string name="game_menu_toggle_hud">切換即時效能資訊</string>
 	<string name="game_menu_toggle_floating_button">切換浮動按鈕</string>
-	<string name="game_menu_select_mouse_mode">選擇滑鼠模式</string>
+	<string name="game_menu_select_mouse_mode">選擇螢幕觸控模式</string>
 	<string name="game_menu_select_steam_mode">選擇串流模式</string>
 	<string name="game_menu_enable_zoom_mode">啟用平移/縮放</string>
 	<string name="game_menu_disable_zoom_mode">停用平移/縮放</string>
@@ -792,4 +792,10 @@
 
 	<string name="title_checkbox_full_screen">啟用全螢幕</string>
 	<string name="summary_checkbox_full_screen">以沉浸模式隱藏系統列</string>
+
+    <string name="mouse_mode_right_stick_vector">右搖桿向量觸控板</string>
+    <string name="summary_right_stick_vector_configure">設定 X/Y 軸靈敏度與死區補償</string>
+    <string name="title_right_stick_vector_sensitivity_x">右搖桿向量觸控板靈敏度 (X軸)</string>
+    <string name="title_right_stick_vector_sensitivity_y">右搖桿向量觸控板靈敏度 (Y軸)</string>
+    <string name="title_right_stick_vector_anti_deadzone">右搖桿向量觸控板死區補償</string>
 </resources>

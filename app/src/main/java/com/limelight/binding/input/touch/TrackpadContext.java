@@ -10,10 +10,11 @@ import com.limelight.nvstream.input.MouseButtonPacket;
 public class TrackpadContext implements TouchContext {
     private double pendingDeltaX = 0;
     private double pendingDeltaY = 0;
-    private int lastTouchX = 0;
-    private int lastTouchY = 0;
-    private int originalTouchX = 0;
-    private int originalTouchY = 0;
+    // [修改] 座標變數改為 float
+    private float lastTouchX = 0;
+    private float lastTouchY = 0;
+    private float originalTouchX = 0;
+    private float originalTouchY = 0;
     private long originalTouchTime = 0;
     private boolean cancelled;
     private boolean confirmedMove;
@@ -148,9 +149,10 @@ public class TrackpadContext implements TouchContext {
         return actionIndex;
     }
 
-    private boolean isWithinTapBounds(int touchX, int touchY) {
-        int xDelta = Math.abs(touchX - originalTouchX);
-        int yDelta = Math.abs(touchY - originalTouchY);
+    // [修改] 參數改為 float
+    private boolean isWithinTapBounds(float touchX, float touchY) {
+        float xDelta = Math.abs(touchX - originalTouchX);
+        float yDelta = Math.abs(touchY - originalTouchY);
         return xDelta <= TAP_MOVEMENT_THRESHOLD && yDelta <= TAP_MOVEMENT_THRESHOLD;
     }
 
@@ -178,8 +180,9 @@ public class TrackpadContext implements TouchContext {
         }
     }
 
+    // [修改] 參數改為 float
     @Override
-    public boolean touchDownEvent(int eventX, int eventY, long eventTime, boolean isNewFinger) {
+    public boolean touchDownEvent(float eventX, float eventY, long eventTime, boolean isNewFinger) {
         if (isFlicking) {
             isFlicking = false;
             handler.removeCallbacksAndMessages(null);
@@ -234,8 +237,9 @@ public class TrackpadContext implements TouchContext {
         return true;
     }
 
+    // [修改] 參數改為 float
     @Override
-    public void touchUpEvent(int eventX, int eventY, long eventTime) {
+    public void touchUpEvent(float eventX, float eventY, long eventTime) {
         if (cancelled) {
             return;
         }
@@ -301,8 +305,9 @@ public class TrackpadContext implements TouchContext {
         }
     }
 
+    // [修改] 參數改為 float
     @Override
-    public boolean touchMoveEvent(int eventX, int eventY, long eventTime) {
+    public boolean touchMoveEvent(float eventX, float eventY, long eventTime) {
         if (cancelled) {
             return true;
         }
@@ -317,9 +322,10 @@ public class TrackpadContext implements TouchContext {
                 confirmedDrag = true;
             }
 
-            int rawDeltaX = eventX - lastTouchX;
-            int rawDeltaY = eventY - lastTouchY;
-            int absDeltaX, absDeltaY;
+            // [修改] 使用 float 計算 delta
+            float rawDeltaX = eventX - lastTouchX;
+            float rawDeltaY = eventY - lastTouchY;
+            float absDeltaX, absDeltaY;
 
             double magnitude = Math.sqrt(rawDeltaX * rawDeltaX + rawDeltaY * rawDeltaY);
             double precisionMultiplier = Math.cbrt(magnitude / ACCELERATION_THRESHOLD);
@@ -363,6 +369,7 @@ public class TrackpadContext implements TouchContext {
 
             lastMoveTime = eventTime;
 
+            // [關鍵] 這裡的 pendingDelta 已經是 double，所以可以直接累加 float，保持精度
             pendingDeltaX += deltaX;
             pendingDeltaY += deltaY;
 
@@ -460,7 +467,8 @@ public class TrackpadContext implements TouchContext {
         }
     }
 
-    private void checkForConfirmedMove(int eventX, int eventY) {
+    // [修改] 參數改為 float
+    private void checkForConfirmedMove(float eventX, float eventY) {
         // If we've already confirmed something, get out now
         if (confirmedMove || confirmedDrag) {
             return;
