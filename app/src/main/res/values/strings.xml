@@ -250,6 +250,9 @@
     <string name="summary_checkbox_force_device_motion">Enforce using devices\'s built-in motion sensor even when the controller reported motion sensors are supported.</string>
     <string name="title_enable_rumble">Enable Rumble</string>
     <string name="summary_enable_rumble">Enable rumble feedback on supported gamepads.</string>
+    <string name="title_rumble_throttle">Rumble update interval</string>
+    <string name="summary_rumble_throttle">Sets the minimum interval between updates for each rumble motor group. Increase this value if frequent rumble causes controller or device instability. Stop commands are always sent immediately. Set to 0 to disable throttling.</string>
+    <string name="suffix_rumble_throttle">ms</string>
     <string name="category_input_settings">Input Settings</string>
     <string name="title_checkbox_touchscreen_trackpad">Use the touchscreen as a trackpad</string>
     <string name="summary_checkbox_touchscreen_trackpad">If enabled, the touchscreen acts like a trackpad. If disabled, the touchscreen directly controls the mouse cursor.</string>
