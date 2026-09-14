@@ -15,7 +15,9 @@ public class KeyboardAccessibilityService extends AccessibilityService {
     private final static List BLACKLIST_KEYS = Arrays.asList(
             KeyEvent.KEYCODE_VOLUME_UP,
             KeyEvent.KEYCODE_VOLUME_DOWN,
-            KeyEvent.KEYCODE_POWER
+            KeyEvent.KEYCODE_POWER,
+            KeyEvent.KEYCODE_BRIGHTNESS_DOWN,
+            KeyEvent.KEYCODE_BRIGHTNESS_UP
     );
 
     @Override

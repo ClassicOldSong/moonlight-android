@@ -8,6 +8,7 @@ import android.view.InputDevice;
 import android.view.KeyEvent;
 
 import com.limelight.LimeLog;
+import com.limelight.binding.input.touch.Debug;
 import com.limelight.nvstream.input.KeyboardPacket;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.KeyMapper;
@@ -52,7 +53,8 @@ public class KeyboardTranslator implements InputManager.InputDeviceListener {
     public static final int VK_SEMICOLON = 59;
     public static final int VK_SLASH = 47;
     public static final int VK_SPACE = 32;
-    public static final int VK_PRINTSCREEN = 154;
+//    public static final int VK_PRINTSCREEN = 154; why???
+    public static final int VK_PRINTSCREEN = 44;
     public static final int VK_TAB = 9;
     public static final int VK_LEFT = 37;
     public static final int VK_RIGHT = 39;
@@ -182,8 +184,8 @@ public class KeyboardTranslator implements InputManager.InputDeviceListener {
      */
     public short translate(int keycode, int scancode, int deviceId) {
         int translated;
-
-        // If a device ID was provided, look up the keyboard mapping
+        Debug.format("keycode {0}", keycode);
+        // If a device ID was provided, look up the keylllboard mapping
         // Force qwerty will break user's keyboard layout settings
         if (prefConfig.forceQwerty && deviceId >= 0) {
             KeyboardMapping mapping = keyboardMappings.get(deviceId);
