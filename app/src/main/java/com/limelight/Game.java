@@ -1141,6 +1141,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         prefConfig.onscreenController= virtualController.switchShowHide() != 0;
     }
 
+    public void toggleKeyboardOrVirtualController() {
+        if (!prefConfig.onscreenController && (keyBoardController == null || !keyBoardController.shown)) {
+            toggleKeyboardController();
+            return;
+        } else if (prefConfig.onscreenController && (keyBoardController != null && keyBoardController.shown)) {
+            toggleVirtualController();
+            return;
+        }
+
+        toggleKeyboardController();
+        toggleVirtualController();
+    }
+
     private void setPreferredOrientationForActivity() {
         Display display = getActiveDisplay(Game.this, prefConfig);
 
