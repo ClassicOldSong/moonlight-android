@@ -112,7 +112,7 @@ public class PanZoomHandler {
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
             float newScaleFactor = scaleFactor * detector.getScaleFactor();
-            newScaleFactor = Math.max(1, Math.min(newScaleFactor, MAX_SCALE)); // Apply minimum scale
+            newScaleFactor = Math.max(0.5f, Math.min(newScaleFactor, MAX_SCALE)); // Apply minimum scale
 
             // Calculate pivot point
             float focusX = detector.getFocusX();

@@ -1,7 +1,7 @@
 package com.limelight.utils;
 
 import static com.limelight.StartExternalDisplayControlReceiver.requestFocusToGameActivity;
-import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -69,6 +69,8 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
 
     private boolean isKeyboardVisible = false;
 
+    private boolean shouldManageBrightness = false;
+
     private final Handler handler = new Handler(Looper.getMainLooper());
     private int failCount = 0;
     private Runnable dimScreenRunnable;
@@ -122,15 +124,15 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
             if (gameIntent == null) {
                 finish();
             } else {
-                Display secondaryDisplay = getSecondaryDisplay(this);
-                if (secondaryDisplay != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Display gameStreamDisplay = getGameStreamDisplay(this);
+                if (gameStreamDisplay != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     ActivityOptions options = ActivityOptions.makeBasic();
-                    options.setLaunchDisplayId(secondaryDisplay.getDisplayId());
+                    options.setLaunchDisplayId(gameStreamDisplay.getDisplayId());
                     Toast.makeText(this,
                             getString(R.string.external_display_info,
-                                    secondaryDisplay.getMode().getPhysicalWidth(),
-                                    secondaryDisplay.getMode().getPhysicalHeight(),
-                                    secondaryDisplay.getMode().getRefreshRate()),
+                                    gameStreamDisplay.getMode().getPhysicalWidth(),
+                                    gameStreamDisplay.getMode().getPhysicalHeight(),
+                                    gameStreamDisplay.getMode().getRefreshRate()),
                             Toast.LENGTH_LONG).show();
 
                     startActivity(gameIntent, options.toBundle());
@@ -175,11 +177,17 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
             });
         }
 
+        Display controlsDisplay = DisplayUtils.getControlsDisplay(this);
+        shouldManageBrightness = (controlsDisplay != null && controlsDisplay.getDisplayId() == Display.DEFAULT_DISPLAY);
+        LimeLog.info("Brightness management " + (shouldManageBrightness ? "enabled" : "disabled") + " for this display (ID: " + ((controlsDisplay != null) ? controlsDisplay.getDisplayId() : "null") + ")");
+
         initializeComponents();
         createProgrammaticUI();
         checkNotificationPermission();
         initTouchEventHandling();
-        setupInactivityTimeoutForBrightness();
+        if (shouldManageBrightness) {
+            setupInactivityTimeoutForBrightness();
+        }
         requestFocusToGameActivity(false);
     }
 
@@ -224,12 +232,14 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
 
     @SuppressLint("ClickableViewAccessibility")
     private void setupInactivityTimeoutForBrightness() {
+        if (!shouldManageBrightness) return;
         // Save the original brightness
         WindowManager.LayoutParams layout = getWindow().getAttributes();
         originalBrightness = layout.screenBrightness;
 
         // Runnable to dim screen
         dimScreenRunnable = () -> {
+            if (!shouldManageBrightness) return;
             WindowManager.LayoutParams l = getWindow().getAttributes();
             l.screenBrightness = 0.0f;
             getWindow().setAttributes(l);
@@ -255,6 +265,7 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     }
 
     private void restoreBrightnessIfNeeded() {
+        if (!shouldManageBrightness) return;
         WindowManager.LayoutParams l = getWindow().getAttributes();
         if (l.screenBrightness == 0.0f) {
             l.screenBrightness = originalBrightness;
@@ -263,12 +274,14 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
     }
 
     private void handleUserActivity() {
+        if (!shouldManageBrightness) return;
         // Restore brightness if dimmed
         restoreBrightnessIfNeeded();
         resetInactivityTimer();
     }
 
     private void resetInactivityTimer() {
+        if (!shouldManageBrightness) return;
         handler.removeCallbacks(dimScreenRunnable);
         if (!isKeyboardVisible) {
             handler.postDelayed(dimScreenRunnable, INACTIVITY_TIMEOUT_MS);

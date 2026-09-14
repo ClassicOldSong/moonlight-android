@@ -1,5 +1,7 @@
 package com.limelight;
 
+import static com.limelight.utils.DisplayUtils.getControlsDisplay;
+
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.content.BroadcastReceiver;
@@ -30,7 +32,7 @@ public class StartExternalDisplayControlReceiver extends BroadcastReceiver {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Intent intentTouchpad = new Intent(context, ExternalDisplayControlActivity.class);
             intentTouchpad.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            Bundle optionsDefault = ActivityOptions.makeBasic().setLaunchDisplayId(Display.DEFAULT_DISPLAY).toBundle();
+            Bundle optionsDefault = ActivityOptions.makeBasic().setLaunchDisplayId(getControlsDisplay(context).getDisplayId()).toBundle();
             context.startActivity(intentTouchpad, optionsDefault);
         }
     }

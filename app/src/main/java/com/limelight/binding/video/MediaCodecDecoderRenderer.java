@@ -1,5 +1,6 @@
 package com.limelight.binding.video;
 
+import static com.limelight.utils.DisplayUtils.getGameStreamDisplay;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -8,11 +9,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.jcodec.codecs.h264.H264Utils;
 import org.jcodec.codecs.h264.io.model.SeqParameterSet;
 import org.jcodec.codecs.h264.io.model.VUIParameters;
-
 import com.limelight.BuildConfig;
 import com.limelight.LimeLog;
 import com.limelight.R;
@@ -21,14 +20,12 @@ import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.Stereo3DRenderer;
 import com.limelight.utils.TrafficStatsHelper;
-
 import android.annotation.SuppressLint;
 import android.util.LongSparseArray;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.media.MediaCodec;
-import android.os.Bundle;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaCodec.BufferInfo;
@@ -41,6 +38,7 @@ import android.os.Process;
 import android.os.SystemClock;
 import android.util.Range;
 import android.view.Choreographer;
+import android.view.Display;
 import android.view.Surface;
 
 public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements Choreographer.FrameCallback {
@@ -120,6 +118,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private ByteBuffer nextInputBuffer;
 
     private Context context;
+    private Display display;
     private Activity activity;
     private MediaCodec videoDecoder;
     private Thread rendererThread;
@@ -365,9 +364,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     public MediaCodecDecoderRenderer(Activity activity, PreferenceConfiguration prefs,
                                      CrashListener crashListener, int consecutiveCrashCount,
                                      boolean meteredData, boolean requestedHdr, boolean invertResolution,
-                                     String glRenderer, PerfOverlayListener perfListener) {
+                                     String glRenderer, PerfOverlayListener perfListener, Display display) {
         //dumpDecoders();
-
+        this.display = display;
         this.context = activity;
         this.activity = activity;
         this.prefs = prefs;
@@ -796,7 +795,14 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     @Override
     public int setup(int format, int width, int height, int redrawRate) {
-        this.targetFps = (redrawRate > 0 ? redrawRate : 60);
+        // External displayes occasionally return a redrawRate of zero, so default 60 was wrong.
+        int fpsTarget = redrawRate;
+        if(display == null && fpsTarget <= 0) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                fpsTarget = (int) getGameStreamDisplay(activity).getMode().getRefreshRate();
+            }
+        }
+        this.targetFps = fpsTarget;
         this.initialWidth = invertResolution ? height : width;
         this.initialHeight = invertResolution ? width : height;
         this.videoFormat = format;
@@ -1073,7 +1079,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            frameTimeNanos -= activity.getWindowManager().getDefaultDisplay().getAppVsyncOffsetNanos();
+            if(display == null) {
+                display = getGameStreamDisplay(activity);
+            }
+            frameTimeNanos -= display.getAppVsyncOffsetNanos();
         }
 
         // Don't render unless a new frame is due. This prevents microstutter when streaming
@@ -1164,11 +1173,14 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 long vsyncPeriodNs;
                 float displayHz = 60f;
                 try {
-                    if (Build.VERSION.SDK_INT >= 17 && context != null) {
-                        android.view.Display d = ((android.view.WindowManager) context.getSystemService(android.content.Context.WINDOW_SERVICE)).getDefaultDisplay();
-                        if (d != null) displayHz = d.getRefreshRate();
+                    if (Build.VERSION.SDK_INT >= 17 && activity != null) {
+                        if(display == null) {
+                            display = getGameStreamDisplay(activity);
+                        }
+                        if (display != null) displayHz = display.getRefreshRate();
                     }
                 } catch (Throwable ignored) {}
+
                 if (displayHz <= 0f) displayHz = 60f;
                 vsyncPeriodNs = (long) (1_000_000_000L / displayHz);
 
@@ -1814,9 +1826,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     sb.append("\t");
                     sb.append(context.getString(R.string.perf_overlay_lite_packet_loss) + ": ");
                     sb.append(context.getString(R.string.perf_overlay_lite_netdrops,(float)lastTwo.framesLost / lastTwo.totalFrames * 100));
-                    sb.append("\t FPS：");
-                    sb.append(context.getString(R.string.perf_overlay_lite_fps, fps.totalFps));
                     if(Stereo3DRenderer.isActive) {
+                        sb.append("\t FPS：");
+                        sb.append(context.getString(R.string.perf_overlay_lite_fps, Stereo3DRenderer.fps));
                         sb.append(" ");
                         sb.append(context.getString(R.string.perf_overlay_ai_fps));
                         sb.append(" ");
@@ -1827,10 +1839,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         sb.append(Stereo3DRenderer.renderer);
                         sb.append(" ");
                         sb.append(context.getString(R.string.perf_overlay_drawdelay, Stereo3DRenderer.drawDelay));
+                    } else {
+                        sb.append("\t FPS：");
+                        sb.append(context.getString(R.string.perf_overlay_lite_fps, fps.totalFps));
                     }
                 }else{
                     if(Stereo3DRenderer.isActive) {
-                        sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, fps.totalFps));
+                        sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, Stereo3DRenderer.fps));
                         sb.append('\n');
                         sb.append(" ");
                         sb.append(context.getString(R.string.perf_overlay_ai_fps));
