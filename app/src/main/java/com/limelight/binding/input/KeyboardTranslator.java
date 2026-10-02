@@ -384,6 +384,10 @@ public class KeyboardTranslator implements InputManager.InputDeviceListener {
                 translated = VK_PAUSE;
                 break;
 
+            case KeyEvent.KEYCODE_ZENKAKU_HANKAKU:
+                translated = KeyMapper.VK_KANJI;
+                break;
+
             case KeyEvent.KEYCODE_NUMPAD_DIVIDE:
                 translated = 0x6F;
                 break;
