@@ -93,6 +93,18 @@ android {
         }
     }
 
+    signingConfigs {
+        // Fixed key for the "ac3" test build type below. It is committed on purpose
+        // (not a secret) so every CI build is signed the same way and can be
+        // installed over the previous one without losing pairing data.
+        ac3 {
+            storeFile file('ac3-test.keystore')
+            storePassword 'ac3test'
+            keyAlias 'ac3test'
+            keyPassword 'ac3test'
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix ".noirdebug"
@@ -141,6 +153,18 @@ android {
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
+        // Optimized test build: same settings as release (no debug native code,
+        // not debuggable) but with its own app ID so it installs next to Artemis.
+        ac3 {
+            initWith release
+            applicationIdSuffix ".noirac3"
+            resValue "string", "app_label", "Artemis AC3"
+            resValue "string", "app_label_root", "Artemis AC3 (Root)"
+            resValue "string", "app_label_game", "Artemis AC3 (Game)"
+            signingConfig signingConfigs.ac3
+            matchingFallbacks = ['release']
         }
     }
 

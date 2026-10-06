@@ -1,0 +1,60 @@
+name: Build APK (with surround passthrough)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "ac3-passthrough", "moonlight-noir" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.0.12077973
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Cache FFmpeg encoder libraries
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/jni/ptenc/ffmpeg
+          key: ffmpeg-ptenc-${{ env.NDK_VERSION }}-${{ hashFiles('app/src/main/jni/ptenc/build-ffmpeg.sh') }}
+
+      - name: Build FFmpeg encoders
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: app/src/main/jni/ptenc/build-ffmpeg.sh
+
+      - name: Build APK
+        run: ./gradlew --no-daemon assembleNonRoot_gameAc3
+
+      - name: Check that the encoder library was packaged and the APK is signed
+        run: |
+          for apk in app/build/outputs/apk/nonRoot_game/ac3/*.apk; do
+            echo "$apk:"; unzip -l "$apk" | grep -E 'libmoonlight-(ptenc|core)\.so' || true
+          done
+          unzip -l app/build/outputs/apk/nonRoot_game/ac3/*arm64-v8a*.apk | grep -q libmoonlight-ptenc.so
+          # All three encoders must be compiled in
+          NM="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
+          for enc in ff_ac3_encoder ff_dca_encoder ff_truehd_encoder; do
+            "$NM" app/src/main/jni/ptenc/ffmpeg/arm64-v8a/lib/libavcodec.a 2>/dev/null | grep -qE " [DdRr] $enc$" \
+              || { echo "encoder $enc missing"; exit 1; }
+          done
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/nonRoot_game/ac3/*arm64-v8a*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artemis-ac3-apks
+          path: app/build/outputs/apk/nonRoot_game/ac3/*.apk

@@ -218,6 +218,19 @@
     <string name="summary_audio_config_list">Enable 5.1 or 7.1 surround sound for home-theater systems</string>
     <string name="title_checkbox_enable_audiofx">Enable system equalizer support</string>
     <string name="summary_checkbox_enable_audiofx">Allows audio effects to function while streaming, but may increase audio latency</string>
+    <string name="title_list_passthrough_format">Surround passthrough format</string>
+    <string name="summary_list_passthrough_format">Encodes 5.1 audio to a bitstream that is passed through over HDMI. Use this if your TV or soundbar only receives multichannel audio as Dolby or DTS. Requests 5.1 instead of 7.1. Falls back to the next format your TV accepts.</string>
+    <string name="passthrough_format_off">Off (PCM)</string>
+    <string name="passthrough_format_ac3">Dolby Digital</string>
+    <string name="passthrough_format_dts">DTS (lowest latency)</string>
+    <string name="passthrough_format_truehd">Dolby TrueHD (experimental)</string>
+    <string name="title_list_passthrough_buffer">Passthrough buffer</string>
+    <string name="summary_list_passthrough_buffer">How many encoded frames to buffer before the TV. Fewer frames means less latency (each frame is 32 ms with Dolby Digital, 10.7 ms with DTS) but choppy audio if the TV needs more. Auto uses the size the TV asks for.</string>
+    <string name="passthrough_buffer_auto">Auto (TV minimum)</string>
+    <string name="passthrough_buffer_1">1 frame</string>
+    <string name="passthrough_buffer_2">2 frames</string>
+    <string name="passthrough_buffer_3">3 frames</string>
+    <string name="passthrough_buffer_4">4 frames</string>
 
     <string name="category_gamepad_settings">Gamepad Settings</string>
     <string name="title_checkbox_multi_controller">Automatic gamepad presence detection</string>

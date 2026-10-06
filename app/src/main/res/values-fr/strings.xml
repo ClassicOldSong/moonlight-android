@@ -192,6 +192,19 @@
     <string name="summary_audio_config_list">Activez le son surround 5.1 ou 7.1 pour les systèmes home cinéma</string>
     <string name="title_checkbox_enable_audiofx">Activer le support de l\'égalisateur système</string>
     <string name="summary_checkbox_enable_audiofx">Permet aux effets audio de fonctionner lors du streaming, mais peut augmenter la latence</string>
+    <string name="title_list_passthrough_format">Format de passthrough surround</string>
+    <string name="summary_list_passthrough_format">Encode l\'audio 5.1 dans un flux transmis tel quel en HDMI. Utile si votre TV ou barre de son ne reçoit l\'audio multicanal qu\'en Dolby ou DTS. Demande du 5.1 au lieu du 7.1. Bascule sur le format suivant accepté par la TV si besoin.</string>
+    <string name="passthrough_format_off">Désactivé (PCM)</string>
+    <string name="passthrough_format_ac3">Dolby Digital</string>
+    <string name="passthrough_format_dts">DTS (latence minimale)</string>
+    <string name="passthrough_format_truehd">Dolby TrueHD (expérimental)</string>
+    <string name="title_list_passthrough_buffer">Tampon de passthrough</string>
+    <string name="summary_list_passthrough_buffer">Nombre de trames encodées gardées en tampon avant la TV. Moins de trames = moins de latence (une trame dure 32 ms en Dolby Digital, 10,7 ms en DTS), mais son haché si la TV en demande plus. Auto utilise la taille demandée par la TV.</string>
+    <string name="passthrough_buffer_auto">Auto (minimum de la TV)</string>
+    <string name="passthrough_buffer_1">1 trame</string>
+    <string name="passthrough_buffer_2">2 trames</string>
+    <string name="passthrough_buffer_3">3 trames</string>
+    <string name="passthrough_buffer_4">4 trames</string>
 
     <string name="category_gamepad_settings">Paramètres manette</string>
     <string name="title_checkbox_multi_controller">Détection automatique de la présence de la manette</string>

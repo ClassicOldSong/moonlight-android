@@ -1,0 +1,2 @@
+# Output of build-ffmpeg.sh (regenerate it, or force-add if you want to commit the prebuilt libs)
+ffmpeg/
