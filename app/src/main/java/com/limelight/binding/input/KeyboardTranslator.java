@@ -348,8 +348,10 @@ public class KeyboardTranslator implements InputManager.InputDeviceListener {
                 break;
                 
             case KeyEvent.KEYCODE_SYSRQ:
-                // Android defines this as SysRq/PrntScrn
-                translated = VK_PRINTSCREEN;
+                // Android defines this as SysRq/PrntScrn.
+                // VK_PRINTSCREEN (154) is the Java AWT key code, not a Windows virtual-key
+                // code, so hosts ignore it. Windows' VK_SNAPSHOT is 0x2C.
+                translated = 0x2C;
                 break;
                 
             case KeyEvent.KEYCODE_TAB:

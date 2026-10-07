@@ -1359,6 +1359,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 parameterTypes[1] = boolean.class;
                 Method requestMetaKeyEventMethod = semWindowManager.getDeclaredMethod("requestMetaKeyEvent", parameterTypes);
                 requestMetaKeyEventMethod.invoke(manager, this.getComponentName(), enabled);
+
+                // The same class can also hand us system keys that Android would otherwise consume.
+                // Request the screenshot key found on Samsung keyboard covers (KEYCODE_SYSRQ), so it
+                // reaches the host as Print Screen instead of taking a screenshot of the tablet.
+                try {
+                    Method requestSystemKeyEventMethod = semWindowManager.getDeclaredMethod("requestSystemKeyEvent",
+                            int.class, ComponentName.class, boolean.class);
+                    requestSystemKeyEventMethod.invoke(manager, KeyEvent.KEYCODE_SYSRQ, this.getComponentName(), enabled);
+                } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException |
+                         RuntimeException e) {
+                    // Not available or not permitted on this device. The key keeps its local function.
+                    e.printStackTrace();
+                }
             }
             else {
                 LimeLog.warning("SemWindowManager.getInstance() returned null");
