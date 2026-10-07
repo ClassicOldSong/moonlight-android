@@ -36,6 +36,21 @@
 <!--        app:aperture_middle_color="#6CD2F8">-->
 <!--    </com.limelight.ui.ApertureViewGroup>-->
 
+    <!-- Local patch (2026-09-20): cursor drawn by the app, moved with translationX/Y (see LocalCursorOverlay).
+         2026-09-23: smaller than the host cursor and half transparent. Once the two cursors lined up exactly,
+         the old 26dp opaque arrow (42 px) covered the host's own cursor (31 px) completely whenever it stopped,
+         and the user wants to see both. -->
+    <ImageView
+        android:id="@+id/localCursorView"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:alpha="0.55"
+        android:layout_gravity="top|start"
+        android:contentDescription="@null"
+        android:src="@drawable/local_cursor"
+        android:visibility="gone"
+        android:elevation="9999dp" />
+
     <TextView
         android:id="@+id/notificationOverlay"
         android:layout_width="wrap_content"

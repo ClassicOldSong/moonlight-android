@@ -1,5 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Local patch (2026-09-23): extra speed factor for the app-drawn cursor on top of the PC's own
+         acceleration, which the overlay now reproduces; 100% = same as the PC mouse -->
+    <string-array name="local_cursor_speed_names" translatable="false">
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+        <item>125%</item>
+        <item>150%</item>
+        <item>200%</item>
+    </string-array>
+
+    <string-array name="local_cursor_speed_values" translatable="false">
+        <item>50</item>
+        <item>75</item>
+        <item>100</item>
+        <item>125</item>
+        <item>150</item>
+        <item>200</item>
+    </string-array>
+
+    <!-- Local patch (2026-09-23): touchpad pause after typing, in ms -->
+    <string-array name="touchpad_typing_pause_names" translatable="false">
+        <item>끔</item>
+        <item>0.3초</item>
+        <item>0.5초</item>
+        <item>0.8초</item>
+        <item>1초</item>
+        <item>1.5초</item>
+        <item>2초</item>
+    </string-array>
+
+    <string-array name="touchpad_typing_pause_values" translatable="false">
+        <item>0</item>
+        <item>300</item>
+        <item>500</item>
+        <item>800</item>
+        <item>1000</item>
+        <item>1500</item>
+        <item>2000</item>
+    </string-array>
+
+    <!-- Local patch (2026-09-23): touchpad scroll speed, in percent -->
+    <string-array name="trackpad_scroll_speed_names" translatable="false">
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+        <item>150%</item>
+        <item>200%</item>
+        <item>300%</item>
+    </string-array>
+
+    <string-array name="trackpad_scroll_speed_values" translatable="false">
+        <item>25</item>
+        <item>50</item>
+        <item>75</item>
+        <item>100</item>
+        <item>150</item>
+        <item>200</item>
+        <item>300</item>
+    </string-array>
+
+    <!-- Local patch (2026-09-23): ignored margin along the pad's edge, in mm -->
+    <string-array name="touchpad_edge_margin_names" translatable="false">
+        <item>끔</item>
+        <item>2mm</item>
+        <item>3mm</item>
+        <item>5mm</item>
+        <item>8mm</item>
+    </string-array>
+
+    <string-array name="touchpad_edge_margin_values" translatable="false">
+        <item>0</item>
+        <item>2</item>
+        <item>3</item>
+        <item>5</item>
+        <item>8</item>
+    </string-array>
+
     <string-array name="resolution_names">
         <item>@string/resolution_360p</item>
         <item>@string/resolution_480p</item>

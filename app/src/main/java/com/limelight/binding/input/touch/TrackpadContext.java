@@ -51,6 +51,17 @@ public class TrackpadContext implements TouchContext {
     private static final int MOMENTUM_FRAME_INTERVAL_MS = 10;
     private static final int FLICK_VELOCITY_DECAY_TIMEOUT_MS = 50;
     private static final int SCROLL_TRANSITION_TIMEOUT_MS = 200;
+    // Local patch (2026-09-21): no momentum for the POINTER. The user found the cursor kept gliding after
+    // the finger left the pad, which a real mouse does not do. Two-finger scroll keeps its fling.
+    private static final boolean POINTER_MOMENTUM = false;
+    // Local patch (2026-09-23): gap between the release of the first click and the second click of a double
+    // tap. Sunshine holds back a LEFT release for 10 ms whenever the last mouse position it got was absolute
+    // (src/input.cpp, "mouse_left_button_timeout"), and our drawn cursor sends absolute positions. Sent back to
+    // back, the second down overtook that release: the host saw down, down, up, up and no double click
+    // (measured with a low-level mouse hook on the host, 7 of 7 such double taps).
+    private static final int SECOND_CLICK_DELAY_MS = 50;
+    // Not cleared by handler.removeCallbacksAndMessages(null), which the tap logic uses freely
+    private final Handler clickHandler = new Handler(Looper.getMainLooper());
 
     public TrackpadContext(NvConnection conn, int actionIndex) {
         this.conn = conn;
@@ -63,6 +74,37 @@ public class TrackpadContext implements TouchContext {
         this.swapAxis = swapAxis;
         this.sensitivityX = (float) sensitivityX / 100;
         this.sensitivityY = (float) sensitivityY / 100;
+    }
+
+    // Local patch (2026-09-20): while the app draws its own cursor it owns the pointer position, so the
+    // movement below must go through it (as an absolute position) instead of straight out as a delta.
+    public interface MoveSink {
+        void onTrackpadMove(short deltaX, short deltaY);
+    }
+
+    private MoveSink moveSink;
+
+    public void setMoveSink(MoveSink moveSink) {
+        this.moveSink = moveSink;
+    }
+
+    // Local patch (2026-09-23): scroll speed multiplier from the settings (1.0 = the previous behaviour)
+    private float scrollSpeed = 1f;
+
+    public void setScrollSpeed(float scrollSpeed) {
+        this.scrollSpeed = scrollSpeed;
+    }
+
+    private short scrollAmount(double raw) {
+        return (short) (raw * scrollSpeed);
+    }
+
+    private void sendMove(short deltaX, short deltaY) {
+        if (moveSink != null) {
+            moveSink.onTrackpadMove(deltaX, deltaY);
+        } else {
+            conn.sendMouseMove(deltaX, deltaY);
+        }
     }
 
     private final Runnable scrollTransitionRunnable = new Runnable() {
@@ -86,7 +128,7 @@ public class TrackpadContext implements TouchContext {
             short intDeltaY = (short) pendingDeltaY;
 
             if (intDeltaX != 0 || intDeltaY != 0) {
-                conn.sendMouseMove(intDeltaX, intDeltaY);
+                sendMove(intDeltaX, intDeltaY);
                 pendingDeltaX -= intDeltaX;
                 pendingDeltaY -= intDeltaY;
             }
@@ -119,14 +161,14 @@ public class TrackpadContext implements TouchContext {
             double frameVelocityY = velocityY * MOMENTUM_FRAME_INTERVAL_MS;
 
             if (Math.abs(frameVelocityX) > Math.abs(frameVelocityY)) {
-                conn.sendMouseHighResHScroll((short)(-frameVelocityX * SCROLL_SPEED_FACTOR_X));
+                conn.sendMouseHighResHScroll(scrollAmount(-frameVelocityX * SCROLL_SPEED_FACTOR_X));
                 if (Math.abs(frameVelocityY) * 1.05 > Math.abs(frameVelocityX)) {
-                    conn.sendMouseHighResScroll((short)(frameVelocityY * SCROLL_SPEED_FACTOR_Y));
+                    conn.sendMouseHighResScroll(scrollAmount(frameVelocityY * SCROLL_SPEED_FACTOR_Y));
                 }
             } else {
-                conn.sendMouseHighResScroll((short)(frameVelocityY * SCROLL_SPEED_FACTOR_Y));
+                conn.sendMouseHighResScroll(scrollAmount(frameVelocityY * SCROLL_SPEED_FACTOR_Y));
                 if (Math.abs(frameVelocityX) * 1.05 >= Math.abs(frameVelocityY)) {
-                    conn.sendMouseHighResHScroll((short)(-frameVelocityX * SCROLL_SPEED_FACTOR_X));
+                    conn.sendMouseHighResHScroll(scrollAmount(-frameVelocityX * SCROLL_SPEED_FACTOR_X));
                 }
             }
 
@@ -254,16 +296,24 @@ public class TrackpadContext implements TouchContext {
         if (isDblClickPending) {
             handler.removeCallbacksAndMessages(null);
             conn.sendMouseButtonUp(buttonIndex);
-            conn.sendMouseButtonDown(buttonIndex);
-            conn.sendMouseButtonUp(buttonIndex);
+            clickHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    conn.sendMouseButtonDown(buttonIndex);
+                    conn.sendMouseButtonUp(buttonIndex);
+                }
+            }, SECOND_CLICK_DELAY_MS);
             isClickPending = false;
+            // Local patch (2026-09-23): upstream left this set, so the next tap without movement was sent
+            // as a double click again
+            isDblClickPending = false;
             confirmedDrag = false;
         }
         else if (confirmedDrag) {
             handler.removeCallbacksAndMessages(null);
 
             double speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-            if (speed > FLICK_THRESHOLD) {
+            if (POINTER_MOMENTUM && speed > FLICK_THRESHOLD) {
                 isFlicking = true;
                 handler.post(momentumRunnable);
             } else {
@@ -288,14 +338,13 @@ public class TrackpadContext implements TouchContext {
             // This was a move/scroll that wasn't a drag or tap. Let's see if we should flick.
             double speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
             if (speed > FLICK_THRESHOLD) {
-                isFlicking = true;
                 if (confirmedScroll) {
+                    isFlicking = true;
                     handler.post(scrollMomentumRunnable);
-                } else {
+                } else if (POINTER_MOMENTUM && maxPointerCountInGesture == 1) {
                     // A 1-finger move can flick. A >1 finger move that wasn't a scroll shouldn't cause a mouse move flick.
-                    if (maxPointerCountInGesture == 1) {
-                        handler.post(momentumRunnable);
-                    }
+                    isFlicking = true;
+                    handler.post(momentumRunnable);
                 }
             }
         }
@@ -313,6 +362,17 @@ public class TrackpadContext implements TouchContext {
             checkForConfirmedMove(eventX, eventY);
 
             if (isDblClickPending) {
+                // Local patch (2026-09-23): the second touch of a double tap used to become a drag on ANY
+                // movement. A pad that reports a unit or two of jitter under a resting finger (a third-party
+                // keyboard case) turned most double taps into one long click (host saw down ... up after
+                // ~140 ms, 12 times in one test). Only leaving the tap bounds starts the drag now, and until
+                // then the jitter is swallowed so both clicks land on the same pixel - Windows only accepts
+                // a double click within a 4x4 px square.
+                if (isWithinTapBounds(eventX, eventY)) {
+                    lastTouchX = eventX;
+                    lastTouchY = eventY;
+                    return true;
+                }
                 isDblClickPending = false;
                 confirmedDrag = true;
             }
@@ -376,27 +436,27 @@ public class TrackpadContext implements TouchContext {
                 // Don't move the mouse immediately after a scroll
                 if (!isScrollTransitioning) {
                     if (sendDeltaX != 0 || sendDeltaY != 0) {
-                        conn.sendMouseMove(sendDeltaX, sendDeltaY);
+                        sendMove(sendDeltaX, sendDeltaY);
                     }
                 }
             } else {
                 if (actionIndex == 1) {
                     if (confirmedDrag) {
                         if (sendDeltaX != 0 || sendDeltaY != 0) {
-                            conn.sendMouseMove(sendDeltaX, sendDeltaY);
+                            sendMove(sendDeltaX, sendDeltaY);
                         }
                     } else if (pointerCount == 2) {
                         checkForConfirmedScroll();
                         if (confirmedScroll) {
                             if (absDeltaX > absDeltaY) {
-                                conn.sendMouseHighResHScroll((short)(-sendDeltaX * SCROLL_SPEED_FACTOR_X));
+                                conn.sendMouseHighResHScroll(scrollAmount(-sendDeltaX * SCROLL_SPEED_FACTOR_X));
                                 if (absDeltaY * 1.05 > absDeltaX) {
-                                    conn.sendMouseHighResScroll((short)(sendDeltaY * SCROLL_SPEED_FACTOR_Y));
+                                    conn.sendMouseHighResScroll(scrollAmount(sendDeltaY * SCROLL_SPEED_FACTOR_Y));
                                 }
                             } else {
-                                conn.sendMouseHighResScroll((short)(sendDeltaY * SCROLL_SPEED_FACTOR_Y));
+                                conn.sendMouseHighResScroll(scrollAmount(sendDeltaY * SCROLL_SPEED_FACTOR_Y));
                                 if (absDeltaX * 1.05 >= absDeltaY) {
-                                    conn.sendMouseHighResHScroll((short)(-sendDeltaX * SCROLL_SPEED_FACTOR_X));
+                                    conn.sendMouseHighResHScroll(scrollAmount(-sendDeltaX * SCROLL_SPEED_FACTOR_X));
                                 }
                             }
                         }

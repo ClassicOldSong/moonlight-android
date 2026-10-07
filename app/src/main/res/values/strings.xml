@@ -444,6 +444,22 @@
     <string name="summary_touchscreen_mode">Select between MultiTouch/SingleTouch/Trackpad/Disabled mode.\nPen/Stylus are still usable when Disabled is selected.\nForced to Track Pad(Natural) mode when useing external display.</string>
     <string name="title_checkbox_mouse_local_cursor">Use local mouse cursor</string>
     <string name="summary_checkbox_mouse_local_cursor">Default external physical mouse cursor will be captured, this option can display Android system cursor</string>
+    <string name="title_list_trackpad_scroll_speed">터치패드 스크롤 속도</string>
+    <!-- A ListPreference summary is run through String.format, so a bare % crashes the settings screen
+         (UnknownFormatConversionException while the row is bound). %s is the selected entry. -->
+    <string name="summary_list_trackpad_scroll_speed">현재 %s · 100퍼센트가 기존 속도입니다.</string>
+    <string name="title_list_touchpad_typing_pause">타이핑 중 터치패드 멈춤</string>
+    <string name="summary_list_touchpad_typing_pause">현재 %s · 키를 누른 뒤 그 시간 동안 터치패드 입력을 무시합니다. 마우스는 영향을 받지 않습니다.</string>
+    <string name="title_list_touchpad_edge_margin">터치패드 가장자리 무시</string>
+    <string name="summary_list_touchpad_edge_margin">현재 %s · 가장자리에서 시작한 터치를 무시합니다. 안쪽에서 시작해 가장자리로 움직이는 것은 그대로 됩니다.</string>
+    <string name="toast_touchpad_off">터치패드 끔 · Ctrl+Shift+M으로 다시 켜기</string>
+    <string name="toast_touchpad_on">터치패드 켬</string>
+    <string name="toast_immersive_on">몰입 모드 켬 · 키보드와 터치패드가 PC로 전달됩니다</string>
+    <string name="toast_immersive_off">몰입 모드 끔 · 입력이 갤탭에서 동작합니다 (Ctrl+Shift+I)</string>
+    <string name="title_checkbox_local_cursor_overlay">Draw a cursor over the stream</string>
+    <string name="summary_checkbox_local_cursor_overlay">Keeps the touchpad captured (gestures and scrolling keep working) and draws a cursor that follows your finger with no delay. Its position is sent to the PC, so the cursor in the video moves to the same place a moment later.</string>
+    <string name="title_list_local_cursor_speed">그린 커서 속도</string>
+    <string name="summary_list_local_cursor_speed">현재 %s · PC 마우스와 같은 가속 곡선을 쓰며, 100퍼센트가 PC 마우스와 같은 속도입니다.</string>
     <string name="title_checkbox_multi_touch_gestures">Enable multi-touch gestures</string>
     <string name="summary_checkbox_multi_touch_gestures">Enable 3 finger tap for keyboard, 4 finger tap for full keyboard, 5 finger tap for quick menu when using multi-touch mode.</string>
     <string name="title_checkbox_onscreen_style_official">Official Virtual Gamepad Skin</string>

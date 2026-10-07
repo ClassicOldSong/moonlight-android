@@ -389,6 +389,50 @@
             android:title="@string/title_checkbox_mouse_local_cursor"
             app:iconSpaceReserved="false" />
 
+        <ListPreference
+            android:defaultValue="100"
+            android:entries="@array/trackpad_scroll_speed_names"
+            android:entryValues="@array/trackpad_scroll_speed_values"
+            android:key="list_trackpad_scroll_speed"
+            android:summary="@string/summary_list_trackpad_scroll_speed"
+            android:title="@string/title_list_trackpad_scroll_speed"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            android:defaultValue="1000"
+            android:entries="@array/touchpad_typing_pause_names"
+            android:entryValues="@array/touchpad_typing_pause_values"
+            android:key="list_touchpad_typing_pause"
+            android:summary="@string/summary_list_touchpad_typing_pause"
+            android:title="@string/title_list_touchpad_typing_pause"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/touchpad_edge_margin_names"
+            android:entryValues="@array/touchpad_edge_margin_values"
+            android:key="list_touchpad_edge_margin"
+            android:summary="@string/summary_list_touchpad_edge_margin"
+            android:title="@string/title_list_touchpad_edge_margin"
+            app:iconSpaceReserved="false" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_local_cursor_overlay"
+            android:summary="@string/summary_checkbox_local_cursor_overlay"
+            android:title="@string/title_checkbox_local_cursor_overlay"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            android:defaultValue="100"
+            android:dependency="checkbox_local_cursor_overlay"
+            android:entries="@array/local_cursor_speed_names"
+            android:entryValues="@array/local_cursor_speed_values"
+            android:key="list_local_cursor_speed2"
+            android:summary="@string/summary_list_local_cursor_speed"
+            android:title="@string/title_list_local_cursor_speed"
+            app:iconSpaceReserved="false" />
+
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_multi_touch_gestures"

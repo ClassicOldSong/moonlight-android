@@ -20,7 +20,9 @@ import com.limelight.binding.input.touch.RelativeTouchContext;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.binding.input.evdev.EvdevListener;
 import com.limelight.binding.input.touch.TouchContext;
+import com.limelight.binding.input.touch.TouchpadGate;
 import com.limelight.binding.input.touch.TrackpadContext;
+import com.limelight.binding.input.touch.TrackpadGestureDetector;
 import com.limelight.binding.input.virtual_controller.VirtualController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardController;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
@@ -43,6 +45,7 @@ import com.limelight.profiles.ProfilesManager;
 import com.limelight.ui.ExternalControllerView;
 import com.limelight.ui.GameGestures;
 import com.limelight.ui.StreamContainer;
+import com.limelight.ui.LocalCursorOverlay;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.MouseModeOption;
@@ -148,6 +151,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     // Only 2 touches are supported
     private final TouchContext[] touchContextMap = new TouchContext[2];
     private final TouchContext[] trackpadContextMap = new TouchContext[2];
+    // Local patch (2026-09-19): 3/4-finger touchpad gestures -> Windows shortcuts
+    private TrackpadGestureDetector trackpadGestures;
+    // Local patch (2026-09-20): cursor drawn by the app over the stream
+    private LocalCursorOverlay localCursor;
+    // Local patch (2026-09-23): typing pause, edge rejection and the Ctrl+Shift+M toggle for the touchpad
+    private TouchpadGate touchpadGate;
+    // Local patch (2026-09-23): Ctrl+Alt+` ends the session, Ctrl+Shift+I toggles immersive mode
+    private boolean disconnectComboDown;
+    private boolean immersiveComboDown;
     private PanZoomHandler panZoomHandler;
     private long threeFingerDownTime = 0;
     private long fourFingerDownTime = 0;
@@ -814,8 +826,69 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // Initialize trackpad contexts
         for (int i = 0; i < trackpadContextMap.length; i++) {
-            trackpadContextMap[i] = new TrackpadContext(conn, i, prefConfig.trackpadSwapAxis, prefConfig.trackpadSensitivityX, prefConfig.trackpadSensitivityY);
+            TrackpadContext trackpad = new TrackpadContext(conn, i, prefConfig.trackpadSwapAxis, prefConfig.trackpadSensitivityX, prefConfig.trackpadSensitivityY);
+            // Local patch (2026-09-23): scroll speed from the settings
+            trackpad.setScrollSpeed(prefConfig.trackpadScrollSpeed);
+            trackpadContextMap[i] = trackpad;
         }
+
+        // Local patch (2026-09-20): cursor drawn by the app over the stream. It owns the pointer position,
+        // so the movement of the touchscreen trackpad has to go through it as well.
+        if (prefConfig.enableLocalCursorOverlay && !prefConfig.enableMouseLocalCursor) {
+            localCursor = new LocalCursorOverlay(findViewById(R.id.localCursorView), streamContainer.getSurfaceView(), conn, prefConfig.localCursorSpeed,
+                    prefConfig.width, prefConfig.height);
+            TrackpadContext.MoveSink sink = new TrackpadContext.MoveSink() {
+                @Override
+                public void onTrackpadMove(short deltaX, short deltaY) {
+                    localCursor.moveScaled(deltaX, deltaY);
+                }
+            };
+            for (TouchContext context : trackpadContextMap) {
+                ((TrackpadContext) context).setMoveSink(sink);
+            }
+        }
+
+        // Local patch (2026-09-19): 3/4-finger touchpad gestures -> Windows shortcuts
+        trackpadGestures = new TrackpadGestureDetector(this, conn, prefConfig.trackpadSwapAxis, new TrackpadGestureDetector.Host() {
+            @Override
+            public void cancelTrackpadTouches() {
+                for (TouchContext context : trackpadContextMap) {
+                    context.cancelTouch();
+                    context.setPointerCount(0);
+                }
+            }
+
+            @Override
+            public void sendKeyCombo(short[] keys) {
+                sendKeys(keys);
+            }
+        });
+
+        // Local patch (2026-09-23): keeps palms and the pad's edge from moving the pointer while typing,
+        // and gives Ctrl+Shift+M as an off switch for pads that have none
+        touchpadGate = new TouchpadGate(new TouchpadGate.Host() {
+            @Override
+            public void cancelTouchpadTouches() {
+                for (TouchContext context : trackpadContextMap) {
+                    context.cancelTouch();
+                    context.setPointerCount(0);
+                }
+                if (trackpadGestures != null) {
+                    trackpadGestures.reset();
+                }
+            }
+
+            @Override
+            public void onTouchpadToggled(boolean touchpadOff) {
+                final String text = getResources().getString(touchpadOff ? R.string.toast_touchpad_off : R.string.toast_touchpad_on);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(Game.this, text, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }, prefConfig.touchpadTypingPauseMs, prefConfig.touchpadEdgeMm);
 
         if (Objects.equals(appUUID, NvApp.REMOTE_INPUT_UUID)) {
             // Force trackpad mode since we won't see anything on the screen
@@ -1359,6 +1432,27 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 parameterTypes[1] = boolean.class;
                 Method requestMetaKeyEventMethod = semWindowManager.getDeclaredMethod("requestMetaKeyEvent", parameterTypes);
                 requestMetaKeyEventMethod.invoke(manager, this.getComponentName(), enabled);
+
+                // Local patch (2026-09-19): the screenshot key of the Samsung keyboard cover is KEYCODE_SYSRQ,
+                // which Android consumes for its own screenshot before apps see it. The same Samsung class has
+                // requestSystemKeyEvent(int, ComponentName, boolean); ask for that key while we hold the input
+                // grab so that it reaches handleKeyDown() and goes to the host as Print Screen. Whether a
+                // third-party app is allowed to do this is unknown - the result is shown by the gesture diagnostics.
+                String sysrqResult;
+                try {
+                    Method requestSystemKeyEventMethod = semWindowManager.getDeclaredMethod("requestSystemKeyEvent",
+                            int.class, ComponentName.class, boolean.class);
+                    Object result = requestSystemKeyEventMethod.invoke(manager, KeyEvent.KEYCODE_SYSRQ, this.getComponentName(), enabled);
+                    sysrqResult = "returned " + result;
+                } catch (InvocationTargetException e) {
+                    sysrqResult = "threw " + e.getCause();
+                } catch (Throwable t) {
+                    sysrqResult = "failed " + t;
+                }
+                LimeLog.info("requestSystemKeyEvent(SYSRQ, " + enabled + ") " + sysrqResult);
+                if (enabled && trackpadGestures != null) {
+                    trackpadGestures.note("Screenshot key request " + sysrqResult);
+                }
             }
             else {
                 LimeLog.warning("SemWindowManager.getInstance() returned null");
@@ -1410,6 +1504,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // With Android native pointer capture, capture is lost when focus is lost,
         // so it must be requested again when focus is regained.
         inputCaptureProvider.onWindowFocusChanged(hasFocus);
+
+        // Local patch (2026-09-19): never leave the gesture's Alt key held on the host
+        if (!hasFocus && trackpadGestures != null) {
+            trackpadGestures.reset();
+        }
     }
 
     private boolean isRefreshRateEqualMatch(float refreshRate) {
@@ -1882,6 +1981,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         grabbedInput = grab;
     }
 
+    // Local patch (2026-09-23): tell the host that every modifier is up. Sunshine treats Ctrl+Alt+Shift as
+    // its own shortcut prefix (N toggles the cursor in the stream, F1-F12 switch the streamed display), so a
+    // modifier the host still believes to be held turns ordinary keys into those shortcuts. A key-up for a
+    // key the host does not consider pressed is ignored by Sunshine, so this is safe to send at any time.
+    private void releaseHostModifiers() {
+        if (conn == null) {
+            return;
+        }
+        short[] modifiers = {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0x5B, 0x5C};
+        for (short vk : modifiers) {
+            conn.sendKeyboardInput(vk, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+        }
+    }
+
     private final Runnable toggleGrab = new Runnable() {
         @Override
         public void run() {
@@ -2043,6 +2156,62 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleKeyDown(KeyEvent event) {
+        // Local patch (2026-09-19): typing guard for the touchpad gestures
+        if (trackpadGestures != null) {
+            trackpadGestures.onKeyDown(event);
+        }
+
+        // Local patch (2026-09-23): Ctrl+Shift+I toggles immersive mode the way Parsec does - keyboard and
+        // touchpad either go to the PC or stay on the tablet. setInputGrabState covers both (pointer capture
+        // and the system key capture), and the checks that drop input when ungrabbed sit further down in
+        // handleKeyDown and handleMotionEvent, so this combo still arrives while immersive mode is off.
+        if (event.getKeyCode() == KeyEvent.KEYCODE_I && event.isCtrlPressed() && event.isShiftPressed()) {
+            if (!immersiveComboDown) {
+                immersiveComboDown = true;
+                if (grabbedInput) {
+                    // Ctrl and Shift are still held here, and once input is ungrabbed their key-ups are no
+                    // longer sent. The host then kept them pressed, so a later Alt+N became Sunshine's
+                    // Ctrl+Alt+Shift+N and switched off the cursor in the stream (2026-09-23).
+                    releaseHostModifiers();
+                }
+                setInputGrabState(!grabbedInput);
+                if (touchpadGate != null) {
+                    for (TouchContext context : trackpadContextMap) {
+                        context.cancelTouch();
+                        context.setPointerCount(0);
+                    }
+                    if (trackpadGestures != null) {
+                        trackpadGestures.reset();
+                    }
+                }
+                final String text = getResources().getString(grabbedInput ? R.string.toast_immersive_on : R.string.toast_immersive_off);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(Game.this, text, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+            return true;
+        }
+
+        // Local patch (2026-09-23): Ctrl+Alt+` ends the session, like Parsec. Upstream only has
+        // Ctrl+Alt+Shift+Q. The key is consumed here, so Windows never sees it.
+        if (event.getKeyCode() == KeyEvent.KEYCODE_GRAVE && event.isCtrlPressed() && event.isAltPressed()) {
+            if (!disconnectComboDown) {
+                disconnectComboDown = true;
+                releaseHostModifiers();
+                finish();
+            }
+            return true;
+        }
+
+        // Local patch (2026-09-23): Ctrl+Shift+M switches the touchpad off and is not sent to the host;
+        // every other key starts the pause that keeps palms from moving the pointer while typing
+        if (touchpadGate != null && touchpadGate.onKeyDown(event)) {
+            return true;
+        }
+
         // Pass-through virtual navigation keys
         if ((event.getFlags() & KeyEvent.FLAG_VIRTUAL_HARD_KEY) != 0) {
             return false;
@@ -2134,6 +2303,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleKeyUp(KeyEvent event) {
+        // Local patch (2026-09-23): swallow the release of the disconnect, immersive and touchpad combos
+        if (disconnectComboDown && event.getKeyCode() == KeyEvent.KEYCODE_GRAVE) {
+            disconnectComboDown = false;
+            return true;
+        }
+
+        if (immersiveComboDown && event.getKeyCode() == KeyEvent.KEYCODE_I) {
+            immersiveComboDown = false;
+            return true;
+        }
+
+        if (touchpadGate != null && touchpadGate.onKeyUp(event)) {
+            return true;
+        }
+
         // Pass-through virtual navigation keys
         if ((event.getFlags() & KeyEvent.FLAG_VIRTUAL_HARD_KEY) != 0) {
             return false;
@@ -2833,6 +3017,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     return true;
                 }
 
+                // Local patch (2026-09-19): a finger on a mouse-class device means a touchpad that is
+                // not captured. Upstream never captures the Samsung cover touchpad on its own (it looks
+                // like a touchscreen until captured), which leaves it without scrolling and lets the
+                // tablet's own 3/4-finger gestures win. Ask for the capture now; the events that follow
+                // arrive as SOURCE_TOUCHPAD and take the trackpad path.
+                // 12290 = 0x3002 = SOURCE_TOUCHSCREEN | SOURCE_MOUSE: what that Samsung touchpad reports
+                // while uncaptured (the code below calls it "DeX"). Where capture is really unavailable
+                // the provider gives up after a few attempts.
+                int pointerToolType = event.getToolType(0);
+                if ((eventSource == InputDevice.SOURCE_MOUSE && pointerToolType == MotionEvent.TOOL_TYPE_FINGER) ||
+                        (eventSource == 12290 && pointerToolType != MotionEvent.TOOL_TYPE_STYLUS &&
+                                pointerToolType != MotionEvent.TOOL_TYPE_ERASER)) {
+                    inputCaptureProvider.onUncapturedTouchpadInput(event);
+                }
+
                 // Always update the position before sending any button events. If we're
                 // dealing with a stylus without hover support, our position might be
                 // significantly different than before.
@@ -2842,7 +3041,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     short deltaY = (short)inputCaptureProvider.getRelativeAxisY(event);
 
                     if (deltaX != 0 || deltaY != 0) {
-                        if (prefConfig.absoluteMouseMode) {
+                        if (localCursor != null) {
+                            // Local patch (2026-09-20): the drawn cursor owns the position and sends it
+                            localCursor.move(deltaX, deltaY);
+                        }
+                        else if (prefConfig.absoluteMouseMode) {
                             // NB: view may be null, but we can unconditionally use streamView because we don't need to adjust
                             // relative axis deltas for the position of the streamView within the parent's coordinate system.
                             conn.sendMouseMoveAsMousePosition(deltaX, deltaY, (short) streamContainer.getWidth(), (short) streamContainer.getHeight());
@@ -2887,6 +3090,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         // Handle trackpad two finger swipes when pointer is not captured by synthesizing a trackpad movement
                         // Android emulates trackpad  two finger swipes as one finger swipe on the screen
                         int eventAction = event.getActionMasked();
+                        // Local patch (2026-10-01): two-finger pinch -> Ctrl + wheel
+                        if (trackpadGestures != null && trackpadGestures.onPinchGesture(event)) {
+                            return true;
+                        }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && event.getClassification() == MotionEvent.CLASSIFICATION_TWO_FINGER_SWIPE) {
                             if (!pointerSwiping) {
                                 pointerSwiping = true;
@@ -3078,6 +3285,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // This case is for fingers
             else {
                 if (eventSource == InputDevice.SOURCE_TOUCHPAD) {
+                    // Local patch (2026-09-23): drop what the gate rejects (typing pause, pad edge, toggle)
+                    if (touchpadGate != null && touchpadGate.shouldIgnore(event)) {
+                        return true;
+                    }
+
+                    // Local patch (2026-09-19): gestures with 3 or more fingers are handled here and
+                    // never reach the 2-slot trackpad contexts
+                    if (trackpadGestures != null && trackpadGestures.onTouchpadEvent(event)) {
+                        return true;
+                    }
                     return handleTouchInput(event, trackpadContextMap, false);
                 } else {
                     if (virtualController != null &&

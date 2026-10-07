@@ -238,20 +238,9 @@
         <activity android:name=".DebugInfoActivity"
             android:launchMode="singleTask"/>
 
-        <!-- 无障碍 实体键盘 屏蔽某些快捷键 -->
-        <service
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:name="com.limelight.KeyboardAccessibilityService"
-            android:label="@string/keyboard_service_label"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/keyboard_accessibility_service" />
-        </service>
+        <!-- KeyboardAccessibilityService declaration removed in this local build (2026-09-19):
+             shortcuts such as Alt+Tab reach the host without it on this tablet, and declaring an
+             AccessibilityService makes Play Protect block sideloaded installs. -->
 
 
         <provider

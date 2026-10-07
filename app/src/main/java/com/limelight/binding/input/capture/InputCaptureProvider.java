@@ -54,4 +54,7 @@ public abstract class InputCaptureProvider {
     }
 
     public void onWindowFocusChanged(boolean focusActive) {}
+
+    // Local patch (2026-09-19): a touchpad delivered pointer input although we wanted to capture it
+    public void onUncapturedTouchpadInput(MotionEvent event) {}
 }

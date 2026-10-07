@@ -328,6 +328,16 @@ public class PreferenceConfiguration {
     //物理光标捕获
     public boolean enableMouseLocalCursor;
 
+    // Local patch (2026-09-20): cursor drawn by the app over the stream, see LocalCursorOverlay
+    public boolean enableLocalCursorOverlay;
+    public float localCursorSpeed;
+
+    // Local patch (2026-09-23): see TouchpadGate
+    public int touchpadTypingPauseMs;
+    public float touchpadEdgeMm;
+    // Local patch (2026-09-23): two-finger scroll speed, 1.0 = the previous behaviour
+    public float trackpadScrollSpeed;
+
     public boolean enableMultiTouchGestures;
 
     //禁用内置的特殊指令
@@ -981,6 +991,25 @@ private static int getFramePacingValue(Context context) {
         config.enableTouchSensitivity=prefs.getBoolean("checkbox_enable_touch_sensitivity",false);
 
         config.enableMouseLocalCursor=prefs.getBoolean("checkbox_mouse_local_cursor",false);
+
+        // Local patch (2026-09-20)
+        config.enableLocalCursorOverlay = prefs.getBoolean("checkbox_local_cursor_overlay", false);
+        // 2026-09-23: new key - the overlay now applies the PC's own acceleration, so 100 % means "same as
+        // the PC mouse" and an old stored 200 must not double it
+        config.localCursorSpeed = 1.0f;
+        try {
+            config.localCursorSpeed = Integer.parseInt(prefs.getString("list_local_cursor_speed2", "100")) / 100f;
+        } catch (NumberFormatException ignored) {}
+
+        // Local patch (2026-09-23)
+        config.touchpadTypingPauseMs = 1000;
+        config.touchpadEdgeMm = 3;
+        config.trackpadScrollSpeed = 1f;
+        try {
+            config.touchpadTypingPauseMs = Integer.parseInt(prefs.getString("list_touchpad_typing_pause", "1000"));
+            config.touchpadEdgeMm = Integer.parseInt(prefs.getString("list_touchpad_edge_margin", "3"));
+            config.trackpadScrollSpeed = Integer.parseInt(prefs.getString("list_trackpad_scroll_speed", "100")) / 100f;
+        } catch (NumberFormatException ignored) {}
 
         config.enableMultiTouchGestures = prefs.getBoolean("checkbox_multi_touch_gestures", false);
 
