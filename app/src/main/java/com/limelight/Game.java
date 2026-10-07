@@ -2833,6 +2833,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     return true;
                 }
 
+                // A finger on a mouse-class device is a touchpad that isn't captured. The touchpad
+                // of Samsung keyboard covers is never captured on its own, because it looks like a
+                // touchscreen until it is (source 12290 = SOURCE_TOUCHSCREEN | SOURCE_MOUSE), which
+                // leaves it without scrolling and lets the tablet's own gestures win. Ask for the
+                // capture now; the following events arrive as SOURCE_TOUCHPAD.
+                int pointerToolType = event.getToolType(0);
+                if ((eventSource == InputDevice.SOURCE_MOUSE && pointerToolType == MotionEvent.TOOL_TYPE_FINGER) ||
+                        (eventSource == 12290 && pointerToolType != MotionEvent.TOOL_TYPE_STYLUS &&
+                                pointerToolType != MotionEvent.TOOL_TYPE_ERASER)) {
+                    inputCaptureProvider.onUncapturedTouchpadInput(event);
+                }
+
                 // Always update the position before sending any button events. If we're
                 // dealing with a stylus without hover support, our position might be
                 // significantly different than before.

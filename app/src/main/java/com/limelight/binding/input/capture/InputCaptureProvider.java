@@ -54,4 +54,8 @@ public abstract class InputCaptureProvider {
     }
 
     public void onWindowFocusChanged(boolean focusActive) {}
+
+    // Called when a touchpad delivered ordinary pointer input although capture is enabled,
+    // i.e. the pointer is not actually captured.
+    public void onUncapturedTouchpadInput(MotionEvent event) {}
 }
