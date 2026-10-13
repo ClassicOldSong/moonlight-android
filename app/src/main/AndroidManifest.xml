@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA"/>
     <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
     <!-- We don't need a MulticastLock on API level 34+ because we use NsdManager for mDNS -->
     <uses-permission
@@ -36,6 +38,9 @@
         android:required="false" />
     <uses-feature
         android:name="android.hardware.sensor.gyroscope"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.bluetooth"
         android:required="false" />
 
     <!-- Disable legacy input emulation on ChromeOS -->
@@ -224,6 +229,9 @@
         <service
             android:name=".binding.input.driver.UsbDriverService"
             android:label="Usb Driver Service" />
+        <service
+            android:name=".binding.input.driver.BluetoothDriverService"
+            android:label="Bluetooth Driver Service" />
 
         <activity
             android:name=".HelpActivity"

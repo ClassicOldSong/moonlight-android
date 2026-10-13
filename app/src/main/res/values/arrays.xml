@@ -54,6 +54,15 @@
         <item>71</item>
     </string-array>
 
+    <string-array name="steamcontroller_emulation_names">
+        <item>@string/steamcontroller_emulation_xbox</item>
+        <item>@string/steamcontroller_emulation_ps5</item>
+    </string-array>
+    <string-array name="steamcontroller_emulation_values" translatable="false">
+        <item>xbox</item>
+        <item>ps5</item>
+    </string-array>
+
     <!-- Don't forget to update locales_config.xml when you modify this! -->
     <string-array name="language_names" translatable="false">
         <item>Default</item>

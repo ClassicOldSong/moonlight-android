@@ -8,6 +8,10 @@ import static com.limelight.utils.ExternalDisplayControlActivity.closeExternalDi
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
 import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
 
+import android.Manifest;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.binding.input.ControllerHandler;
@@ -15,6 +19,7 @@ import com.limelight.binding.input.GameInputDevice;
 import com.limelight.binding.input.KeyboardTranslator;
 import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
+import com.limelight.binding.input.driver.BluetoothDriverService;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
 import com.limelight.binding.input.touch.RelativeTouchContext;
 import com.limelight.binding.input.driver.UsbDriverService;
@@ -237,7 +242,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private WifiManager.WifiLock lowLatencyWifiLock;
 
     private boolean connectedToUsbDriverService = false;
-    private ServiceConnection usbDriverServiceConnection = new ServiceConnection() {
+    private final ServiceConnection usbDriverServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             UsbDriverService.UsbDriverBinder binder = (UsbDriverService.UsbDriverBinder) iBinder;
@@ -252,6 +257,32 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             connectedToUsbDriverService = false;
         }
     };
+
+    private boolean connectedToBluetoothDriverService = false;
+    private final ServiceConnection bluetoothDriverServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            BluetoothDriverService.BluetoothDriverBinder binder = (BluetoothDriverService.BluetoothDriverBinder) iBinder;
+            binder.setListener(controllerHandler);
+            binder.setPreferenceConfiguration(prefConfig);
+            binder.start();
+            connectedToBluetoothDriverService = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            connectedToBluetoothDriverService = false;
+        }
+    };
+    private final ActivityResultLauncher<String> requestBluetoothPermissionLauncher =
+            this.registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    bindService(new Intent(this, BluetoothDriverService.class),
+                            bluetoothDriverServiceConnection, Service.BIND_AUTO_CREATE);
+                } else {
+                    Toast.makeText(this, getString(R.string.bluetooth_permission_denied), Toast.LENGTH_LONG).show();
+                }
+            });
 
     public static final String EXTRA_HOST = "Host";
     public static final String EXTRA_PORT = "Port";
@@ -1735,6 +1766,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (connectedToUsbDriverService) {
             // Unbind from the discovery service
             unbindService(usbDriverServiceConnection);
+        }
+        if (connectedToBluetoothDriverService) {
+            // Unbind from the discovery service
+            unbindService(bluetoothDriverServiceConnection);
         }
 
         // Destroy the capture provider
@@ -3724,6 +3759,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             bindService(new Intent(this, UsbDriverService.class),
                     usbDriverServiceConnection, Service.BIND_AUTO_CREATE);
         }
+        if (prefConfig.bluetoothDriver) {
+            if (hasBluetoothPermission()) {
+                bindService(new Intent(this, BluetoothDriverService.class),
+                        bluetoothDriverServiceConnection, Service.BIND_AUTO_CREATE);
+            } else {
+                requestBluetoothPermissionLauncher.launch(getBluetoothPermission());
+            }
+        }
 
         // Report this shortcut being used (off the main thread to prevent ANRs)
         ComputerDetails computer = new ComputerDetails();
@@ -3734,6 +3777,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (appName != null) {
             // This may be null if launched from the "Resume Session" PC context menu item
             shortcutHelper.reportGameLaunched(computer, app);
+        }
+    }
+
+    private boolean hasBluetoothPermission() {
+        return ContextCompat.checkSelfPermission(getApplicationContext(), getBluetoothPermission())
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private String getBluetoothPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return Manifest.permission.BLUETOOTH_CONNECT;
+        } else {
+            return Manifest.permission.BLUETOOTH;
         }
     }
 

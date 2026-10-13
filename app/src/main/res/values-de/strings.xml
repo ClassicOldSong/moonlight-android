@@ -150,6 +150,10 @@
     <string name="summary_checkbox_xb1_driver">Aktiviert den eingebauten USB Treiber für Geräte die keine Xbox-Controller Unterstützung haben</string>
     <string name="title_checkbox_usb_bind_all">Android Controller Unterstützung überschreiben</string>
     <string name="summary_checkbox_usb_bind_all">Erzwingt die Verwendung von Moonlights USB Treiber für alle Xbox kompatiblen Controller</string>
+    <string name="title_checkbox_bt_driver">Steam Controller Bluetooth-Treiber</string>
+    <string name="summary_checkbox_bt_driver">Aktiviert den eingebauten Bluetooth-Treiber für den Steam Controller</string>
+    <string name="title_steamcontroller_mode_list">Steam Controller Emulationsmodus</string>
+    <string name="summary_steamcontroller_mode_list">Setzt den vom Steam Controller emulierten Controller:\nXbox zeigt Tasten als A, B, X and Y\nDualSense aktiviert Gyroskop und LED-Unterstützung, zeigt aber Tasten als \u2715, \u25EF, \u25A1 und \u25B3</string>
     <string name="title_checkbox_mouse_emulation">Maus Emulation via Controller</string>
     <string name="summary_checkbox_mouse_emulation">Langes gedrückt halten der Start-Taste wechselt in den Maus Modus</string>
     <string name="title_checkbox_mouse_nav_buttons">Vor- und Zurück-Tasten aktivieren</string>
@@ -282,6 +286,7 @@
     <string name="title_checkbox_gamepad_motion_fallback">Emuliere die Unterstützung von Gamepad-Bewegungssensoren</string>
     <string name="title_full_range">Full Range Video erzwingen (Experimentell)</string>
     <string name="toast_controller_type_changed">Der Gamepad-Typ kann sich aufgrund der Bewegungssensor-Emulation ändern</string>
+    <string name="bluetooth_permission_denied">Berechtigung verweigert. Steam Controller werden nicht funktionieren.</string>
     <string name="summary_full_range">Dies führt zu Detailverlusten in hellen und dunklen Bereichen, wenn Ihr Gerät Full Range Video Inhalte nicht richtig anzeigt.</string>
     <string name="summary_checkbox_gamepad_motion_fallback">Verwendet die integrierten Bewegungssensoren Ihres Geräts, wenn Gamepad-Sensoren von Ihrem angeschlossenen Gamepad oder Ihrer Android-Version nicht unterstützt werden.
 \nHinweis: Die Aktivierung dieser Option kann dazu führen, dass Ihr Gamepad auf dem Host als PlayStation-Controller angezeigt wird.</string>
