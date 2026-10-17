@@ -319,6 +319,13 @@
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"
+            android:key="checkbox_device_motion_handheld"
+            android:summary="@string/summary_checkbox_device_motion_handheld"
+            android:title="@string/title_checkbox_device_motion_handheld"
+            android:dependency="checkbox_gamepad_motion_fallback"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
             android:key="checkbox_enable_joyconfix"
             android:summary="@string/summary_joyconfix"
             android:title="@string/title_joyconfix"

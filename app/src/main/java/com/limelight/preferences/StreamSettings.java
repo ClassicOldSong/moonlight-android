@@ -374,6 +374,7 @@ public class StreamSettings extends AppCompatActivity {
                 PreferenceCategory category =
                         (PreferenceCategory) findPreference("category_gamepad_settings");
                 category.removePreference(findPreference("checkbox_force_device_motion"));
+                category.removePreference(findPreference("checkbox_device_motion_handheld"));
                 category.removePreference(findPreference("checkbox_gamepad_motion_fallback"));
             }
 
