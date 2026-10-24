@@ -319,6 +319,12 @@
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"
+            android:key="checkbox_swap_select_and_touchpad"
+            android:summary="@string/summary_swap_select_and_touchpad"
+            android:title="@string/title_swap_select_and_touchpad"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
             android:key="checkbox_enable_joyconfix"
             android:summary="@string/summary_joyconfix"
             android:title="@string/title_joyconfix"

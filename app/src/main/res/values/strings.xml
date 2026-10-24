@@ -248,6 +248,8 @@
     <string name="summary_checkbox_gamepad_motion_fallback">Uses your device\'s built-in motion sensors if gamepad sensors are not supported by your connected gamepad or your Android version.\nNote: Enabling this option may cause your gamepad to appear as a PlayStation controller on the host.</string>
     <string name="title_checkbox_force_device_motion">Always use device\'s motion sensors</string>
     <string name="summary_checkbox_force_device_motion">Enforce using devices\'s built-in motion sensor even when the controller reported motion sensors are supported.</string>
+    <string name="title_swap_select_and_touchpad">Swap View button and Touchpad</string>
+    <string name="summary_swap_select_and_touchpad">For controllers without a touchpad that are emulated as a PlayStation controller for motion support (handhelds, phone grips, or controllers like the Switch Pro Controller), View/Select sends a touchpad click and View+L1 sends View/Select. Real PlayStation controllers are unaffected.</string>
     <string name="title_enable_rumble">Enable Rumble</string>
     <string name="summary_enable_rumble">Enable rumble feedback on supported gamepads.</string>
     <string name="category_input_settings">Input Settings</string>

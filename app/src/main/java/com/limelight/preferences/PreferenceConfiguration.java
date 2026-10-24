@@ -106,6 +106,7 @@ public class PreferenceConfiguration {
     private static final String CHECKBOX_RIGHT_ALT_AS_META = "checkbox_right_alt_as_meta";
     private static final String CHECKBOX_IGNORE_SYNTH_EVENTS = "checkbox_ignore_synth_events";
     private static final String CHECKBOX_BACK_AS_GUIDE = "checkbox_back_as_guide";
+    private static final String CHECKBOX_SWAP_SELECT_AND_TOUCHPAD = "checkbox_swap_select_and_touchpad";
     private static final String CHECKBOX_SMART_CLIPBOARD_SYNC = "checkbox_smart_clipboard_sync";
     private static final String CHECKBOX_SMART_CLIPBOARD_SYNC_TOAST = "checkbox_smart_clipboard_sync_toast";
     private static final String CHECKBOX_HIDE_CLIPBOARD_CONTENT = "checkbox_hide_clipboard_content";
@@ -198,6 +199,7 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_IGNORE_SYNTH_EVENTS = false;
     private static final boolean DEFAULT_ENABLE_FLOATING_BUTTON = false;
     private static final boolean DEFAULT_BACK_AS_GUIDE = false;
+    private static final boolean DEFAULT_SWAP_SELECT_AND_TOUCHPAD = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC_TOAST = true;
     private static final boolean DEFAULT_HIDE_CLIPBOARD_CONTENT = true;
@@ -259,6 +261,7 @@ public class PreferenceConfiguration {
     public boolean rightAltAsMeta;
     public boolean ignoreSynthEvents;
     public boolean backAsGuide;
+    public boolean swapSelectAndTouchpad;
     public boolean smartClipboardSync;
     public boolean smartClipboardSyncToast;
     public boolean hideClipboardContent;
@@ -1012,6 +1015,7 @@ private static int getFramePacingValue(Context context) {
         config.rightAltAsMeta = prefs.getBoolean(CHECKBOX_RIGHT_ALT_AS_META, DEFAULT_RIGHT_ALT_AS_META);
         config.ignoreSynthEvents = prefs.getBoolean(CHECKBOX_IGNORE_SYNTH_EVENTS, DEFAULT_IGNORE_SYNTH_EVENTS);
         config.backAsGuide = prefs.getBoolean(CHECKBOX_BACK_AS_GUIDE, DEFAULT_BACK_AS_GUIDE);
+        config.swapSelectAndTouchpad = prefs.getBoolean(CHECKBOX_SWAP_SELECT_AND_TOUCHPAD, DEFAULT_SWAP_SELECT_AND_TOUCHPAD);
         config.smartClipboardSync = prefs.getBoolean(CHECKBOX_SMART_CLIPBOARD_SYNC, DEFAULT_SMART_CLIPBOARD_SYNC);
         config.smartClipboardSyncToast = prefs.getBoolean(CHECKBOX_SMART_CLIPBOARD_SYNC_TOAST, DEFAULT_SMART_CLIPBOARD_SYNC_TOAST);
         config.hideClipboardContent = prefs.getBoolean(CHECKBOX_HIDE_CLIPBOARD_CONTENT, DEFAULT_HIDE_CLIPBOARD_CONTENT);
