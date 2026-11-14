@@ -744,6 +744,13 @@ public class MediaCodecHelper {
     }
 
     public static boolean decoderCanDirectSubmit(String decoderName) {
+        // Amlogic Codec2 decoders can take long enough to accept input that submitting from
+        // the receive thread stalls it, and the video socket overflows (UDP RcvbufErrors).
+        // That shows up as unrecoverable frames and IDR requests, so use the decoder thread.
+        if (decoderName.regionMatches(true, 0, "c2.amlogic", 0, "c2.amlogic".length())) {
+            LimeLog.info("Not using direct submit for Amlogic C2 decoder " + decoderName);
+            return false;
+        }
         return isDecoderInList(directSubmitPrefixes, decoderName) && !isExynos4Device();
     }
 
