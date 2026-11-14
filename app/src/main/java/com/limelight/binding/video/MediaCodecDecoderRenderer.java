@@ -176,6 +176,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private long lastTimestampUs;
     private int lastFrameNumber;
     private int refreshRate;
+    // Exact stream frame rate. Fractional rates such as 59.94 arrive in setup() in millihertz
+    // (59940), so refreshRate and targetFps hold the rounded integer rate.
+    private float exactFrameRate = 60f;
     private PreferenceConfiguration prefs;
 
     private float minDecodeTime = Float.MAX_VALUE;
@@ -608,7 +611,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         videoDecoder.configure(format, renderTarget, null, 0);
 
-        try { applySurfaceFrameRate(renderTarget, targetFps); } catch (Throwable ignored) {}
+        try { applySurfaceFrameRate(renderTarget, exactFrameRate); } catch (Throwable ignored) {}
 
         try {
             MediaCodecInfo __info = (android.os.Build.VERSION.SDK_INT >= 21) ? videoDecoder.getCodecInfo() : null;
@@ -796,6 +799,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     @Override
     public int setup(int format, int width, int height, int redrawRate) {
+        // moonlight-common-c passes fractional frame rates in millihertz (e.g. 59940 for 59.94).
+        this.exactFrameRate = redrawRate > 1000 ? redrawRate / 1000f : (redrawRate > 0 ? redrawRate : 60);
+        redrawRate = Math.round(this.exactFrameRate);
         this.targetFps = (redrawRate > 0 ? redrawRate : 60);
         this.initialWidth = invertResolution ? height : width;
         this.initialHeight = invertResolution ? width : height;
@@ -1079,7 +1085,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         // Don't render unless a new frame is due. This prevents microstutter when streaming
         // at a frame rate that doesn't match the display (such as 60 FPS on 120 Hz).
         long actualFrameTimeDeltaNs = frameTimeNanos - lastRenderedFrameTimeNanos;
-        long expectedFrameTimeDeltaNs = 800000000 / refreshRate; // within 80% of the next frame
+        long expectedFrameTimeDeltaNs = (long) (800000000L / exactFrameRate); // within 80% of the next frame
         if (actualFrameTimeDeltaNs >= expectedFrameTimeDeltaNs) {
             // Render up to one frame when in frame pacing mode.
             //
@@ -1174,7 +1180,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                 // Stream cadence (targetFps set in setup(...))
                 final int tfps = (targetFps > 0 ? targetFps : 60);
-                final long streamPeriodNs = (long) (1_000_000_000L / Math.max(1, tfps));
+                final long streamPeriodNs = (long) (1_000_000_000L / Math.max(1f, exactFrameRate));
 
 
                 // Adaptive period selection to avoid added latency on high-refresh devices
@@ -2409,12 +2415,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     }
 
 
-    private void applySurfaceFrameRate(android.view.Surface surface, int targetFps) {
+    private void applySurfaceFrameRate(android.view.Surface surface, float targetFps) {
         if (surface == null) return;
         try {
             // API 30+ supports Surface.setFrameRate; for older, attempt View-based call elsewhere.
             if (android.os.Build.VERSION.SDK_INT >= 30) {
-                surface.setFrameRate((float) targetFps,
+                surface.setFrameRate(targetFps,
                         android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
                 LimeLog.info("Applied Surface frame rate: " + targetFps + " Hz");
             }
