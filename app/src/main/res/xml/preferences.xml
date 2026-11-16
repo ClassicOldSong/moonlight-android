@@ -365,6 +365,10 @@
         android:title="@string/category_input_settings"
         app:initialExpandedChildrenCount="1"
         app:iconSpaceReserved="false">
+        <Preference
+            android:key="input_devices"
+            android:title="@string/input_devices_title"
+            app:iconSpaceReserved="false" />
         <ListPreference
             android:defaultValue="0"
             android:entries="@array/mouse_mode_names"

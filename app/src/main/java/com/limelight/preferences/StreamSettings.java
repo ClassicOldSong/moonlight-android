@@ -141,6 +141,10 @@ public class StreamSettings extends AppCompatActivity {
     @Override
     // NOTE: This will NOT be called on Android 13+ with android:enableOnBackInvokedCallback="true"
     public void onBackPressed() {
+        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+            getSupportFragmentManager().popBackStack();
+            return;
+        }
         finish();
 
         // Language changes are handled via configuration changes in Android 13+,
@@ -334,6 +338,12 @@ public class StreamSettings extends AppCompatActivity {
 
         public void initializePreferences() {
             addPreferencesFromResource(R.xml.preferences);
+            findPreference("input_devices").setOnPreferenceClickListener(preference -> {
+                getParentFragmentManager().beginTransaction()
+                        .replace(R.id.stream_settings, new InputDevicesFragment())
+                        .addToBackStack(null).commit();
+                return true;
+            });
             PreferenceScreen screen = getPreferenceScreen();
 
             AppCompatActivity activity = (AppCompatActivity) requireActivity();
