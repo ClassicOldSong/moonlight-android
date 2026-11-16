@@ -2043,6 +2043,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleKeyDown(KeyEvent event) {
+        // Keep software/onscreen input unchanged; route physical devices consistently.
+        InputDevice routingDevice = event.getDevice();
+        if (routingDevice != null && !routingDevice.isVirtual() &&
+                !InputRouting.shouldSendToStream(this, routingDevice)) {
+            return false;
+        }
+
         // Pass-through virtual navigation keys
         if ((event.getFlags() & KeyEvent.FLAG_VIRTUAL_HARD_KEY) != 0) {
             return false;
@@ -2134,6 +2141,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleKeyUp(KeyEvent event) {
+        // Keep software/onscreen input unchanged; route physical devices consistently.
+        InputDevice routingDevice = event.getDevice();
+        if (routingDevice != null && !routingDevice.isVirtual() &&
+                !InputRouting.shouldSendToStream(this, routingDevice)) {
+            return false;
+        }
+
         // Pass-through virtual navigation keys
         if ((event.getFlags() & KeyEvent.FLAG_VIRTUAL_HARD_KEY) != 0) {
             return false;
@@ -2206,6 +2220,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     public boolean handleKeyMultiple(KeyEvent event) {
+        // Keep software/onscreen input unchanged; route physical devices consistently.
+        InputDevice routingDevice = event.getDevice();
+        if (routingDevice != null && !routingDevice.isVirtual() &&
+                !InputRouting.shouldSendToStream(this, routingDevice)) {
+            return false;
+        }
+
         // We can receive keys from a software keyboard that don't correspond to any existing
         // KEYCODE value. Android will give those to us as an ACTION_MULTIPLE KeyEvent.
         //

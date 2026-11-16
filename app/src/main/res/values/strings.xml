@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="input_devices_title">Input devices</string>
+    <string name="input_routing_auto">Auto</string>
+    <string name="input_routing_stream">Send to stream</string>
+    <string name="input_routing_tv">Leave for TV</string>
+    <string name="input_routing_always_stream">Always send to stream</string>
+    <string name="input_routing_always_tv">Always leave for TV</string>
+    <string name="input_routing_patterns_summary">Comma-separated device name substrings, ignoring case. Per-device choices take priority. If both lists match, Leave for TV wins.</string>
+    <string name="input_routing_connected">Connected physical devices</string>
+    <string name="input_routing_empty">No physical input devices connected</string>
     <!-- Shortcut strings -->
     <string name="scut_deleted_pc">PC deleted</string>
     <string name="scut_not_paired">PC not paired</string>
