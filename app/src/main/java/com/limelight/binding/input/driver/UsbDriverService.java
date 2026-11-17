@@ -13,6 +13,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Binder;
 import android.os.Build;
@@ -194,6 +195,26 @@ public class UsbDriverService extends Service implements UsbDriverListener {
                 return;
             }
 
+            // The Steam Controller puck has one controller slot per interface, so give each
+            // slot its own connection and driver instance
+            if (SteamControllerUsb.canClaimDevice(device)) {
+                for (UsbInterface iface : SteamControllerUsb.controllerInterfaces(device)) {
+                    UsbDeviceConnection conn = usbManager.openDevice(device);
+                    if (conn == null) {
+                        LimeLog.warning("Unable to open USB device: "+device.getDeviceName());
+                        return;
+                    }
+                    SteamControllerUsb controller = new SteamControllerUsb(device, conn, iface, nextDeviceId++, this);
+                    if (controller.start()) {
+                        controllers.add(controller);
+                    }
+                    else {
+                        conn.close();
+                    }
+                }
+                return;
+            }
+
             // Open the device
             UsbDeviceConnection connection = usbManager.openDevice(device);
             if (connection == null) {
@@ -341,7 +362,9 @@ public class UsbDriverService extends Service implements UsbDriverListener {
                 ((!isRecognizedInputDevice(device) || claimAllAvailable) && Xbox360Controller.canClaimDevice(device)) ||
                 // We must not call isRecognizedInputDevice() because wireless controllers don't share the same product ID as the dongle
                 ((!kernelSupportsXbox360W() || claimAllAvailable) && Xbox360WirelessDongle.canClaimDevice(device)) ||
-                ((!isRecognizedInputDevice(device) || claimAllAvailable) && ProConController.canClaimDevice(device));
+                ((!isRecognizedInputDevice(device) || claimAllAvailable) && ProConController.canClaimDevice(device)) ||
+                // Android only ever sees the Steam Controller's mouse/keyboard mode, so always take it
+                SteamControllerUsb.canClaimDevice(device);
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")

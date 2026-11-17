@@ -14,19 +14,15 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.limelight.LimeLog;
-import com.limelight.nvstream.input.ControllerPacket;
-import com.limelight.nvstream.jni.MoonBridge;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.UUID;
 
-// Steam Controller (2026, "Triton") over Bluetooth LE, talking to Valve's GATT service directly.
-// Protocol ported from SDL: SDL_hidapi_steam_triton.c and HIDDeviceBLESteamController.java.
+// Steam Controller (2026) over Bluetooth LE, talking to Valve's GATT service directly.
+// Transport ported from SDL's HIDDeviceBLESteamController.java.
 @SuppressLint("MissingPermission") // UsbDriverService only creates us once BLUETOOTH_CONNECT is granted
-public class SteamControllerBle extends AbstractController {
-    public static final int VALVE_VID = 0x28de;
+public class SteamControllerBle extends SteamTritonController {
     private static final int TRITON_BLE_PID = 0x1303;
 
     private static final UUID SERVICE = UUID.fromString("100F6C32-1735-4313-B402-38567131E5F3");
@@ -37,21 +33,7 @@ public class SteamControllerBle extends AbstractController {
     private static final UUID RUMBLE_REPORT = UUID.fromString("100F6CB5-1735-4313-B402-38567131E5F3");
     private static final UUID CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
-    // ID_SET_SETTINGS_VALUES: SETTING_LIZARD_MODE(9)=OFF, SETTING_IMU_MODE(48)=RAW_ACCEL|RAW_GYRO.
-    // The controller re-enables lizard mode on its own if this isn't resent within a few seconds,
-    // so it goes back to TV-navigation mode once streaming stops.
-    private static final byte[] SETTINGS = new byte[62];
-    static {
-        byte[] s = {(byte) 0x87, 6, 9, 0, 0, 48, 0x18, 0};
-        System.arraycopy(s, 0, SETTINGS, 0, s.length);
-    }
-
-    private static final int SETTINGS_INTERVAL_MS = 3000;
-    private static final int RUMBLE_RESEND_MS = 40; // hardware rumble safety timeout is ~50ms
     private static final int GATT_OP_TIMEOUT_MS = 1000;
-
-    private static final float GYRO_SCALE = 2000.0f / 32768.0f;          // -> deg/s
-    private static final float ACCEL_SCALE = 2.0f * 9.80665f / 32768.0f; // -> m/s^2
 
     private final Context context;
     private final BluetoothDevice device;
@@ -64,32 +46,18 @@ public class SteamControllerBle extends AbstractController {
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic featureChr, rumbleChr;
     private volatile boolean ready, stopped;
-    private volatile short lowFreqMotor, highFreqMotor;
 
     public static boolean isSteamController(BluetoothDevice dev) {
-        // Same match SDL uses: Triton advertises as "Steam Ctrl ..."
+        // Same match SDL uses: the 2026 controller advertises as "Steam Ctrl ..."
         String name = dev.getName();
         return name != null && name.startsWith("Steam Ctrl") &&
                 (dev.getType() & BluetoothDevice.DEVICE_TYPE_LE) != 0;
     }
 
     public SteamControllerBle(Context context, BluetoothDevice device, int deviceId, UsbDriverListener listener) {
-        super(deviceId, listener, VALVE_VID, TRITON_BLE_PID);
+        super(deviceId, listener, TRITON_BLE_PID);
         this.context = context;
         this.device = device;
-        this.type = MoonBridge.LI_CTYPE_XBOX;
-        this.capabilities = MoonBridge.LI_CCAP_ANALOG_TRIGGERS | MoonBridge.LI_CCAP_RUMBLE |
-                MoonBridge.LI_CCAP_GYRO | MoonBridge.LI_CCAP_ACCEL;
-        this.supportedButtonFlags = ControllerPacket.A_FLAG | ControllerPacket.B_FLAG |
-                ControllerPacket.X_FLAG | ControllerPacket.Y_FLAG |
-                ControllerPacket.UP_FLAG | ControllerPacket.DOWN_FLAG |
-                ControllerPacket.LEFT_FLAG | ControllerPacket.RIGHT_FLAG |
-                ControllerPacket.LB_FLAG | ControllerPacket.RB_FLAG |
-                ControllerPacket.PLAY_FLAG | ControllerPacket.BACK_FLAG |
-                ControllerPacket.LS_CLK_FLAG | ControllerPacket.RS_CLK_FLAG |
-                ControllerPacket.SPECIAL_BUTTON_FLAG | ControllerPacket.MISC_FLAG |
-                ControllerPacket.PADDLE1_FLAG | ControllerPacket.PADDLE2_FLAG |
-                ControllerPacket.PADDLE3_FLAG | ControllerPacket.PADDLE4_FLAG;
     }
 
     public String getAddress() {
@@ -134,11 +102,6 @@ public class SteamControllerBle extends AbstractController {
         handler.post(rumbleRefresh);
     }
 
-    @Override
-    public void rumbleTriggers(short leftTrigger, short rightTrigger) {
-        // No trigger motors
-    }
-
     private final Runnable rumbleRefresh = new Runnable() {
         @Override
         public void run() {
@@ -181,10 +144,8 @@ public class SteamControllerBle extends AbstractController {
             synchronized (this) {
                 rumbleQueued = false;
             }
-            int low = lowFreqMotor & 0xFFFF, high = highFreqMotor & 0xFFFF;
-            // MsgHapticRumble minus report ID: type, intensity(2), left speed(2), left gain, right speed(2).
-            // SDL's BLE path drops the trailing right gain byte too, so match it.
-            rumbleChr.setValue(new byte[] {0, 0, 0, (byte) low, (byte) (low >> 8), 0, (byte) high, (byte) (high >> 8)});
+            // SDL's BLE path drops the trailing right gain byte, so match it
+            rumbleChr.setValue(Arrays.copyOf(rumbleBody(), 8));
             return gatt.writeCharacteristic(rumbleChr);
         });
     }
@@ -214,53 +175,10 @@ public class SteamControllerBle extends AbstractController {
         }
     }
 
+    // GATT notifications carry the report body without its ID byte
     void handleInput(byte[] data) { // package-private for SteamControllerBleTest
-        // TritonMTUNoQuat_t (0x45) / TritonMTUNoQuat32TS_t (0x47) share these offsets
-        if (data == null || data.length < 17) {
-            return;
-        }
-        ByteBuffer b = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
-        int buttons = b.getInt(1);
-
-        setButtonFlag(ControllerPacket.A_FLAG, buttons & 0x00000001);
-        setButtonFlag(ControllerPacket.B_FLAG, buttons & 0x00000002);
-        setButtonFlag(ControllerPacket.X_FLAG, buttons & 0x00000004);
-        setButtonFlag(ControllerPacket.Y_FLAG, buttons & 0x00000008);
-        setButtonFlag(ControllerPacket.MISC_FLAG, buttons & 0x00000010); // QAM (...)
-        setButtonFlag(ControllerPacket.RS_CLK_FLAG, buttons & 0x00000020);
-        setButtonFlag(ControllerPacket.PLAY_FLAG, buttons & 0x00000040); // SDL maps this bit to Start
-        setButtonFlag(ControllerPacket.PADDLE1_FLAG, buttons & 0x00000080); // R4
-        setButtonFlag(ControllerPacket.PADDLE3_FLAG, buttons & 0x00000100); // R5
-        setButtonFlag(ControllerPacket.RB_FLAG, buttons & 0x00000200);
-        setButtonFlag(ControllerPacket.DOWN_FLAG, buttons & 0x00000400);
-        setButtonFlag(ControllerPacket.RIGHT_FLAG, buttons & 0x00000800);
-        setButtonFlag(ControllerPacket.LEFT_FLAG, buttons & 0x00001000);
-        setButtonFlag(ControllerPacket.UP_FLAG, buttons & 0x00002000);
-        setButtonFlag(ControllerPacket.BACK_FLAG, buttons & 0x00004000); // SDL maps this bit to Back
-        setButtonFlag(ControllerPacket.LS_CLK_FLAG, buttons & 0x00008000);
-        setButtonFlag(ControllerPacket.SPECIAL_BUTTON_FLAG, buttons & 0x00010000); // Steam
-        setButtonFlag(ControllerPacket.PADDLE2_FLAG, buttons & 0x00020000); // L4
-        setButtonFlag(ControllerPacket.PADDLE4_FLAG, buttons & 0x00040000); // L5
-        setButtonFlag(ControllerPacket.LB_FLAG, buttons & 0x00080000);
-
-        leftTrigger = Math.max(0, b.getShort(5)) / 32767.0f;
-        rightTrigger = Math.max(0, b.getShort(7)) / 32767.0f;
-        // Controller reports Y up-positive; Moonlight drivers report down-positive
-        leftStickX = b.getShort(9) / 32767.0f;
-        leftStickY = -b.getShort(11) / 32767.0f;
-        rightStickX = b.getShort(13) / 32767.0f;
-        rightStickY = -b.getShort(15) / 32767.0f;
-        reportInput();
-
-        if (data.length >= 45) {
-            // Same axis remap SDL applies, which is the convention Moonlight hosts expect
-            accelX = b.getShort(33) * ACCEL_SCALE;
-            accelY = b.getShort(37) * ACCEL_SCALE;
-            accelZ = -b.getShort(35) * ACCEL_SCALE;
-            gyroX = b.getShort(39) * GYRO_SCALE;
-            gyroY = b.getShort(43) * GYRO_SCALE;
-            gyroZ = -b.getShort(41) * GYRO_SCALE;
-            reportMotion();
+        if (data != null) {
+            handleState(data, 0, data.length);
         }
     }
 
@@ -298,7 +216,7 @@ public class SteamControllerBle extends AbstractController {
                 return;
             }
 
-            // Triton needs Data Length Extensions; 517 is the value that makes Android enable them
+            // The controller needs Data Length Extensions; 517 is the value that makes Android enable them
             enqueue(() -> g.requestMtu(517));
 
             final BluetoothGattCharacteristic inputChr = input;

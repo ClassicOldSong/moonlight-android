@@ -37,7 +37,7 @@ import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.input.driver.AbstractController;
-import com.limelight.binding.input.driver.SteamControllerBle;
+import com.limelight.binding.input.driver.SteamTritonController;
 import com.limelight.binding.input.driver.UsbDriverListener;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.nvstream.NvConnection;
@@ -1016,9 +1016,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         return context;
     }
 
-    private boolean hasBleSteamController() {
+    private boolean hasSteamController() {
         for (int i = 0; i < usbDeviceContexts.size(); i++) {
-            if (usbDeviceContexts.valueAt(i).device instanceof SteamControllerBle) {
+            if (usbDeviceContexts.valueAt(i).device instanceof SteamTritonController) {
                 return true;
             }
         }
@@ -1040,8 +1040,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             // != 0 device ID but no device attached.
             return null;
         }
-        else if (event.getDevice().getVendorId() == SteamControllerBle.VALVE_VID && hasBleSteamController()) {
-            // SteamControllerBle owns this controller; swallow its HID/lizard-mode duplicate
+        else if (event.getDevice().getVendorId() == SteamTritonController.VALVE_VID && hasSteamController()) {
+            // Our Steam Controller driver owns this controller; swallow its HID/lizard-mode duplicate
             return null;
         }
 

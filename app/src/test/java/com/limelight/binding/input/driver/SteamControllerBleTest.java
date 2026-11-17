@@ -48,4 +48,27 @@ public class SteamControllerBleTest {
         assertEquals(1.0f, lt, 1e-4);
         assertEquals(1000.0f, gyroY, 1e-2);
     }
+
+    @Test
+    public void parsesUsbReportWithIdPrefix() {
+        // USB reads (puck/cable) carry the report ID byte before the same body
+        UsbDriverListener listener = new UsbDriverListener() {
+            public void reportControllerState(int id, int b, float lsx, float lsy, float rsx, float rsy, float l, float r) {
+                buttons = b; lx = lsx;
+            }
+            public void reportControllerMotion(int id, byte type, float x, float y, float z) {}
+            public void deviceRemoved(AbstractController c) {}
+            public void deviceAdded(AbstractController c) {}
+        };
+        SteamControllerBle sc = new SteamControllerBle(null, null, 0, listener);
+
+        ByteBuffer b = ByteBuffer.allocate(46).order(ByteOrder.LITTLE_ENDIAN);
+        b.put(0, (byte) SteamTritonController.ID_STATE);
+        b.putInt(2, 0x00000002); // B
+        b.putShort(10, (short) -32767); // left stick full left
+        sc.handleState(b.array(), 1, 45);
+
+        assertEquals(ControllerPacket.B_FLAG, buttons);
+        assertEquals(-1.0f, lx, 1e-4);
+    }
 }
