@@ -37,6 +37,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.opengl.GLSurfaceView;
@@ -213,6 +214,13 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         // Assume we're in the foreground when created to avoid a race
         // between binding to CMS and onResume()
         inForeground = true;
+
+        // Needed to drive a Bluetooth Steam Controller directly (SteamControllerBle)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) &&
+                checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.BLUETOOTH_CONNECT}, 0);
+        }
 
         // Create a GLSurfaceView to fetch GLRenderer unless we have
         // a cached result already.

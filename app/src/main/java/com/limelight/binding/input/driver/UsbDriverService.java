@@ -3,10 +3,14 @@ package com.limelight.binding.input.driver;
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
@@ -83,8 +87,15 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
+            // A bonded Bluetooth device came back (e.g. Steam Controller powered on)
+            if (action.equals(BluetoothDevice.ACTION_ACL_CONNECTED)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (device != null && SteamControllerBle.isSteamController(device)) {
+                    connectSteamController(device);
+                }
+            }
             // Initial attachment broadcast
-            if (action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
+            else if (action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
                 final UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
 
                 // shouldClaimDevice() looks at the kernel's enumerated input
@@ -221,6 +232,45 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         }
     }
 
+    private boolean hasBluetoothPermission() {
+        String perm = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ?
+                "android.permission.BLUETOOTH_CONNECT" : "android.permission.BLUETOOTH";
+        return checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @SuppressLint("MissingPermission")
+    private void startBluetooth() {
+        if (!hasBluetoothPermission()) {
+            LimeLog.info("No Bluetooth permission; Steam Controller BLE support disabled");
+            return;
+        }
+
+        BluetoothManager btManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter adapter = btManager != null ? btManager.getAdapter() : null;
+        if (adapter == null) {
+            return;
+        }
+
+        for (BluetoothDevice dev : adapter.getBondedDevices()) {
+            if (SteamControllerBle.isSteamController(dev)) {
+                connectSteamController(dev);
+            }
+        }
+    }
+
+    private void connectSteamController(BluetoothDevice device) {
+        for (AbstractController c : controllers) {
+            if (c instanceof SteamControllerBle && ((SteamControllerBle) c).getAddress().equals(device.getAddress())) {
+                return;
+            }
+        }
+
+        SteamControllerBle controller = new SteamControllerBle(this, device, nextDeviceId++, this);
+        if (controller.start()) {
+            controllers.add(controller);
+        }
+    }
+
     public static boolean isRecognizedInputDevice(UsbDevice device) {
         // Determine if this VID and PID combo matches an existing input device
         // and defer to the built-in controller support in that case.
@@ -306,6 +356,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         IntentFilter filter = new IntentFilter();
         filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
         filter.addAction(ACTION_USB_PERMISSION);
+        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED);
         }
@@ -320,6 +371,8 @@ public class UsbDriverService extends Service implements UsbDriverListener {
                 handleUsbDeviceState(dev);
             }
         }
+
+        startBluetooth();
     }
 
     private void stop() {
