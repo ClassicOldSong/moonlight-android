@@ -233,6 +233,8 @@
     <string name="title_checkbox_xb1_driver">Xbox 360/One/NintendoPro USB gamepad driver</string>
     <string name="summary_checkbox_xb1_driver">Enables a built-in USB driver for devices without native Xbox/Nintendo Pro controller support</string>
     <string name="title_checkbox_usb_bind_all">Override native Xbox gamepad support</string>
+    <string name="title_checkbox_steam_right_pad_mouse">Steam Controller right trackpad as mouse</string>
+    <string name="summary_checkbox_steam_right_pad_mouse">Slide on the right trackpad to move the mouse and click it to left-click, instead of using it as the right stick</string>
     <string name="summary_checkbox_usb_bind_all">Use Artemis\'s USB driver for all supported gamepads, even if native Xbox/Nintendo Pro controller support is present</string>
     <string name="title_checkbox_mouse_emulation">Mouse emulation via gamepad</string>
     <string name="summary_checkbox_mouse_emulation">Long-press the Start button to toggle between gamepad and mouse mode</string>
@@ -517,6 +519,9 @@
     <string name="summary_touch_sensitivity_y">Multi-touch mode, when playing games, some games may not meet the sensitivity adjustment needs, you can use this option to modify the sensitivity of the field of view.</string>
     <string name="title_debug_info">Debug Info</string>
     <string name="summary_debug_info">Test gamepad vibration and other stuff.</string>
+    <string name="title_controller_test">Controller Tester</string>
+    <string name="summary_controller_test">See what each button, stick, trigger, touchpad and gyro sends to the host.</string>
+    <string name="controller_test_hint">Press a button on a controller. Tap the screen to rumble it. Use the device\'s Back to exit.</string>
     <string name="title_touchpad_sensitivity_x">Touchpad Sensitivity X Axis</string>
     <string name="summary_touchpad_sensitivity_x">For mouse touchpad mode and virtual special button touchpad control;\nBoth share a sensitivity value, but the sensitivity performance may be different.\nDoes anyone use both together?</string>
     <string name="title_touchpad_sensitivity_y">Touchpad Sensitivity Y Axis</string>

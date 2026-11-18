@@ -37,6 +37,7 @@ import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.input.driver.AbstractController;
+import com.limelight.binding.input.driver.SteamTritonController;
 import com.limelight.binding.input.driver.UsbDriverListener;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.nvstream.NvConnection;
@@ -575,6 +576,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         context.device = device;
         context.external = true;
 
+        if (device instanceof SteamTritonController) {
+            ((SteamTritonController) device).setRightPadMouse(prefConfig.steamRightPadMouse);
+        }
+
         context.vendorId = device.getVendorId();
         context.productId = device.getProductId();
 
@@ -1015,6 +1020,15 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         return context;
     }
 
+    private boolean hasSteamController() {
+        for (int i = 0; i < usbDeviceContexts.size(); i++) {
+            if (usbDeviceContexts.valueAt(i).device instanceof SteamTritonController) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private InputDeviceContext getContextForEvent(InputEvent event) {
         // Don't return a context if we're stopped
         if (stopped) {
@@ -1028,6 +1042,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             // During device removal, sometimes we can get events after the
             // input device has been destroyed. In this case we'll see a
             // != 0 device ID but no device attached.
+            return null;
+        }
+        else if (event.getDevice().getVendorId() == SteamTritonController.VALVE_VID && hasSteamController()) {
+            // Our Steam Controller driver owns this controller; swallow its HID/lizard-mode duplicate
             return null;
         }
 
@@ -2998,6 +3016,27 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     @Override
+    public void reportControllerMouse(int controllerId, short deltaX, short deltaY, boolean leftButton) {
+        UsbDeviceContext context = usbDeviceContexts.get(controllerId);
+        if (context == null) {
+            return;
+        }
+
+        if (deltaX != 0 || deltaY != 0) {
+            conn.sendMouseMove(deltaX, deltaY);
+        }
+        if (leftButton != context.padMouseButton) {
+            context.padMouseButton = leftButton;
+            if (leftButton) {
+                conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
+            }
+            else {
+                conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+            }
+        }
+    }
+
+    @Override
     public void reportControllerMotion(int controllerId, byte motionType, float motionX, float motionY, float motionZ) {
         GenericControllerContext context = usbDeviceContexts.get(controllerId);
         if (context == null) {
@@ -3433,6 +3472,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     class UsbDeviceContext extends InputDeviceContext {
+        public boolean padMouseButton; // left button held via a trackpad mouse
         public AbstractController device;
 
 //        @Override

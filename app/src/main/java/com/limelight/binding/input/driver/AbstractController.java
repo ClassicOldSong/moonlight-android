@@ -56,6 +56,10 @@ public abstract class AbstractController {
                 rightStickX, rightStickY, leftTrigger, rightTrigger);
     }
 
+    protected void reportMouse(short deltaX, short deltaY, boolean leftButton) {
+        listener.reportControllerMouse(deviceId, deltaX, deltaY, leftButton);
+    }
+
     // New method to report motion events
     protected void reportMotion() {
         listener.reportControllerMotion(deviceId, MoonBridge.LI_MOTION_TYPE_GYRO, gyroX, gyroY, gyroZ);

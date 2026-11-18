@@ -237,10 +237,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private WifiManager.WifiLock lowLatencyWifiLock;
 
     private boolean connectedToUsbDriverService = false;
+    private UsbDriverService.UsbDriverBinder usbDriverBinder;
     private ServiceConnection usbDriverServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             UsbDriverService.UsbDriverBinder binder = (UsbDriverService.UsbDriverBinder) iBinder;
+            usbDriverBinder = binder;
             binder.setListener(controllerHandler);
             binder.setStateListener(Game.this);
             binder.start();
@@ -1733,6 +1735,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         if (connectedToUsbDriverService) {
+            // The service outlives us while the app's menus use it, so hand the controllers back
+            usbDriverBinder.setListener(null);
+            usbDriverBinder.setStateListener(null);
+
             // Unbind from the discovery service
             unbindService(usbDriverServiceConnection);
         }

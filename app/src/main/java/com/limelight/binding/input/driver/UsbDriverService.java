@@ -3,12 +3,17 @@ package com.limelight.binding.input.driver;
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import android.os.Binder;
 import android.os.Build;
@@ -39,6 +44,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
     private final ArrayList<AbstractController> controllers = new ArrayList<>();
 
     private UsbDriverListener listener;
+    private final MenuNavigator menuNavigator = new MenuNavigator();
     private UsbDriverStateListener stateListener;
     private int nextDeviceId;
 
@@ -48,6 +54,17 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         // Call through to the client's listener
         if (listener != null) {
             listener.reportControllerState(controllerId, buttonFlags, leftStickX, leftStickY, rightStickX, rightStickY, leftTrigger, rightTrigger);
+        }
+        else {
+            // No stream is using it: drive our own menus instead
+            menuNavigator.update(controllerId, buttonFlags, leftStickX, leftStickY);
+        }
+    }
+
+    @Override
+    public void reportControllerMouse(int controllerId, short deltaX, short deltaY, boolean leftButton) {
+        if (listener != null) {
+            listener.reportControllerMouse(controllerId, deltaX, deltaY, leftButton);
         }
     }
 
@@ -63,6 +80,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
     public void deviceRemoved(AbstractController controller) {
         // Remove the the controller from our list (if not removed already)
         controllers.remove(controller);
+        menuNavigator.release(controller.getControllerId());
 
         // Call through to the client's listener
         if (listener != null) {
@@ -83,8 +101,15 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
+            // A bonded Bluetooth device came back (e.g. Steam Controller powered on)
+            if (action.equals(BluetoothDevice.ACTION_ACL_CONNECTED)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (device != null && SteamControllerBle.isSteamController(device)) {
+                    connectSteamController(device);
+                }
+            }
             // Initial attachment broadcast
-            if (action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
+            else if (action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
                 final UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
 
                 // shouldClaimDevice() looks at the kernel's enumerated input
@@ -122,6 +147,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
     public class UsbDriverBinder extends Binder {
         public void setListener(UsbDriverListener listener) {
             UsbDriverService.this.listener = listener;
+            menuNavigator.releaseAll();
 
             // Report all controllerMap that already exist
             if (listener != null) {
@@ -183,6 +209,26 @@ public class UsbDriverService extends Service implements UsbDriverListener {
                 return;
             }
 
+            // The Steam Controller puck has one controller slot per interface, so give each
+            // slot its own connection and driver instance
+            if (SteamControllerUsb.canClaimDevice(device)) {
+                for (UsbInterface iface : SteamControllerUsb.controllerInterfaces(device)) {
+                    UsbDeviceConnection conn = usbManager.openDevice(device);
+                    if (conn == null) {
+                        LimeLog.warning("Unable to open USB device: "+device.getDeviceName());
+                        return;
+                    }
+                    SteamControllerUsb controller = new SteamControllerUsb(device, conn, iface, nextDeviceId++, this);
+                    if (controller.start()) {
+                        controllers.add(controller);
+                    }
+                    else {
+                        conn.close();
+                    }
+                }
+                return;
+            }
+
             // Open the device
             UsbDeviceConnection connection = usbManager.openDevice(device);
             if (connection == null) {
@@ -217,6 +263,45 @@ public class UsbDriverService extends Service implements UsbDriverListener {
             }
 
             // Add this controller to the list
+            controllers.add(controller);
+        }
+    }
+
+    private boolean hasBluetoothPermission() {
+        String perm = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ?
+                "android.permission.BLUETOOTH_CONNECT" : "android.permission.BLUETOOTH";
+        return checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @SuppressLint("MissingPermission")
+    private void startBluetooth() {
+        if (!hasBluetoothPermission()) {
+            LimeLog.info("No Bluetooth permission; Steam Controller BLE support disabled");
+            return;
+        }
+
+        BluetoothManager btManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter adapter = btManager != null ? btManager.getAdapter() : null;
+        if (adapter == null) {
+            return;
+        }
+
+        for (BluetoothDevice dev : adapter.getBondedDevices()) {
+            if (SteamControllerBle.isSteamController(dev)) {
+                connectSteamController(dev);
+            }
+        }
+    }
+
+    private void connectSteamController(BluetoothDevice device) {
+        for (AbstractController c : controllers) {
+            if (c instanceof SteamControllerBle && ((SteamControllerBle) c).getAddress().equals(device.getAddress())) {
+                return;
+            }
+        }
+
+        SteamControllerBle controller = new SteamControllerBle(this, device, nextDeviceId++, this);
+        if (controller.start()) {
             controllers.add(controller);
         }
     }
@@ -291,7 +376,9 @@ public class UsbDriverService extends Service implements UsbDriverListener {
                 ((!isRecognizedInputDevice(device) || claimAllAvailable) && Xbox360Controller.canClaimDevice(device)) ||
                 // We must not call isRecognizedInputDevice() because wireless controllers don't share the same product ID as the dongle
                 ((!kernelSupportsXbox360W() || claimAllAvailable) && Xbox360WirelessDongle.canClaimDevice(device)) ||
-                ((!isRecognizedInputDevice(device) || claimAllAvailable) && ProConController.canClaimDevice(device));
+                ((!isRecognizedInputDevice(device) || claimAllAvailable) && ProConController.canClaimDevice(device)) ||
+                // Android only ever sees the Steam Controller's mouse/keyboard mode, so always take it
+                SteamControllerUsb.canClaimDevice(device);
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -306,6 +393,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         IntentFilter filter = new IntentFilter();
         filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
         filter.addAction(ACTION_USB_PERMISSION);
+        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED);
         }
@@ -320,6 +408,8 @@ public class UsbDriverService extends Service implements UsbDriverListener {
                 handleUsbDeviceState(dev);
             }
         }
+
+        startBluetooth();
     }
 
     private void stop() {
@@ -352,6 +442,8 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         // Remove listeners
         listener = null;
         stateListener = null;
+
+        menuNavigator.releaseAll();
     }
 
     @Override
