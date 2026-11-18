@@ -272,6 +272,13 @@
             android:title="@string/title_checkbox_usb_bind_all"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
+            android:defaultValue="false"
+            android:dependency="checkbox_usb_driver"
+            android:key="checkbox_steam_right_pad_mouse"
+            android:summary="@string/summary_checkbox_steam_right_pad_mouse"
+            android:title="@string/title_checkbox_steam_right_pad_mouse"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
             android:defaultValue="true"
             android:key="checkbox_mouse_emulation"
             android:summary="@string/summary_checkbox_mouse_emulation"
@@ -1013,6 +1020,12 @@
             android:key="pref_debug_info"
             android:summary="@string/summary_debug_info"
             android:title="@string/title_debug_info"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_controller_test"
+            android:summary="@string/summary_controller_test"
+            android:title="@string/title_controller_test"
             app:iconSpaceReserved="false" />
 
         <com.limelight.preferences.WebLauncherPreference

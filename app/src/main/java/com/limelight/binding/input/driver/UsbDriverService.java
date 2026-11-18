@@ -44,6 +44,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
     private final ArrayList<AbstractController> controllers = new ArrayList<>();
 
     private UsbDriverListener listener;
+    private final MenuNavigator menuNavigator = new MenuNavigator();
     private UsbDriverStateListener stateListener;
     private int nextDeviceId;
 
@@ -53,6 +54,17 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         // Call through to the client's listener
         if (listener != null) {
             listener.reportControllerState(controllerId, buttonFlags, leftStickX, leftStickY, rightStickX, rightStickY, leftTrigger, rightTrigger);
+        }
+        else {
+            // No stream is using it: drive our own menus instead
+            menuNavigator.update(controllerId, buttonFlags, leftStickX, leftStickY);
+        }
+    }
+
+    @Override
+    public void reportControllerMouse(int controllerId, short deltaX, short deltaY, boolean leftButton) {
+        if (listener != null) {
+            listener.reportControllerMouse(controllerId, deltaX, deltaY, leftButton);
         }
     }
 
@@ -68,6 +80,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
     public void deviceRemoved(AbstractController controller) {
         // Remove the the controller from our list (if not removed already)
         controllers.remove(controller);
+        menuNavigator.release(controller.getControllerId());
 
         // Call through to the client's listener
         if (listener != null) {
@@ -134,6 +147,7 @@ public class UsbDriverService extends Service implements UsbDriverListener {
     public class UsbDriverBinder extends Binder {
         public void setListener(UsbDriverListener listener) {
             UsbDriverService.this.listener = listener;
+            menuNavigator.releaseAll();
 
             // Report all controllerMap that already exist
             if (listener != null) {
@@ -428,6 +442,8 @@ public class UsbDriverService extends Service implements UsbDriverListener {
         // Remove listeners
         listener = null;
         stateListener = null;
+
+        menuNavigator.releaseAll();
     }
 
     @Override

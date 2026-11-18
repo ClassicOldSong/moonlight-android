@@ -44,6 +44,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
+import com.limelight.ControllerTestActivity;
 import com.limelight.DebugInfoActivity;
 import com.limelight.BuildConfig;
 import com.limelight.GameMenu;
@@ -855,6 +856,14 @@ public class StreamSettings extends AppCompatActivity {
                         requireActivity().startActivity(intent);
                         return false;
                     }
+                });
+            }
+
+            _pref = findPreference("pref_controller_test");
+            if (_pref != null) {
+                _pref.setOnPreferenceClickListener(preference -> {
+                    startActivity(new Intent(requireActivity(), ControllerTestActivity.class));
+                    return false;
                 });
             }
 

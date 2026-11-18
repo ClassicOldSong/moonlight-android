@@ -21,6 +21,10 @@ public abstract class SteamTritonController extends AbstractController {
 
     static final int ID_OUT_RUMBLE = 0x80;
 
+    // Trackpad bits in the button word (measured on hardware; the click fires past ~10% pressure)
+    static final int LPAD_TOUCH = 0x02000000, LPAD_CLICK = 0x04000000;
+    static final int RPAD_TOUCH = 0x00200000, RPAD_CLICK = 0x00400000;
+
     // Feature report body (after the report ID byte): ID_SET_SETTINGS_VALUES with
     // SETTING_LIZARD_MODE(9)=OFF and SETTING_IMU_MODE(48)=RAW_ACCEL|RAW_GYRO.
     // The controller re-enables lizard mode on its own if this isn't resent within a few
@@ -36,7 +40,26 @@ public abstract class SteamTritonController extends AbstractController {
     private static final float GYRO_SCALE = 2000.0f / 32768.0f;          // -> deg/s
     private static final float ACCEL_SCALE = 2.0f * 9.80665f / 32768.0f; // -> m/s^2
 
+    // Controller tester hook: the raw button word and trackpads, which aren't sent to the host
+    public interface RawListener {
+        void onRawState(int buttons, short leftPadX, short leftPadY, int leftPressure,
+                        short rightPadX, short rightPadY, int rightPressure);
+    }
+    public static volatile RawListener rawListener;
+
     protected volatile short lowFreqMotor, highFreqMotor;
+
+    // Right trackpad as a mouse instead of the right stick (set by ControllerHandler from settings)
+    private volatile boolean rightPadMouse;
+    // ponytail: fixed speed, a full swipe across the pad is ~1600 px; add a slider if it feels off
+    private static final float PAD_MOUSE_SCALE = 1 / 40.0f;
+    private boolean padMouseTouching, padMouseButton;
+    private short padMouseLastX, padMouseLastY;
+    private float padMouseRemX, padMouseRemY;
+
+    public void setRightPadMouse(boolean enabled) {
+        rightPadMouse = enabled;
+    }
 
     protected SteamTritonController(int deviceId, UsbDriverListener listener, int productId) {
         super(deviceId, listener, VALVE_VID, productId);
@@ -75,12 +98,21 @@ public abstract class SteamTritonController extends AbstractController {
         ByteBuffer b = ByteBuffer.wrap(data, off, len).slice().order(ByteOrder.LITTLE_ENDIAN);
         int buttons = b.getInt(1);
 
+        RawListener raw = rawListener;
+        if (raw != null && len >= 29) {
+            // Trackpad fields per SDL's TritonMTUNoQuat_t: X, Y, pressure for each pad
+            raw.onRawState(buttons, b.getShort(17), b.getShort(19), b.getShort(21) & 0xFFFF,
+                    b.getShort(23), b.getShort(25), b.getShort(27) & 0xFFFF);
+        }
+
         setButtonFlag(ControllerPacket.A_FLAG, buttons & 0x00000001);
         setButtonFlag(ControllerPacket.B_FLAG, buttons & 0x00000002);
         setButtonFlag(ControllerPacket.X_FLAG, buttons & 0x00000004);
         setButtonFlag(ControllerPacket.Y_FLAG, buttons & 0x00000008);
         setButtonFlag(ControllerPacket.MISC_FLAG, buttons & 0x00000010); // QAM (...)
-        setButtonFlag(ControllerPacket.RS_CLK_FLAG, buttons & 0x00000020);
+        boolean padMouse = rightPadMouse;
+        // or a right pad click, unless that pad is the mouse
+        setButtonFlag(ControllerPacket.RS_CLK_FLAG, buttons & (0x00000020 | (padMouse ? 0 : RPAD_CLICK)));
         setButtonFlag(ControllerPacket.PLAY_FLAG, buttons & 0x00000040); // SDL maps this bit to Start
         setButtonFlag(ControllerPacket.PADDLE1_FLAG, buttons & 0x00000080); // R4
         setButtonFlag(ControllerPacket.PADDLE3_FLAG, buttons & 0x00000100); // R5
@@ -90,7 +122,7 @@ public abstract class SteamTritonController extends AbstractController {
         setButtonFlag(ControllerPacket.LEFT_FLAG, buttons & 0x00001000);
         setButtonFlag(ControllerPacket.UP_FLAG, buttons & 0x00002000);
         setButtonFlag(ControllerPacket.BACK_FLAG, buttons & 0x00004000); // SDL maps this bit to Back
-        setButtonFlag(ControllerPacket.LS_CLK_FLAG, buttons & 0x00008000);
+        setButtonFlag(ControllerPacket.LS_CLK_FLAG, buttons & (0x00008000 | LPAD_CLICK)); // or a left pad click
         setButtonFlag(ControllerPacket.SPECIAL_BUTTON_FLAG, buttons & 0x00010000); // Steam
         setButtonFlag(ControllerPacket.PADDLE2_FLAG, buttons & 0x00020000); // L4
         setButtonFlag(ControllerPacket.PADDLE4_FLAG, buttons & 0x00040000); // L5
@@ -103,7 +135,18 @@ public abstract class SteamTritonController extends AbstractController {
         leftStickY = -b.getShort(11) / 32767.0f;
         rightStickX = b.getShort(13) / 32767.0f;
         rightStickY = -b.getShort(15) / 32767.0f;
+        if (len >= 29) {
+            if ((buttons & LPAD_TOUCH) != 0) {
+                applyTrackpad(true, b.getShort(17), b.getShort(19));
+            }
+            if ((buttons & RPAD_TOUCH) != 0 && !padMouse) {
+                applyTrackpad(false, b.getShort(23), b.getShort(25));
+            }
+        }
         reportInput();
+        if (padMouse && len >= 29) {
+            handlePadMouse(buttons, b.getShort(23), b.getShort(25));
+        }
 
         if (len >= 45) {
             // Same axis remap SDL applies, which is the convention Moonlight hosts expect
@@ -117,11 +160,63 @@ public abstract class SteamTritonController extends AbstractController {
         }
     }
 
+    // Hosts have no trackpads on an Xbox pad, so a touched pad drives the stick on its side,
+    // by absolute finger position. Whichever of the pad and the stick is pushed further wins.
+    private void applyTrackpad(boolean left, short rawX, short rawY) {
+        // Same up-positive Y as the sticks; the pads are square, so pull the corners onto the circle
+        float x = rawX / 32767.0f, y = -rawY / 32767.0f;
+        float magnitude = (float) Math.hypot(x, y);
+        if (magnitude > 1) {
+            x /= magnitude;
+            y /= magnitude;
+            magnitude = 1;
+        }
+        if (left && magnitude > Math.hypot(leftStickX, leftStickY)) {
+            leftStickX = x;
+            leftStickY = y;
+        }
+        else if (!left && magnitude > Math.hypot(rightStickX, rightStickY)) {
+            rightStickX = x;
+            rightStickY = y;
+        }
+    }
+
+    // Relative motion while the finger is down, like a laptop touchpad; a pad click is a left click
+    private void handlePadMouse(int buttons, short x, short y) {
+        boolean touching = (buttons & RPAD_TOUCH) != 0;
+        short dx = 0, dy = 0;
+        if (touching && padMouseTouching) {
+            padMouseRemX += (x - padMouseLastX) * PAD_MOUSE_SCALE;
+            padMouseRemY += (padMouseLastY - y) * PAD_MOUSE_SCALE; // pad Y is up-positive, mouse Y down
+            dx = (short) padMouseRemX;
+            dy = (short) padMouseRemY;
+            padMouseRemX -= dx;
+            padMouseRemY -= dy;
+        }
+        else {
+            padMouseRemX = padMouseRemY = 0;
+        }
+        padMouseTouching = touching;
+        padMouseLastX = x;
+        padMouseLastY = y;
+
+        boolean button = (buttons & RPAD_CLICK) != 0;
+        if (dx != 0 || dy != 0 || button != padMouseButton) {
+            padMouseButton = button;
+            reportMouse(dx, dy, button);
+        }
+    }
+
     // Controller went out of range or to sleep: release everything so nothing sticks held
     protected void reportNeutral() {
         buttonFlags = 0;
         leftTrigger = rightTrigger = 0;
         leftStickX = leftStickY = rightStickX = rightStickY = 0;
         reportInput();
+        padMouseTouching = false;
+        if (padMouseButton) {
+            padMouseButton = false;
+            reportMouse((short) 0, (short) 0, false);
+        }
     }
 }

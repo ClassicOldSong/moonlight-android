@@ -576,6 +576,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         context.device = device;
         context.external = true;
 
+        if (device instanceof SteamTritonController) {
+            ((SteamTritonController) device).setRightPadMouse(prefConfig.steamRightPadMouse);
+        }
+
         context.vendorId = device.getVendorId();
         context.productId = device.getProductId();
 
@@ -3012,6 +3016,27 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     @Override
+    public void reportControllerMouse(int controllerId, short deltaX, short deltaY, boolean leftButton) {
+        UsbDeviceContext context = usbDeviceContexts.get(controllerId);
+        if (context == null) {
+            return;
+        }
+
+        if (deltaX != 0 || deltaY != 0) {
+            conn.sendMouseMove(deltaX, deltaY);
+        }
+        if (leftButton != context.padMouseButton) {
+            context.padMouseButton = leftButton;
+            if (leftButton) {
+                conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
+            }
+            else {
+                conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+            }
+        }
+    }
+
+    @Override
     public void reportControllerMotion(int controllerId, byte motionType, float motionX, float motionY, float motionZ) {
         GenericControllerContext context = usbDeviceContexts.get(controllerId);
         if (context == null) {
@@ -3447,6 +3472,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     class UsbDeviceContext extends InputDeviceContext {
+        public boolean padMouseButton; // left button held via a trackpad mouse
         public AbstractController device;
 
 //        @Override

@@ -244,6 +244,9 @@
         <activity android:name=".DebugInfoActivity"
             android:launchMode="singleTask"/>
 
+        <activity android:name=".ControllerTestActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize"/>
+
         <!-- 无障碍 实体键盘 屏蔽某些快捷键 -->
         <service
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
